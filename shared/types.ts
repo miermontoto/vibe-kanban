@@ -369,6 +369,30 @@ export type TaskUpdateResponse = { auto_pr_results: Array<AutoPrResult> | null, 
 
 export type UnifiedPrComment = { "comment_type": "general", id: string, author: string, author_association: string, body: string, created_at: string, url: string, } | { "comment_type": "review", id: bigint, author: string, author_association: string, body: string, created_at: string, url: string, path: string, line: bigint | null, diff_hunk: string, };
 
+export type GitProviderKind = "git_hub" | "git_lab" | "bitbucket" | "azure_dev_ops" | "generic";
+
+export type RepoInfo = { 
+/**
+ * Provider kind
+ */
+kind: GitProviderKind, 
+/**
+ * Repository owner/organization/workspace
+ */
+owner: string, 
+/**
+ * Repository name
+ */
+repo_name: string, 
+/**
+ * Base URL for web interface (e.g., https://github.com/owner/repo)
+ */
+base_url: string, 
+/**
+ * Host (e.g., github.com, gitlab.com)
+ */
+host: string, };
+
 export type RepoBranchStatus = { repo_id: string, repo_name: string, commits_behind: number | null, commits_ahead: number | null, has_uncommitted_changes: boolean | null, head_oid: string | null, uncommitted_count: number | null, untracked_count: number | null, target_branch_name: string, remote_commits_behind: number | null, remote_commits_ahead: number | null, merges: Array<Merge>, 
 /**
  * True if a `git rebase` is currently in progress in this worktree

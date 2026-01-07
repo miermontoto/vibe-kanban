@@ -1,5 +1,6 @@
 use std::{path::Path, time::Duration};
 
+use async_trait::async_trait;
 use backon::{ExponentialBuilder, Retryable};
 use chrono::{DateTime, Utc};
 use db::models::merge::PullRequestInfo;
@@ -14,6 +15,10 @@ mod cli;
 
 use cli::{GhCli, GhCliError, PrComment, PrReviewComment};
 pub use cli::{PrCommentAuthor, ReviewCommentUser};
+
+use super::git_provider::{
+    GitProviderError, GitProviderKind, GitProviderService, ProviderCapability, RepoInfo,
+};
 
 /// Unified PR comment that can be either a general comment or review comment
 #[derive(Debug, Clone, Serialize, TS)]
@@ -99,6 +104,49 @@ impl GitHubServiceError {
                 | GitHubServiceError::RepoNotFoundOrNoAccess(_)
                 | GitHubServiceError::GhCliNotInstalled(_)
         )
+    }
+}
+
+impl From<GitHubServiceError> for GitProviderError {
+    fn from(error: GitHubServiceError) -> Self {
+        match error {
+            GitHubServiceError::Repository(msg) => GitProviderError::Repository(msg),
+            GitHubServiceError::PullRequest(msg) => GitProviderError::PullRequest(msg),
+            GitHubServiceError::AuthFailed(e) => GitProviderError::AuthFailed(e.to_string()),
+            GitHubServiceError::InsufficientPermissions(e) => {
+                GitProviderError::InsufficientPermissions(e.to_string())
+            }
+            GitHubServiceError::RepoNotFoundOrNoAccess(e) => {
+                GitProviderError::RepoNotFoundOrNoAccess(e.to_string())
+            }
+            GitHubServiceError::GhCliNotInstalled(e) => {
+                GitProviderError::CliNotInstalled(format!("GitHub CLI: {}", e))
+            }
+        }
+    }
+}
+
+impl From<GitProviderError> for GitHubServiceError {
+    fn from(error: GitProviderError) -> Self {
+        match error {
+            GitProviderError::Repository(msg) => GitHubServiceError::Repository(msg),
+            GitProviderError::PullRequest(msg) => GitHubServiceError::PullRequest(msg),
+            GitProviderError::AuthFailed(msg) => {
+                GitHubServiceError::AuthFailed(GhCliError::AuthFailed(msg))
+            }
+            GitProviderError::InsufficientPermissions(msg) => {
+                GitHubServiceError::InsufficientPermissions(GhCliError::CommandFailed(msg))
+            }
+            GitProviderError::RepoNotFoundOrNoAccess(msg) => {
+                GitHubServiceError::RepoNotFoundOrNoAccess(GhCliError::CommandFailed(msg))
+            }
+            GitProviderError::CliNotInstalled(msg) => {
+                GitHubServiceError::GhCliNotInstalled(GhCliError::CommandFailed(msg))
+            }
+            GitProviderError::UnsupportedProvider(msg)
+            | GitProviderError::OperationNotSupported(msg)
+            | GitProviderError::InvalidUrl(msg) => GitHubServiceError::Repository(msg),
+        }
     }
 }
 
@@ -457,5 +505,81 @@ impl GitHubService {
             );
         })
         .await
+    }
+}
+
+/// Implement the GitProviderService trait for GitHub
+#[async_trait]
+impl GitProviderService for GitHubService {
+    async fn get_repo_info(&self, repo_path: &Path) -> Result<RepoInfo, GitProviderError> {
+        let github_info = self
+            .get_repo_info(repo_path)
+            .await
+            .map_err(GitProviderError::from)?;
+
+        Ok(RepoInfo {
+            kind: GitProviderKind::GitHub,
+            owner: github_info.owner.clone(),
+            repo_name: github_info.repo_name.clone(),
+            base_url: format!(
+                "https://github.com/{}/{}",
+                github_info.owner, github_info.repo_name
+            ),
+            host: "github.com".to_string(),
+        })
+    }
+
+    async fn check_auth(&self) -> Result<(), GitProviderError> {
+        self.check_token().await.map_err(GitProviderError::from)
+    }
+
+    async fn create_pr(
+        &self,
+        repo_info: &RepoInfo,
+        request: &CreatePrRequest,
+    ) -> Result<PullRequestInfo, GitProviderError> {
+        let github_info = repo_info.to_github_repo_info();
+        self.create_pr(&github_info, request)
+            .await
+            .map_err(GitProviderError::from)
+    }
+
+    async fn update_pr_status(
+        &self,
+        pr_url: &str,
+    ) -> Result<PullRequestInfo, GitProviderError> {
+        self.update_pr_status(pr_url)
+            .await
+            .map_err(GitProviderError::from)
+    }
+
+    async fn list_prs_for_branch(
+        &self,
+        repo_info: &RepoInfo,
+        branch_name: &str,
+    ) -> Result<Vec<PullRequestInfo>, GitProviderError> {
+        let github_info = repo_info.to_github_repo_info();
+        self.list_all_prs_for_branch(&github_info, branch_name)
+            .await
+            .map_err(GitProviderError::from)
+    }
+
+    async fn get_pr_comments(
+        &self,
+        repo_info: &RepoInfo,
+        pr_number: i64,
+    ) -> Result<Vec<UnifiedPrComment>, GitProviderError> {
+        let github_info = repo_info.to_github_repo_info();
+        self.get_pr_comments(&github_info, pr_number)
+            .await
+            .map_err(GitProviderError::from)
+    }
+
+    fn capability(&self) -> ProviderCapability {
+        ProviderCapability::Full
+    }
+
+    fn provider_kind(&self) -> GitProviderKind {
+        GitProviderKind::GitHub
     }
 }

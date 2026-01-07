@@ -39,7 +39,7 @@ pub enum GitServiceError {
     RebaseInProgress,
 }
 /// Service for managing Git operations in task execution workflows
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GitService {}
 
 // Max inline diff size for UI (in bytes). Files larger than this will have

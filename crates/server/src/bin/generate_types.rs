@@ -144,6 +144,8 @@ fn generate_types_content() -> String {
         server::routes::task_attempts::pr::AutoPrError::decl(),
         server::routes::tasks::TaskUpdateResponse::decl(),
         services::services::github::UnifiedPrComment::decl(),
+        services::services::git_provider::GitProviderKind::decl(),
+        services::services::git_provider::RepoInfo::decl(),
         server::routes::task_attempts::RepoBranchStatus::decl(),
         services::services::filesystem::DirectoryEntry::decl(),
         services::services::filesystem::DirectoryListResponse::decl(),
