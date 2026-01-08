@@ -761,6 +761,9 @@ export function ProjectTasks() {
           status: newStatus,
           parent_workspace_id: task.parent_workspace_id,
           image_ids: null,
+          use_ralph_wiggum: task.use_ralph_wiggum,
+          ralph_max_iterations: task.ralph_max_iterations,
+          ralph_completion_promise: task.ralph_completion_promise,
         });
       } catch (err) {
         console.error('Failed to update task status:', err);

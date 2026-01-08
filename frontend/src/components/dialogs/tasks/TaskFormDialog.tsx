@@ -83,6 +83,9 @@ type TaskFormValues = {
   repoBranches: RepoBranch[];
   autoStart: boolean;
   customBranchName: string;
+  useRalphWiggum: boolean;
+  ralphMaxIterations: number;
+  ralphCompletionPromise: string;
 };
 
 // mimic the backend git_branch_id function (crates/utils/src/text.rs)
@@ -177,6 +180,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           repoBranches: defaultRepoBranches,
           autoStart: false,
           customBranchName: '',
+          useRalphWiggum: false,
+          ralphMaxIterations: 10,
+          ralphCompletionPromise: 'COMPLETE',
         };
 
       case 'duplicate':
@@ -188,6 +194,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           repoBranches: defaultRepoBranches,
           autoStart: true,
           customBranchName: '',
+          useRalphWiggum: false,
+          ralphMaxIterations: 10,
+          ralphCompletionPromise: 'COMPLETE',
         };
 
       case 'subtask':
@@ -201,6 +210,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           repoBranches: defaultRepoBranches,
           autoStart: true,
           customBranchName: '',
+          useRalphWiggum: false,
+          ralphMaxIterations: 10,
+          ralphCompletionPromise: 'COMPLETE',
         };
     }
   }, [mode, props, system.config?.executor_profile, defaultRepoBranches]);
@@ -217,6 +229,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
             status: value.status,
             parent_workspace_id: null,
             image_ids: images.length > 0 ? images.map((img) => img.id) : null,
+            use_ralph_wiggum: value.useRalphWiggum,
+            ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
+            ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
           },
         },
         { onSuccess: () => modal.remove() }
@@ -233,6 +248,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           mode === 'subtask' ? props.parentTaskAttemptId : null,
         image_ids: imageIds,
         shared_task_id: null,
+        use_ralph_wiggum: value.useRalphWiggum,
+        ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
+        ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
       };
       const shouldAutoStart = value.autoStart && !forceCreateOnlyRef.current;
       if (shouldAutoStart) {
@@ -689,6 +707,84 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                   </div>
                 );
               }}
+            </form.Field>
+          )}
+
+          {/* Ralph Wiggum Configuration */}
+          {!editMode && (
+            <form.Field name="useRalphWiggum">
+              {(ralphField) => (
+                <div className="space-y-3 py-2 my-2 border-t border-border pt-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="ralph-wiggum-switch"
+                      checked={ralphField.state.value}
+                      onCheckedChange={(checked) =>
+                        ralphField.handleChange(checked)
+                      }
+                      disabled={isSubmitting}
+                      className="data-[state=checked]:bg-gray-900 dark:data-[state=checked]:bg-gray-100"
+                      aria-label="Enable Ralph Wiggum mode"
+                    />
+                    <Label
+                      htmlFor="ralph-wiggum-switch"
+                      className="text-sm cursor-pointer"
+                    >
+                      Ralph Wiggum mode
+                    </Label>
+                  </div>
+                  {ralphField.state.value && (
+                    <div className="space-y-2 pl-8">
+                      <form.Field name="ralphMaxIterations">
+                        {(field) => (
+                          <div className="flex items-center gap-2">
+                            <Label
+                              htmlFor="ralph-max-iterations"
+                              className="text-xs text-muted-foreground w-32"
+                            >
+                              Max iterations:
+                            </Label>
+                            <Input
+                              id="ralph-max-iterations"
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={field.state.value}
+                              onChange={(e) =>
+                                field.handleChange(Number(e.target.value))
+                              }
+                              className="h-8 text-sm w-20"
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                        )}
+                      </form.Field>
+                      <form.Field name="ralphCompletionPromise">
+                        {(field) => (
+                          <div className="flex items-center gap-2">
+                            <Label
+                              htmlFor="ralph-completion-promise"
+                              className="text-xs text-muted-foreground w-32"
+                            >
+                              Completion signal:
+                            </Label>
+                            <Input
+                              id="ralph-completion-promise"
+                              value={field.state.value}
+                              onChange={(e) =>
+                                field.handleChange(e.target.value)
+                              }
+                              placeholder="COMPLETE"
+                              className="h-8 text-sm flex-1"
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                        )}
+                      </form.Field>
+                    </div>
+                  )}
+                </div>
+              )}
             </form.Field>
           )}
 
