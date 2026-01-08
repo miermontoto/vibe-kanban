@@ -40,7 +40,7 @@ const InitialDataScrollModifier: ScrollModifier = {
 
 const AutoScrollToBottom: ScrollModifier = {
   type: 'auto-scroll-to-bottom',
-  autoScroll: 'smooth',
+  autoScroll: true,
 };
 
 const ItemContent: VirtuosoMessageListProps<
