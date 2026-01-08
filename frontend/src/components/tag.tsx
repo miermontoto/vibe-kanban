@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { TaskLabel } from '../../shared/types';
+import { TaskLabel } from '../../../shared/types';
 
 interface TagProps {
   label: TaskLabel;

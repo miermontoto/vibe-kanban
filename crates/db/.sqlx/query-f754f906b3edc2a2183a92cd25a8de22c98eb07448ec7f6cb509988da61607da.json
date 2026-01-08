@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\",\n                      name,\n                      dev_script,\n                      dev_script_working_dir,\n                      default_agent_working_dir,\n                      remote_project_id as \"remote_project_id: Uuid\",\n                      git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                      git_commit_title_mode,\n                      auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                      auto_pr_draft as \"auto_pr_draft?: bool\",\n                      redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                      created_at as \"created_at!: DateTime<Utc>\",\n                      updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM projects\n               WHERE remote_project_id = $1\n               LIMIT 1",
+  "query": "\n            SELECT p.id as \"id!: Uuid\", p.name, p.dev_script, p.dev_script_working_dir,\n                   p.default_agent_working_dir,\n                   p.remote_project_id as \"remote_project_id: Uuid\",\n                   p.git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                   p.git_commit_title_mode,\n                   p.auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                   p.auto_pr_draft as \"auto_pr_draft?: bool\",\n                   p.redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                   p.git_auto_push_mode,\n                   p.created_at as \"created_at!: DateTime<Utc>\", p.updated_at as \"updated_at!: DateTime<Utc>\"\n            FROM projects p\n            WHERE p.id IN (\n                SELECT DISTINCT t.project_id\n                FROM tasks t\n                INNER JOIN workspaces w ON w.task_id = t.id\n                ORDER BY w.updated_at DESC\n            )\n            LIMIT $1\n            ",
   "describe": {
     "columns": [
       {
@@ -59,13 +59,18 @@
         "type_info": "Integer"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
+        "name": "git_auto_push_mode",
         "ordinal": 11,
         "type_info": "Text"
       },
       {
-        "name": "updated_at!: DateTime<Utc>",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at!: DateTime<Utc>",
+        "ordinal": 13,
         "type_info": "Text"
       }
     ],
@@ -84,9 +89,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "b05526832943c741c5508026ec4dd376bcdac1e27477ede7422345ac9b842d46"
+  "hash": "f754f906b3edc2a2183a92cd25a8de22c98eb07448ec7f6cb509988da61607da"
 }

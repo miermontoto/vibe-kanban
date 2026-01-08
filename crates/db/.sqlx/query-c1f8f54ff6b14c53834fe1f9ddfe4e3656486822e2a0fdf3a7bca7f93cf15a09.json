@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT p.id as \"id!: Uuid\",\n                      p.name,\n                      p.dev_script,\n                      p.dev_script_working_dir,\n                      p.default_agent_working_dir,\n                      p.remote_project_id as \"remote_project_id: Uuid\",\n                      p.git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                      p.git_commit_title_mode,\n                      p.auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                      p.auto_pr_draft as \"auto_pr_draft?: bool\",\n                      p.redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                      p.created_at as \"created_at!: DateTime<Utc>\",\n                      p.updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM projects p\n               LEFT JOIN (\n                   SELECT t.project_id, MAX(t.updated_at) as last_task_activity\n                   FROM tasks t\n                   GROUP BY t.project_id\n               ) recent_activity ON p.id = recent_activity.project_id\n               ORDER BY\n                   CASE\n                       WHEN recent_activity.last_task_activity IS NOT NULL\n                       THEN recent_activity.last_task_activity\n                       ELSE p.created_at\n                   END DESC",
+  "query": "SELECT id as \"id!: Uuid\",\n                      name,\n                      dev_script,\n                      dev_script_working_dir,\n                      default_agent_working_dir,\n                      remote_project_id as \"remote_project_id: Uuid\",\n                      git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                      git_commit_title_mode,\n                      auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                      auto_pr_draft as \"auto_pr_draft?: bool\",\n                      redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                      git_auto_push_mode,\n                      created_at as \"created_at!: DateTime<Utc>\",\n                      updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM projects\n               WHERE remote_project_id = $1\n               LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -59,18 +59,23 @@
         "type_info": "Integer"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
+        "name": "git_auto_push_mode",
         "ordinal": 11,
         "type_info": "Text"
       },
       {
-        "name": "updated_at!: DateTime<Utc>",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at!: DateTime<Utc>",
+        "ordinal": 13,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       true,
@@ -84,9 +89,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "d22b1f6cd5c329c0d4927a1871a74954037244f35765d057038f588d6b582bac"
+  "hash": "c1f8f54ff6b14c53834fe1f9ddfe4e3656486822e2a0fdf3a7bca7f93cf15a09"
 }

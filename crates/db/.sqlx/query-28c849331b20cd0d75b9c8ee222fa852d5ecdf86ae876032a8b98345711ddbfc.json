@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\",\n                      name,\n                      dev_script,\n                      dev_script_working_dir,\n                      default_agent_working_dir,\n                      remote_project_id as \"remote_project_id: Uuid\",\n                      git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                      git_commit_title_mode,\n                      auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                      auto_pr_draft as \"auto_pr_draft?: bool\",\n                      redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                      created_at as \"created_at!: DateTime<Utc>\",\n                      updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM projects\n               WHERE id = $1",
+  "query": "UPDATE projects\n               SET name = $2, dev_script = $3, dev_script_working_dir = $4, default_agent_working_dir = $5,\n                   git_auto_commit_enabled = $6, git_commit_title_mode = $7, auto_pr_on_review_enabled = $8, auto_pr_draft = $9, redirect_to_attempt_on_create = $10, git_auto_push_mode = $11\n               WHERE id = $1\n               RETURNING id as \"id!: Uuid\",\n                         name,\n                         dev_script,\n                         dev_script_working_dir,\n                         default_agent_working_dir,\n                         remote_project_id as \"remote_project_id: Uuid\",\n                         git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                         git_commit_title_mode,\n                         auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                         auto_pr_draft as \"auto_pr_draft?: bool\",\n                         redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                         git_auto_push_mode,\n                         created_at as \"created_at!: DateTime<Utc>\",\n                         updated_at as \"updated_at!: DateTime<Utc>\"",
   "describe": {
     "columns": [
       {
@@ -59,18 +59,23 @@
         "type_info": "Integer"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
+        "name": "git_auto_push_mode",
         "ordinal": 11,
         "type_info": "Text"
       },
       {
-        "name": "updated_at!: DateTime<Utc>",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at!: DateTime<Utc>",
+        "ordinal": 13,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 11
     },
     "nullable": [
       true,
@@ -84,9 +89,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "e342b34eaea61d3620b16f896f10451712711afcb9e4d0c6ef8e6117a6ae09df"
+  "hash": "28c849331b20cd0d75b9c8ee222fa852d5ecdf86ae876032a8b98345711ddbfc"
 }

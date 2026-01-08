@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                p.id as \"id!: Uuid\",\n                p.name,\n                p.dev_script,\n                p.dev_script_working_dir,\n                p.default_agent_working_dir,\n                p.remote_project_id as \"remote_project_id: Uuid\",\n                p.git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                p.git_commit_title_mode,\n                p.auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                p.auto_pr_draft as \"auto_pr_draft?: bool\",\n                p.redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                p.created_at as \"created_at!: DateTime<Utc>\",\n                p.updated_at as \"updated_at!: DateTime<Utc>\",\n                COALESCE(SUM(CASE WHEN t.status = 'todo' THEN 1 ELSE 0 END), 0) as \"todo!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'inprogress' THEN 1 ELSE 0 END), 0) as \"inprogress!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'inreview' THEN 1 ELSE 0 END), 0) as \"inreview!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) as \"done!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'cancelled' THEN 1 ELSE 0 END), 0) as \"cancelled!: i64\"\n            FROM projects p\n            LEFT JOIN tasks t ON t.project_id = p.id\n            WHERE p.id = $1\n            GROUP BY p.id\n            ",
+  "query": "\n            SELECT\n                p.id as \"id!: Uuid\",\n                p.name,\n                p.dev_script,\n                p.dev_script_working_dir,\n                p.default_agent_working_dir,\n                p.remote_project_id as \"remote_project_id: Uuid\",\n                p.git_auto_commit_enabled as \"git_auto_commit_enabled?: bool\",\n                p.git_commit_title_mode,\n                p.auto_pr_on_review_enabled as \"auto_pr_on_review_enabled?: bool\",\n                p.auto_pr_draft as \"auto_pr_draft?: bool\",\n                p.redirect_to_attempt_on_create as \"redirect_to_attempt_on_create?: bool\",\n                p.git_auto_push_mode,\n                p.created_at as \"created_at!: DateTime<Utc>\",\n                p.updated_at as \"updated_at!: DateTime<Utc>\",\n                COALESCE(SUM(CASE WHEN t.status = 'todo' THEN 1 ELSE 0 END), 0) as \"todo!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'inprogress' THEN 1 ELSE 0 END), 0) as \"inprogress!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'inreview' THEN 1 ELSE 0 END), 0) as \"inreview!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) as \"done!: i64\",\n                COALESCE(SUM(CASE WHEN t.status = 'cancelled' THEN 1 ELSE 0 END), 0) as \"cancelled!: i64\"\n            FROM projects p\n            LEFT JOIN tasks t ON t.project_id = p.id\n            WHERE p.id = $1\n            GROUP BY p.id\n            ",
   "describe": {
     "columns": [
       {
@@ -59,38 +59,43 @@
         "type_info": "Integer"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
+        "name": "git_auto_push_mode",
         "ordinal": 11,
         "type_info": "Text"
       },
       {
-        "name": "updated_at!: DateTime<Utc>",
+        "name": "created_at!: DateTime<Utc>",
         "ordinal": 12,
         "type_info": "Text"
       },
       {
-        "name": "todo!: i64",
+        "name": "updated_at!: DateTime<Utc>",
         "ordinal": 13,
-        "type_info": "Null"
+        "type_info": "Text"
       },
       {
-        "name": "inprogress!: i64",
+        "name": "todo!: i64",
         "ordinal": 14,
         "type_info": "Null"
       },
       {
-        "name": "inreview!: i64",
+        "name": "inprogress!: i64",
         "ordinal": 15,
         "type_info": "Null"
       },
       {
-        "name": "done!: i64",
+        "name": "inreview!: i64",
         "ordinal": 16,
         "type_info": "Null"
       },
       {
-        "name": "cancelled!: i64",
+        "name": "done!: i64",
         "ordinal": 17,
+        "type_info": "Null"
+      },
+      {
+        "name": "cancelled!: i64",
+        "ordinal": 18,
         "type_info": "Null"
       }
     ],
@@ -109,6 +114,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       null,
@@ -118,5 +124,5 @@
       null
     ]
   },
-  "hash": "63c52785e6bf0a0018c4ca6277c03f140f07830d265d6cfe660ea2153370dab0"
+  "hash": "ab3b0dc908190e41a4fd91eda213bbc50f490731fb22f3e5112c825b6a6b817e"
 }

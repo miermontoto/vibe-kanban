@@ -306,6 +306,9 @@ pub async fn update_task(
     let parent_workspace_id = payload
         .parent_workspace_id
         .or(existing_task.parent_workspace_id);
+    let use_ralph_wiggum = payload.use_ralph_wiggum.unwrap_or(existing_task.use_ralph_wiggum);
+    let ralph_max_iterations = payload.ralph_max_iterations.or(existing_task.ralph_max_iterations);
+    let ralph_completion_promise = payload.ralph_completion_promise.or(existing_task.ralph_completion_promise);
 
     let task = Task::update(
         &deployment.db().pool,
@@ -315,6 +318,9 @@ pub async fn update_task(
         description,
         status.clone(),
         parent_workspace_id,
+        use_ralph_wiggum,
+        ralph_max_iterations,
+        ralph_completion_promise,
     )
     .await?;
 

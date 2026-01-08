@@ -34,6 +34,12 @@ pub struct CreateTaskRequest {
     pub title: String,
     #[schemars(description = "Optional description of the task")]
     pub description: Option<String>,
+    #[schemars(description = "Enable Ralph Wiggum mode (loop-until-complete execution)")]
+    pub use_ralph_wiggum: Option<bool>,
+    #[schemars(description = "Maximum iterations for Ralph Wiggum mode (default: 10)")]
+    pub ralph_max_iterations: Option<i64>,
+    #[schemars(description = "Completion signal for Ralph Wiggum mode (default: 'COMPLETE')")]
+    pub ralph_completion_promise: Option<String>,
 }
 
 #[derive(Debug, Serialize, schemars::JsonSchema)]
@@ -194,6 +200,12 @@ pub struct UpdateTaskRequest {
     pub description: Option<String>,
     #[schemars(description = "New status: 'todo', 'inprogress', 'inreview', 'done', 'cancelled'")]
     pub status: Option<String>,
+    #[schemars(description = "Enable Ralph Wiggum mode (loop-until-complete execution)")]
+    pub use_ralph_wiggum: Option<bool>,
+    #[schemars(description = "Maximum iterations for Ralph Wiggum mode")]
+    pub ralph_max_iterations: Option<i64>,
+    #[schemars(description = "Completion signal for Ralph Wiggum mode")]
+    pub ralph_completion_promise: Option<String>,
 }
 
 #[derive(Debug, Serialize, schemars::JsonSchema)]
@@ -500,6 +512,9 @@ impl TaskServer {
             project_id,
             title,
             description,
+            use_ralph_wiggum,
+            ralph_max_iterations,
+            ralph_completion_promise,
         }): Parameters<CreateTaskRequest>,
     ) -> Result<CallToolResult, ErrorData> {
         // Expand @tagname references in description
@@ -510,15 +525,22 @@ impl TaskServer {
 
         let url = self.url("/api/tasks");
 
+        let mut create_task = CreateTask::from_title_description(
+            project_id,
+            title,
+            expanded_description,
+        );
+
+        // Apply Ralph Wiggum settings if provided
+        create_task.use_ralph_wiggum = use_ralph_wiggum;
+        create_task.ralph_max_iterations = ralph_max_iterations;
+        create_task.ralph_completion_promise = ralph_completion_promise;
+
         let task: Task = match self
             .send_json(
                 self.client
                     .post(&url)
-                    .json(&CreateTask::from_title_description(
-                        project_id,
-                        title,
-                        expanded_description,
-                    )),
+                    .json(&create_task),
             )
             .await
         {
@@ -728,6 +750,9 @@ impl TaskServer {
             title,
             description,
             status,
+            use_ralph_wiggum,
+            ralph_max_iterations,
+            ralph_completion_promise,
         }): Parameters<UpdateTaskRequest>,
     ) -> Result<CallToolResult, ErrorData> {
         let status = if let Some(ref status_str) = status {
@@ -756,6 +781,9 @@ impl TaskServer {
             status,
             parent_workspace_id: None,
             image_ids: None,
+            use_ralph_wiggum,
+            ralph_max_iterations,
+            ralph_completion_promise,
             label_ids: None,
         };
         let url = self.url(&format!("/api/tasks/{}", task_id));

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE shared_task_id IS NOT NULL",
+  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", use_ralph_wiggum as \"use_ralph_wiggum!: bool\", ralph_max_iterations as \"ralph_max_iterations: i64\", ralph_completion_promise as \"ralph_completion_promise: String\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE shared_task_id IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -39,13 +39,28 @@
         "type_info": "Blob"
       },
       {
-        "name": "created_at!: DateTime<Utc>",
+        "name": "use_ralph_wiggum!: bool",
         "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "ralph_max_iterations: i64",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "ralph_completion_promise: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 10,
         "type_info": "Text"
       },
       {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 8,
+        "ordinal": 11,
         "type_info": "Text"
       }
     ],
@@ -61,8 +76,11 @@
       true,
       true,
       false,
+      true,
+      true,
+      false,
       false
     ]
   },
-  "hash": "e3dccf263fc925e7ee11f9d44ba5fac8a3db49abdc3f85ced80034dbf86d36b6"
+  "hash": "7f81b702c43118ed6d775beee38da8cb05e45a692aebc2c8bac249e880bf15df"
 }

@@ -418,6 +418,7 @@ pub trait ContainerService {
                                 auto_pr_on_review_enabled: None,
                                 auto_pr_draft: None,
                                 redirect_to_attempt_on_create: None,
+                                git_auto_push_mode: None,
                             },
                         )
                         .await?;
