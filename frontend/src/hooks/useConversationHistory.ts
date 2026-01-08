@@ -701,7 +701,7 @@ export const useConversationHistory = ({
     executionProcessesRaw,
   ]);
 
-  // If an execution process is removed, remove it from the state
+  // If an execution process is removed, remove it from the state and invalidate cache
   useEffect(() => {
     if (!executionProcessesRaw) return;
 
@@ -715,36 +715,11 @@ export const useConversationHistory = ({
           delete state[id];
         });
       });
-      // invalidate cache when processes are removed
+      // invalidate cache when processes are removed (data deletion)
+      // cache will be naturally updated via emitEntries when processes complete/update
       invalidateCache(attempt.id);
     }
   }, [attempt.id, idListKey, executionProcessesRaw, invalidateCache]);
-
-  // Invalidate cache when execution processes complete or change status
-  useEffect(() => {
-    if (!executionProcessesRaw || executionProcessesRaw.length === 0) return;
-
-    // check if any process changed from running to completed/failed/killed
-    const hasStatusChange = executionProcessesRaw.some((currentProcess) => {
-      const previousProcess = executionProcesses.current.find(
-        (p) => p.id === currentProcess.id
-      );
-      if (!previousProcess) return false;
-
-      // detect status changes that indicate completion
-      return (
-        previousProcess.status === ExecutionProcessStatus.running &&
-        (currentProcess.status === ExecutionProcessStatus.completed ||
-          currentProcess.status === ExecutionProcessStatus.failed ||
-          currentProcess.status === ExecutionProcessStatus.killed)
-      );
-    });
-
-    if (hasStatusChange) {
-      // invalidate cache to ensure fresh data on next view
-      invalidateCache(attempt.id);
-    }
-  }, [attempt.id, idStatusKey, executionProcessesRaw, invalidateCache]);
 
   // Reset state when attempt changes
   useEffect(() => {

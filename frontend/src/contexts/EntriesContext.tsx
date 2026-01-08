@@ -19,6 +19,14 @@ type ConversationCache = Map<
   }
 >;
 
+// cache TTL is 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+// helper to check if a cache entry is stale
+const isCacheStale = (timestamp: number): boolean => {
+  return Date.now() - timestamp > CACHE_TTL_MS;
+};
+
 interface EntriesContextType {
   entries: PatchTypeWithKey[];
   setEntries: (entries: PatchTypeWithKey[]) => void;
@@ -55,9 +63,8 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
       const cached = conversationCache.current.get(attemptId);
       if (!cached) return null;
 
-      // invalidate stale cache (older than 5 minutes)
-      const isStale = Date.now() - cached.timestamp > 5 * 60 * 1000;
-      if (isStale) {
+      // invalidate stale cache
+      if (isCacheStale(cached.timestamp)) {
         conversationCache.current.delete(attemptId);
         return null;
       }
@@ -89,8 +96,7 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
     if (!cached) return false;
 
     // check if stale without deleting
-    const isStale = Date.now() - cached.timestamp > 5 * 60 * 1000;
-    return !isStale;
+    return !isCacheStale(cached.timestamp);
   }, []);
 
   // get initial load state from cache
