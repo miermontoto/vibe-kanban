@@ -79,17 +79,31 @@ export const useExecutionProcesses = (
     );
   }, []);
 
-  // limpiar procesos optimistas cuando llegan los reales o expiran
+  // limpiar procesos optimistas cuando llegan los reales
   useEffect(() => {
     if (!data?.execution_processes) return;
 
-    const realProcessIds = Object.keys(data.execution_processes);
+    const realProcesses = Object.values(data.execution_processes);
     let hasChanges = false;
 
-    // eliminar procesos optimistas que ya están en los datos reales
-    optimisticProcessesRef.current.forEach((_, id) => {
-      if (realProcessIds.includes(id)) {
-        optimisticProcessesRef.current.delete(id);
+    // eliminar procesos optimistas si aparece un proceso real reciente del mismo tipo
+    // usamos matching temporal: si un proceso real tiene un timestamp cercano (±5s)
+    // y es del mismo tipo (codingagent), asumimos que es la versión real del optimista
+    optimisticProcessesRef.current.forEach((entry, optimisticId) => {
+      const optimisticTimestamp = entry.timestamp;
+
+      const matchingRealProcess = realProcesses.find((realProc) => {
+        if (realProc.run_reason !== 'codingagent') return false;
+
+        const realTimestamp = new Date(realProc.created_at).getTime();
+        const timeDiff = Math.abs(realTimestamp - optimisticTimestamp);
+
+        // considerar match si el proceso real fue creado dentro de 5 segundos del optimista
+        return timeDiff < 5000;
+      });
+
+      if (matchingRealProcess) {
+        optimisticProcessesRef.current.delete(optimisticId);
         hasChanges = true;
       }
     });
@@ -104,7 +118,18 @@ export const useExecutionProcesses = (
   }, [data]);
 
   // cleanup automático de procesos optimistas expirados
+  // solo ejecutar cuando hay procesos optimistas activos
   useEffect(() => {
+    // no iniciar timer si no hay procesos optimistas
+    if (optimisticProcesses.length === 0) {
+      return;
+    }
+
+    // limpiar timer previo si existe
+    if (cleanupTimerRef.current) {
+      clearInterval(cleanupTimerRef.current);
+    }
+
     cleanupTimerRef.current = setInterval(() => {
       const now = Date.now();
       let hasChanges = false;
@@ -123,6 +148,12 @@ export const useExecutionProcesses = (
           )
         );
       }
+
+      // detener timer si no quedan procesos optimistas
+      if (optimisticProcessesRef.current.size === 0 && cleanupTimerRef.current) {
+        clearInterval(cleanupTimerRef.current);
+        cleanupTimerRef.current = null;
+      }
     }, 5000); // revisar cada 5 segundos
 
     return () => {
@@ -131,7 +162,7 @@ export const useExecutionProcesses = (
         cleanupTimerRef.current = null;
       }
     };
-  }, []);
+  }, [optimisticProcesses.length]); // re-run cuando cambia el número de procesos
 
   // limpiar todos los procesos optimistas al desmontar o cambiar taskAttemptId
   useEffect(() => {
