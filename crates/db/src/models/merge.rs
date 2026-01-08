@@ -288,6 +288,31 @@ impl Merge {
 
         Ok(rows.into_iter().map(Into::into).collect())
     }
+
+    /// verifica si existe un PR abierto para una rama específica en un workspace
+    pub async fn has_open_pr_for_branch(
+        pool: &SqlitePool,
+        workspace_id: Uuid,
+        repo_id: Uuid,
+        branch_name: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) as "count!: i64"
+               FROM merges
+               WHERE workspace_id = $1
+                 AND repo_id = $2
+                 AND merge_type = 'pr'
+                 AND target_branch_name = $3
+                 AND pr_status = 'open'"#,
+            workspace_id,
+            repo_id,
+            branch_name
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(count > 0)
+    }
 }
 
 // Conversion implementations

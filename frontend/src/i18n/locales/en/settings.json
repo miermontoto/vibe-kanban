@@ -168,6 +168,15 @@
             "helper": "Customize the prompt used to generate commit titles. The AI will use this prompt to create conventional commit messages."
           },
           "notImplemented": "Not Yet Implemented"
+        },
+        "autoPush": {
+          "label": "Auto-push Mode",
+          "helper": "Automatically push commits to remote repository after committing.",
+          "options": {
+            "never": "Never auto-push",
+            "always": "Always auto-push after commit",
+            "ifPrExists": "Auto-push only if PR exists for branch"
+          }
         }
       },
       "tasks": {
