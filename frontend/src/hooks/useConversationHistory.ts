@@ -10,6 +10,7 @@ import {
   Workspace,
 } from 'shared/types';
 import { useExecutionProcessesContext } from '@/contexts/ExecutionProcessesContext';
+import { useEntries } from '@/contexts/EntriesContext';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { streamJsonPatchEntries } from '@/utils/streamJsonPatchEntries';
 
@@ -96,6 +97,11 @@ export const useConversationHistory = ({
 }: UseConversationHistoryParams): UseConversationHistoryResult => {
   const { executionProcessesVisible: executionProcessesRaw } =
     useExecutionProcessesContext();
+  const {
+    getCachedEntries,
+    setCachedEntries,
+    getCachedLoadedInitial,
+  } = useEntries();
   const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesRaw);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
@@ -425,8 +431,18 @@ export const useConversationHistory = ({
     ) => {
       const entries = flattenEntriesForEmit(executionProcessState);
       onEntriesUpdatedRef.current?.(entries, addEntryType, loading);
+
+      // actualizar cache cuando se emiten entradas
+      // solo cachear si no está cargando (estado final o intermedio estable)
+      if (!loading && entries.length > 0) {
+        setCachedEntries(
+          attempt.id,
+          entries,
+          loadedInitialEntries.current
+        );
+      }
     },
-    [flattenEntriesForEmit]
+    [flattenEntriesForEmit, attempt.id, setCachedEntries]
   );
 
   // Store emitEntries in a ref so it can be called without being a dependency
@@ -697,11 +713,27 @@ export const useConversationHistory = ({
 
   // Reset state when attempt changes
   useEffect(() => {
-    displayedExecutionProcesses.current = {};
-    loadedInitialEntries.current = false;
-    streamingProcessIdsRef.current.clear();
-    emitEntriesRef.current(displayedExecutionProcesses.current, 'initial', true);
-  }, [attempt.id]);
+    // intentar restaurar desde cache antes de resetear
+    const cachedEntries = getCachedEntries(attempt.id);
+    const cachedLoadedInitial = getCachedLoadedInitial(attempt.id);
+
+    if (cachedEntries && cachedEntries.length > 0) {
+      // si hay cache, emitirlo inmediatamente sin resetear el estado
+      // esto evita mostrar el loading mientras esperamos que los execution processes se carguen
+      loadedInitialEntries.current = cachedLoadedInitial;
+      streamingProcessIdsRef.current.clear();
+
+      // emitir directamente las entradas cacheadas sin tocar displayedExecutionProcesses
+      // el estado se actualizará naturalmente cuando los execution processes se carguen
+      onEntriesUpdatedRef.current?.(cachedEntries, 'initial', false);
+    } else {
+      // no hay cache, resetear normalmente
+      displayedExecutionProcesses.current = {};
+      loadedInitialEntries.current = false;
+      streamingProcessIdsRef.current.clear();
+      emitEntriesRef.current(displayedExecutionProcesses.current, 'initial', true);
+    }
+  }, [attempt.id, getCachedEntries, getCachedLoadedInitial]);
 
   return {};
 };
