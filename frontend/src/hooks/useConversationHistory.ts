@@ -10,6 +10,7 @@ import {
   Workspace,
 } from 'shared/types';
 import { useExecutionProcessesContext } from '@/contexts/ExecutionProcessesContext';
+import { useEntries } from '@/contexts/EntriesContext';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { streamJsonPatchEntries } from '@/utils/streamJsonPatchEntries';
 
@@ -96,11 +97,19 @@ export const useConversationHistory = ({
 }: UseConversationHistoryParams): UseConversationHistoryResult => {
   const { executionProcessesVisible: executionProcessesRaw } =
     useExecutionProcessesContext();
+  const {
+    getCachedEntries,
+    setCachedEntries,
+    getCachedLoadedInitial,
+    invalidateCache,
+  } = useEntries();
   const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesRaw);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
   const streamingProcessIdsRef = useRef<Set<string>>(new Set());
   const onEntriesUpdatedRef = useRef<OnEntriesUpdated | null>(null);
+  // track current attempt to prevent race conditions when switching rapidly
+  const currentAttemptId = useRef(attempt.id);
 
   const mergeIntoDisplayed = (
     mutator: (state: ExecutionProcessStateStore) => void
@@ -425,8 +434,18 @@ export const useConversationHistory = ({
     ) => {
       const entries = flattenEntriesForEmit(executionProcessState);
       onEntriesUpdatedRef.current?.(entries, addEntryType, loading);
+
+      // actualizar cache cuando se emiten entradas
+      // solo cachear si no está cargando (estado final o intermedio estable)
+      if (!loading && entries.length > 0) {
+        setCachedEntries(
+          attempt.id,
+          entries,
+          loadedInitialEntries.current
+        );
+      }
     },
-    [flattenEntriesForEmit]
+    [flattenEntriesForEmit, attempt.id, setCachedEntries]
   );
 
   // Store emitEntries in a ref so it can be called without being a dependency
@@ -592,6 +611,7 @@ export const useConversationHistory = ({
   // Initial load when attempt changes
   useEffect(() => {
     let cancelled = false;
+    const attemptIdSnapshot = attempt.id;
     (async () => {
       // Waiting for execution processes to load
       if (
@@ -602,7 +622,7 @@ export const useConversationHistory = ({
 
       // Initial entries
       const allInitialEntries = await loadInitialEntries();
-      if (cancelled) return;
+      if (cancelled || currentAttemptId.current !== attemptIdSnapshot) return;
       mergeIntoDisplayed((state) => {
         Object.assign(state, allInitialEntries);
       });
@@ -612,12 +632,15 @@ export const useConversationHistory = ({
       // Then load the remaining in batches
       while (
         !cancelled &&
+        currentAttemptId.current === attemptIdSnapshot &&
         (await loadRemainingEntriesInBatches(REMAINING_BATCH_SIZE))
       ) {
-        if (cancelled) return;
+        if (cancelled || currentAttemptId.current !== attemptIdSnapshot) return;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
-      emitEntriesRef.current(displayedExecutionProcesses.current, 'historic', false);
+      if (currentAttemptId.current === attemptIdSnapshot) {
+        emitEntriesRef.current(displayedExecutionProcesses.current, 'historic', false);
+      }
     })();
     return () => {
       cancelled = true;
@@ -678,7 +701,7 @@ export const useConversationHistory = ({
     executionProcessesRaw,
   ]);
 
-  // If an execution process is removed, remove it from the state
+  // If an execution process is removed, remove it from the state and invalidate cache
   useEffect(() => {
     if (!executionProcessesRaw) return;
 
@@ -692,16 +715,38 @@ export const useConversationHistory = ({
           delete state[id];
         });
       });
+      // invalidate cache when processes are removed (data deletion)
+      // cache will be naturally updated via emitEntries when processes complete/update
+      invalidateCache(attempt.id);
     }
-  }, [attempt.id, idListKey, executionProcessesRaw]);
+  }, [attempt.id, idListKey, executionProcessesRaw, invalidateCache]);
 
   // Reset state when attempt changes
   useEffect(() => {
-    displayedExecutionProcesses.current = {};
-    loadedInitialEntries.current = false;
-    streamingProcessIdsRef.current.clear();
-    emitEntriesRef.current(displayedExecutionProcesses.current, 'initial', true);
-  }, [attempt.id]);
+    // update current attempt ID to prevent race conditions
+    currentAttemptId.current = attempt.id;
+
+    // attempt to restore from cache before resetting
+    const cachedEntries = getCachedEntries(attempt.id);
+    const cachedLoadedInitial = getCachedLoadedInitial(attempt.id);
+
+    if (cachedEntries && cachedEntries.length > 0) {
+      // if cache exists, emit it immediately without resetting state
+      // this avoids showing loading while waiting for execution processes to load
+      loadedInitialEntries.current = cachedLoadedInitial;
+      streamingProcessIdsRef.current.clear();
+
+      // emit cached entries directly without touching displayedExecutionProcesses
+      // state will update naturally when execution processes load
+      onEntriesUpdatedRef.current?.(cachedEntries, 'initial', false);
+    } else {
+      // no cache, reset normally
+      displayedExecutionProcesses.current = {};
+      loadedInitialEntries.current = false;
+      streamingProcessIdsRef.current.clear();
+      emitEntriesRef.current(displayedExecutionProcesses.current, 'initial', true);
+    }
+  }, [attempt.id, getCachedEntries, getCachedLoadedInitial]);
 
   return {};
 };
