@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { sessionsApi } from '@/lib/api';
-import type { CreateFollowUpAttempt } from 'shared/types';
+import type { CreateFollowUpAttempt, ExecutionProcess } from 'shared/types';
+import { ExecutionProcessStatus, BaseCodingAgent } from 'shared/types';
 
 type Args = {
   sessionId?: string;
@@ -12,6 +13,7 @@ type Args = {
   clearComments: () => void;
   clearClickedElements?: () => void;
   onAfterSendCleanup: () => void;
+  onOptimisticProcess?: (process: ExecutionProcess) => void;
 };
 
 export function useFollowUpSend({
@@ -24,6 +26,7 @@ export function useFollowUpSend({
   clearComments,
   clearClickedElements,
   onAfterSendCleanup,
+  onOptimisticProcess,
 }: Args) {
   const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
   const [followUpError, setFollowUpError] = useState<string | null>(null);
@@ -50,6 +53,37 @@ export function useFollowUpSend({
         force_when_dirty: null,
         perform_git_reset: null,
       };
+
+      // crear proceso optimista inmediatamente
+      if (onOptimisticProcess) {
+        const optimisticProcess: ExecutionProcess = {
+          id: `optimistic-${Date.now()}`,
+          session_id: sessionId,
+          run_reason: 'codingagent',
+          executor_action: {
+            typ: {
+              type: 'CodingAgentFollowUpRequest',
+              prompt: finalPrompt,
+              session_id: sessionId,
+              executor_profile_id: {
+                executor: BaseCodingAgent.CLAUDE_CODE,
+                variant: selectedVariant,
+              },
+              working_dir: null,
+            },
+            next_action: null,
+          },
+          status: ExecutionProcessStatus.running,
+          exit_code: null,
+          dropped: false,
+          started_at: new Date().toISOString(),
+          completed_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        onOptimisticProcess(optimisticProcess);
+      }
+
       await sessionsApi.followUp(sessionId, body);
       clearComments();
       clearClickedElements?.();
@@ -73,6 +107,7 @@ export function useFollowUpSend({
     clearComments,
     clearClickedElements,
     onAfterSendCleanup,
+    onOptimisticProcess,
   ]);
 
   return {

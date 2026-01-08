@@ -14,6 +14,7 @@ type ExecutionProcessesContextType = {
   isLoading: boolean;
   isConnected: boolean;
   error: string | null;
+  addOptimisticProcess: (process: ExecutionProcess) => void;
 };
 
 const ExecutionProcessesContext =
@@ -30,6 +31,7 @@ export const ExecutionProcessesProvider: React.FC<{
     isLoading,
     isConnected,
     error,
+    addOptimisticProcess,
   } = useExecutionProcesses(attemptId, { showSoftDeleted: true });
 
   const visible = useMemo(
@@ -66,6 +68,7 @@ export const ExecutionProcessesProvider: React.FC<{
       isLoading,
       isConnected,
       error,
+      addOptimisticProcess,
     }),
     [
       executionProcesses,
@@ -77,6 +80,7 @@ export const ExecutionProcessesProvider: React.FC<{
       isLoading,
       isConnected,
       error,
+      addOptimisticProcess,
     ]
   );
 

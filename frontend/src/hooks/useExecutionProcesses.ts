@@ -1,10 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useJsonPatchWsStream } from './useJsonPatchWsStream';
 import type { ExecutionProcess } from 'shared/types';
 
 type ExecutionProcessState = {
   execution_processes: Record<string, ExecutionProcess>;
 };
+
+// store optimistic processes globally so they persist across hook instances
+const optimisticProcessesStore = new Map<string, ExecutionProcess>();
 
 interface UseExecutionProcessesResult {
   executionProcesses: ExecutionProcess[];
@@ -13,6 +16,7 @@ interface UseExecutionProcessesResult {
   isLoading: boolean;
   isConnected: boolean;
   error: string | null;
+  addOptimisticProcess: (process: ExecutionProcess) => void;
 }
 
 /**
@@ -25,6 +29,9 @@ export const useExecutionProcesses = (
   opts?: { showSoftDeleted?: boolean }
 ): UseExecutionProcessesResult => {
   const showSoftDeleted = opts?.showSoftDeleted;
+  const [optimisticProcesses, setOptimisticProcesses] = useState<
+    ExecutionProcess[]
+  >([]);
   let endpoint: string | undefined;
 
   if (taskAttemptId) {
@@ -47,7 +54,40 @@ export const useExecutionProcesses = (
       initialData
     );
 
-  const executionProcessesById = data?.execution_processes ?? {};
+  // función para añadir proceso optimista
+  const addOptimisticProcess = useCallback((process: ExecutionProcess) => {
+    optimisticProcessesStore.set(process.id, process);
+    setOptimisticProcesses(Array.from(optimisticProcessesStore.values()));
+  }, []);
+
+  // limpiar procesos optimistas cuando llegan los reales
+  useEffect(() => {
+    if (!data?.execution_processes) return;
+
+    const realProcessIds = Object.keys(data.execution_processes);
+    let hasChanges = false;
+
+    // eliminar procesos optimistas que ya están en los datos reales
+    optimisticProcessesStore.forEach((_, id) => {
+      if (realProcessIds.includes(id)) {
+        optimisticProcessesStore.delete(id);
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setOptimisticProcesses(Array.from(optimisticProcessesStore.values()));
+    }
+  }, [data]);
+
+  // combinar procesos reales con optimistas
+  const executionProcessesById = data?.execution_processes
+    ? {
+        ...data.execution_processes,
+        ...Object.fromEntries(optimisticProcesses.map((p) => [p.id, p])),
+      }
+    : {};
+
   const executionProcesses = Object.values(executionProcessesById).sort(
     (a, b) =>
       new Date(a.created_at as unknown as string).getTime() -
@@ -69,5 +109,6 @@ export const useExecutionProcesses = (
     isLoading,
     isConnected,
     error,
+    addOptimisticProcess,
   };
 };
