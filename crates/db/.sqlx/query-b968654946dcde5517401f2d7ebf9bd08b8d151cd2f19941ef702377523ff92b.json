@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) as \"count!: i64\"\n               FROM merges\n               WHERE workspace_id = $1\n                 AND repo_id = $2\n                 AND merge_type = 'pr'\n                 AND target_branch_name = $3\n                 AND pr_status = 'open'",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b968654946dcde5517401f2d7ebf9bd08b8d151cd2f19941ef702377523ff92b"
+}

@@ -1,24 +1,12 @@
-// formatea timestamp RFC3339 a formato relativo o absoluto
+// formatea timestamp RFC3339 a formato absoluto (datetime claro)
 export function formatTimestamp(timestamp: string | null): string {
   if (!timestamp) return '';
 
   try {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffSeconds = Math.floor(diffMs / 1000);
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    const diffHours = Math.floor(diffMinutes / 60);
-    const diffDays = Math.floor(diffHours / 24);
 
-    // formato relativo para timestamps recientes
-    if (diffSeconds < 10) return 'now';
-    if (diffSeconds < 60) return `${diffSeconds}s`;
-    if (diffMinutes < 60) return `${diffMinutes}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-
-    // formato absoluto para timestamps antiguos
+    // formato absoluto: MM/DD HH:MM
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     const hours = date.getHours().toString().padStart(2, '0');

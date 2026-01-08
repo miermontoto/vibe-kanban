@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tl.id as \"id!: Uuid\", tl.project_id as \"project_id!: Uuid\", tl.name, tl.color,\n                      tl.created_at as \"created_at!: DateTime<Utc>\", tl.updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM task_labels tl\n               INNER JOIN task_label_associations tla ON tla.label_id = tl.id\n               WHERE tla.task_id = $1\n               ORDER BY tl.name ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "project_id!: Uuid",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "color",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at!: DateTime<Utc>",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e276a7f24c4c1da86892c1f9da028e559bbf01ff33c1719ce791320383ef1609"
+}

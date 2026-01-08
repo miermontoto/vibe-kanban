@@ -137,6 +137,7 @@ export function NoServerContent({
         use_ralph_wiggum: false,
         ralph_max_iterations: null,
         ralph_completion_promise: null,
+        label_ids: null,
       },
       executor_profile_id: config.executor_profile,
       repos,

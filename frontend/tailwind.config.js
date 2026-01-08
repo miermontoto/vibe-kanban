@@ -127,6 +127,8 @@ module.exports = {
           // google fonts (default)
           'Chivo Mono',
           'Noto Emoji',
+          // nerd fonts symbols for icons
+          'Symbols Nerd Font',
           // system monospace fonts fallback
           'ui-monospace',
           'SF Mono',

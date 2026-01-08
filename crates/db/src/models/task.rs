@@ -82,6 +82,7 @@ pub struct CreateTask {
     pub use_ralph_wiggum: Option<bool>,
     pub ralph_max_iterations: Option<i64>,
     pub ralph_completion_promise: Option<String>,
+    pub label_ids: Option<Vec<Uuid>>,
 }
 
 impl CreateTask {
@@ -101,6 +102,7 @@ impl CreateTask {
             use_ralph_wiggum: None,
             ralph_max_iterations: None,
             ralph_completion_promise: None,
+            label_ids: None,
         }
     }
 
@@ -122,6 +124,7 @@ impl CreateTask {
             use_ralph_wiggum: None,
             ralph_max_iterations: None,
             ralph_completion_promise: None,
+            label_ids: None,
         }
     }
 }
@@ -136,6 +139,7 @@ pub struct UpdateTask {
     pub use_ralph_wiggum: Option<bool>,
     pub ralph_max_iterations: Option<i64>,
     pub ralph_completion_promise: Option<String>,
+    pub label_ids: Option<Vec<Uuid>>,
 }
 
 impl Task {

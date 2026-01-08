@@ -42,6 +42,10 @@
           "label": "Use Google Fonts",
           "helper": "Load fonts from Google Fonts (Chivo Mono). When disabled, system fonts will be used."
         },
+        "useNerdFonts": {
+          "label": "Use Nerd Fonts",
+          "helper": "Load Nerd Fonts Symbols for icon support in the interface. When disabled, standard system fonts will be used."
+        },
         "fontFamily": {
           "label": "Custom Font Override",
           "placeholder": "e.g., 'Fira Code', 'JetBrains Mono', monospace",
@@ -164,6 +168,15 @@
             "helper": "Customize the prompt used to generate commit titles. The AI will use this prompt to create conventional commit messages."
           },
           "notImplemented": "Not Yet Implemented"
+        },
+        "autoPush": {
+          "label": "Auto-push Mode",
+          "helper": "Automatically push commits to remote repository after committing.",
+          "options": {
+            "never": "Never auto-push",
+            "always": "Always auto-push after commit",
+            "ifPrExists": "Auto-push only if PR exists for branch"
+          }
         }
       },
       "tasks": {

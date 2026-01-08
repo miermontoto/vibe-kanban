@@ -17,17 +17,18 @@ pub enum ConfigError {
     ValidationError(String),
 }
 
-pub type Config = versions::v12::Config;
-pub type NotificationConfig = versions::v12::NotificationConfig;
-pub type EditorConfig = versions::v12::EditorConfig;
-pub type ThemeMode = versions::v12::ThemeMode;
-pub type SoundFile = versions::v12::SoundFile;
-pub type EditorType = versions::v12::EditorType;
-pub type GitHubConfig = versions::v12::GitHubConfig;
-pub type UiLanguage = versions::v12::UiLanguage;
-pub type ShowcaseState = versions::v12::ShowcaseState;
-pub type GitCommitTitleMode = versions::v12::GitCommitTitleMode;
-pub use versions::v12::DEFAULT_COMMIT_TITLE_PROMPT;
+pub type Config = versions::v14::Config;
+pub type NotificationConfig = versions::v14::NotificationConfig;
+pub type EditorConfig = versions::v14::EditorConfig;
+pub type ThemeMode = versions::v14::ThemeMode;
+pub type SoundFile = versions::v14::SoundFile;
+pub type EditorType = versions::v14::EditorType;
+pub type GitHubConfig = versions::v14::GitHubConfig;
+pub type UiLanguage = versions::v14::UiLanguage;
+pub type ShowcaseState = versions::v14::ShowcaseState;
+pub type GitCommitTitleMode = versions::v14::GitCommitTitleMode;
+pub type GitAutoPushMode = versions::v14::GitAutoPushMode;
+pub use versions::v14::DEFAULT_COMMIT_TITLE_PROMPT;
 
 /// Will always return config, trying old schemas or eventually returning default
 pub async fn load_config_from_file(config_path: &PathBuf) -> Config {

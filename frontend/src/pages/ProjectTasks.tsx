@@ -764,6 +764,7 @@ export function ProjectTasks() {
           use_ralph_wiggum: task.use_ralph_wiggum,
           ralph_max_iterations: task.ralph_max_iterations,
           ralph_completion_promise: task.ralph_completion_promise,
+          label_ids: null,
         });
       } catch (err) {
         console.error('Failed to update task status:', err);

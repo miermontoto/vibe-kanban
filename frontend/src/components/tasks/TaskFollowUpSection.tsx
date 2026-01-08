@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 import { useReview } from '@/contexts/ReviewProvider';
 import { useClickedElements } from '@/contexts/ClickedElementsProvider';
 import { useEntries } from '@/contexts/EntriesContext';
+import { useExecutionProcessesContext } from '@/contexts/ExecutionProcessesContext';
 import { useKeySubmitFollowUp, Scope } from '@/keyboard';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 import { useProject } from '@/contexts/ProjectContext';
@@ -80,6 +81,9 @@ export function TaskFollowUpSection({
 
   const { isAttemptRunning, stopExecution, isStopping, processes } =
     useAttemptExecution(workspaceId, task.id);
+
+  const { addOptimisticProcess, removeOptimisticProcess } =
+    useExecutionProcessesContext();
 
   const { data: branchStatus, refetch: refetchBranchStatus } =
     useBranchStatus(workspaceId);
@@ -331,6 +335,8 @@ export function TaskFollowUpSection({
         setLocalMessage(''); // Clear local state immediately
         // Scratch deletion is handled by the backend when the queued message is consumed
       },
+      onOptimisticProcess: addOptimisticProcess,
+      onRemoveOptimisticProcess: removeOptimisticProcess,
     });
 
   // Separate logic for when textarea should be disabled vs when send button should be disabled
@@ -599,8 +605,8 @@ export function TaskFollowUpSection({
   const editorPlaceholder = useMemo(
     () =>
       hasExtraContext
-        ? '(Optional) Add additional instructions... Type @ to insert tags or search files.'
-        : 'Continue working on this task attempt... Type @ to insert tags or search files.',
+        ? '(Optional) Add additional instructions... Type @ to insert tags or search files, / for commands.'
+        : 'Continue working on this task attempt... Type @ to insert tags or search files, / for commands.',
     [hasExtraContext]
   );
 

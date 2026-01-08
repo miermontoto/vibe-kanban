@@ -116,9 +116,9 @@ export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_att
 
 export type TaskRelationships = { parent_task: Task | null, current_workspace: Workspace, children: Array<Task>, };
 
-export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, };
+export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
 
-export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, };
+export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
 
 export type DraftFollowUpData = { message: string, variant: string | null, };
 
@@ -150,7 +150,7 @@ dropped: boolean, started_at: string, completed_at: string | null, created_at: s
 
 export enum ExecutionProcessStatus { running = "running", completed = "completed", failed = "failed", killed = "killed" }
 
-export type ExecutionProcessRunReason = "setupscript" | "cleanupscript" | "codingagent" | "devserver";
+export type ExecutionProcessRunReason = "setupscript" | "cleanupscript" | "codingagent" | "devserver" | "prdescriptiongeneration";
 
 export type ExecutionProcessRepoState = { id: string, execution_process_id: string, repo_id: string, before_head_commit: string | null, after_head_commit: string | null, merge_commit: string | null, created_at: Date, updated_at: Date, };
 
@@ -400,6 +400,10 @@ font_family: string | null,
  * cuando está habilitado, se cargarán las fuentes de Google (Chivo Mono, Inter, JetBrains Mono)
  */
 use_google_fonts: boolean, 
+/**
+ * cuando está habilitado, se cargarán los símbolos de Nerd Fonts para iconos en la interfaz
+ */
+use_nerd_fonts: boolean, 
 /**
  * cuando está habilitado, se muestra el contador de usuarios online de Discord en la barra de navegación
  */
@@ -656,6 +660,7 @@ export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in
 
 export const DEFAULT_PR_DESCRIPTION_PROMPT = `Update the GitHub PR that was just created with a better title and description.
 The PR number is #{pr_number} and the URL is {pr_url}.
+The repository is {repo_owner}/{repo_name}.
 
 Analyze the changes in this branch and write:
 1. A concise, descriptive title that summarizes the changes, postfixed with "(Vibe Kanban)"
@@ -665,7 +670,7 @@ Analyze the changes in this branch and write:
    - Any important implementation details
    - At the end, include a note: "This PR was written using [Vibe Kanban](https://vibekanban.com)"
 
-Use \`gh pr edit\` to update the PR.`;
+Use \`gh pr edit {pr_number} --repo {repo_owner}/{repo_name}\` to update the PR.`;
 
 export const DEFAULT_COMMIT_TITLE_PROMPT = `Generate a concise git commit title for the following changes.
 Follow conventional commits format: type(scope): description

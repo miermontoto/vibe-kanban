@@ -17,6 +17,7 @@ use db::models::{
     project::{Project, ProjectError},
     repo::Repo,
     task::{CreateTask, Task, TaskStatus, TaskWithAttemptStatus, UpdateTask},
+    task_label::TaskLabel,
     workspace::{CreateWorkspace, Workspace},
     workspace_repo::{CreateWorkspaceRepo, WorkspaceRepo},
 };
@@ -130,6 +131,10 @@ pub async fn create_task(
         TaskImage::associate_many_dedup(&deployment.db().pool, task.id, image_ids).await?;
     }
 
+    if let Some(label_ids) = &payload.label_ids {
+        TaskLabel::sync_task_labels(&deployment.db().pool, task.id, label_ids).await?;
+    }
+
     deployment
         .track_if_analytics_allowed(
             "task_created",
@@ -138,6 +143,7 @@ pub async fn create_task(
             "project_id": payload.project_id,
             "has_description": task.description.is_some(),
             "has_images": payload.image_ids.is_some(),
+            "has_labels": payload.label_ids.is_some(),
             }),
         )
         .await;
@@ -321,6 +327,10 @@ pub async fn update_task(
     if let Some(image_ids) = &payload.image_ids {
         TaskImage::delete_by_task_id(&deployment.db().pool, task.id).await?;
         TaskImage::associate_many_dedup(&deployment.db().pool, task.id, image_ids).await?;
+    }
+
+    if let Some(label_ids) = &payload.label_ids {
+        TaskLabel::sync_task_labels(&deployment.db().pool, task.id, label_ids).await?;
     }
 
     // If task has been shared, broadcast update

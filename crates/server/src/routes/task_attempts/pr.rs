@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use services::services::{
     container::ContainerService,
     git::{GitCliError, GitServiceError},
-    github::{CreatePrRequest, GitHubService, GitHubServiceError, UnifiedPrComment},
+    github::{CreatePrRequest, GitHubRepoInfo, GitHubService, GitHubServiceError, UnifiedPrComment},
 };
 use ts_rs::TS;
 use utils::response::ApiResponse;
@@ -116,6 +116,7 @@ pub enum AutoPrError {
 
 pub const DEFAULT_PR_DESCRIPTION_PROMPT: &str = r#"Update the GitHub PR that was just created with a better title and description.
 The PR number is #{pr_number} and the URL is {pr_url}.
+The repository is {repo_owner}/{repo_name}.
 
 Analyze the changes in this branch and write:
 1. A concise, descriptive title that summarizes the changes, postfixed with "(Vibe Kanban)"
@@ -125,13 +126,14 @@ Analyze the changes in this branch and write:
    - Any important implementation details
    - At the end, include a note: "This PR was written using [Vibe Kanban](https://vibekanban.com)"
 
-Use `gh pr edit` to update the PR."#;
+Use `gh pr edit {pr_number} --repo {repo_owner}/{repo_name}` to update the PR."#;
 
 async fn trigger_pr_description_follow_up(
     deployment: &DeploymentImpl,
     workspace: &Workspace,
     pr_number: i64,
     pr_url: &str,
+    repo_info: &GitHubRepoInfo,
 ) -> Result<(), ApiError> {
     // Get the custom prompt from config, or use default
     let config = deployment.config().read().await;
@@ -143,7 +145,9 @@ async fn trigger_pr_description_follow_up(
     // Replace placeholders in prompt
     let prompt = prompt_template
         .replace("{pr_number}", &pr_number.to_string())
-        .replace("{pr_url}", pr_url);
+        .replace("{pr_url}", pr_url)
+        .replace("{repo_owner}", &repo_info.owner)
+        .replace("{repo_name}", &repo_info.repo_name);
 
     drop(config); // Release the lock before async operations
 
@@ -204,7 +208,7 @@ async fn trigger_pr_description_follow_up(
             workspace,
             &session,
             &action,
-            &ExecutionProcessRunReason::CodingAgent,
+            &ExecutionProcessRunReason::PrDescriptionGeneration,
         )
         .await?;
 
@@ -357,6 +361,7 @@ pub async fn create_github_pr(
                     &workspace,
                     pr_info.number,
                     &pr_info.url,
+                    &repo_info,
                 )
                 .await
             {
@@ -856,6 +861,7 @@ async fn auto_create_pr_for_repo(
                     workspace,
                     pr_info.number,
                     &pr_info.url,
+                    &repo_info,
                 )
                 .await
                 {
