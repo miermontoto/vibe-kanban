@@ -82,7 +82,8 @@ export function TaskFollowUpSection({
   const { isAttemptRunning, stopExecution, isStopping, processes } =
     useAttemptExecution(workspaceId, task.id);
 
-  const { addOptimisticProcess } = useExecutionProcessesContext();
+  const { addOptimisticProcess, removeOptimisticProcess } =
+    useExecutionProcessesContext();
 
   const { data: branchStatus, refetch: refetchBranchStatus } =
     useBranchStatus(workspaceId);
@@ -335,6 +336,7 @@ export function TaskFollowUpSection({
         // Scratch deletion is handled by the backend when the queued message is consumed
       },
       onOptimisticProcess: addOptimisticProcess,
+      onRemoveOptimisticProcess: removeOptimisticProcess,
     });
 
   // Separate logic for when textarea should be disabled vs when send button should be disabled

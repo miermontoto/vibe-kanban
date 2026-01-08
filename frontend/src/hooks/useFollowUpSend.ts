@@ -14,6 +14,7 @@ type Args = {
   clearClickedElements?: () => void;
   onAfterSendCleanup: () => void;
   onOptimisticProcess?: (process: ExecutionProcess) => void;
+  onRemoveOptimisticProcess?: (processId: string) => void;
 };
 
 export function useFollowUpSend({
@@ -27,6 +28,7 @@ export function useFollowUpSend({
   clearClickedElements,
   onAfterSendCleanup,
   onOptimisticProcess,
+  onRemoveOptimisticProcess,
 }: Args) {
   const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
   const [followUpError, setFollowUpError] = useState<string | null>(null);
@@ -43,6 +45,10 @@ export function useFollowUpSend({
       .filter(Boolean)
       .join('\n\n');
     if (!finalPrompt) return;
+
+    // guardar ID del proceso optimista para poder eliminarlo en caso de error
+    let optimisticProcessId: string | null = null;
+
     try {
       setIsSendingFollowUp(true);
       setFollowUpError(null);
@@ -56,8 +62,9 @@ export function useFollowUpSend({
 
       // crear proceso optimista inmediatamente
       if (onOptimisticProcess) {
+        optimisticProcessId = `optimistic-${Date.now()}`;
         const optimisticProcess: ExecutionProcess = {
-          id: `optimistic-${Date.now()}`,
+          id: optimisticProcessId,
           session_id: sessionId,
           run_reason: 'codingagent',
           executor_action: {
@@ -90,6 +97,11 @@ export function useFollowUpSend({
       onAfterSendCleanup();
       // Don't call jumpToLogsTab() - preserves focus on the follow-up editor
     } catch (error: unknown) {
+      // eliminar proceso optimista inmediatamente en caso de error
+      if (optimisticProcessId && onRemoveOptimisticProcess) {
+        onRemoveOptimisticProcess(optimisticProcessId);
+      }
+
       const err = error as { message?: string };
       setFollowUpError(
         `Failed to start follow-up execution: ${err.message ?? 'Unknown error'}`
@@ -108,6 +120,7 @@ export function useFollowUpSend({
     clearClickedElements,
     onAfterSendCleanup,
     onOptimisticProcess,
+    onRemoveOptimisticProcess,
   ]);
 
   return {
