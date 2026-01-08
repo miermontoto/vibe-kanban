@@ -30,6 +30,7 @@ import { useScriptPlaceholders } from '@/hooks/useScriptPlaceholders';
 import { CopyFilesField } from '@/components/projects/CopyFilesField';
 import { AutoExpandingTextarea } from '@/components/ui/auto-expanding-textarea';
 import { RepoPickerDialog } from '@/components/dialogs/shared/RepoPickerDialog';
+import { TriStateToggle } from '@/components/settings/TriStateToggle';
 import { projectsApi } from '@/lib/api';
 import { repoBranchKeys } from '@/hooks/useRepoBranches';
 import type { Project, ProjectRepo, Repo, UpdateProject } from 'shared/types';
@@ -646,341 +647,137 @@ export function ProjectSettings() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label>{t('settings.projects.git.autoCommit.label')}</Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="git-auto-commit-default"
-                      name="git-auto-commit"
-                      checked={draft.git_auto_commit_enabled === null}
-                      onChange={() =>
-                        updateDraft({ git_auto_commit_enabled: null })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="git-auto-commit-default"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.autoCommit.useGlobal')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="git-auto-commit-enabled"
-                      name="git-auto-commit"
-                      checked={draft.git_auto_commit_enabled === true}
-                      onChange={() =>
-                        updateDraft({ git_auto_commit_enabled: true })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="git-auto-commit-enabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.autoCommit.enabled')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="git-auto-commit-disabled"
-                      name="git-auto-commit"
-                      checked={draft.git_auto_commit_enabled === false}
-                      onChange={() =>
-                        updateDraft({ git_auto_commit_enabled: false })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="git-auto-commit-disabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.autoCommit.disabled')}
-                    </Label>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.projects.git.autoCommit.helper')}
-                </p>
-              </div>
+              <TriStateToggle
+                label={t('settings.projects.git.autoCommit.label')}
+                helper={t('settings.projects.git.autoCommit.helper')}
+                value={draft.git_auto_commit_enabled}
+                onChange={(value) =>
+                  updateDraft({ git_auto_commit_enabled: value })
+                }
+                options={[
+                  {
+                    value: null,
+                    label: t('settings.projects.git.autoCommit.useGlobal'),
+                  },
+                  {
+                    value: true,
+                    label: t('settings.projects.git.autoCommit.enabled'),
+                  },
+                  {
+                    value: false,
+                    label: t('settings.projects.git.autoCommit.disabled'),
+                  },
+                ]}
+              />
 
-              <div className="space-y-2">
-                <Label>
-                  {t('settings.projects.git.commitTitleMode.label')}
-                </Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="commit-title-mode-default"
-                      name="commit-title-mode"
-                      checked={draft.git_commit_title_mode === null}
-                      onChange={() =>
-                        updateDraft({ git_commit_title_mode: null })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="commit-title-mode-default"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.commitTitleMode.useGlobal')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="commit-title-mode-agent"
-                      name="commit-title-mode"
-                      checked={draft.git_commit_title_mode === 'AgentSummary'}
-                      onChange={() =>
-                        updateDraft({ git_commit_title_mode: 'AgentSummary' })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="commit-title-mode-agent"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.commitTitleMode.agentSummary')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="commit-title-mode-ai"
-                      name="commit-title-mode"
-                      checked={draft.git_commit_title_mode === 'AiGenerated'}
-                      onChange={() =>
-                        updateDraft({ git_commit_title_mode: 'AiGenerated' })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="commit-title-mode-ai"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.commitTitleMode.aiGenerated')}
-                      <Badge variant="outline" className="ml-2 text-xs">
+              <TriStateToggle
+                label={t('settings.projects.git.commitTitleMode.label')}
+                helper={t('settings.projects.git.commitTitleMode.helper')}
+                value={draft.git_commit_title_mode}
+                onChange={(value) =>
+                  updateDraft({ git_commit_title_mode: value })
+                }
+                options={[
+                  {
+                    value: null,
+                    label: t('settings.projects.git.commitTitleMode.useGlobal'),
+                  },
+                  {
+                    value: 'AgentSummary',
+                    label: t(
+                      'settings.projects.git.commitTitleMode.agentSummary'
+                    ),
+                  },
+                  {
+                    value: 'AiGenerated',
+                    label: t(
+                      'settings.projects.git.commitTitleMode.aiGenerated'
+                    ),
+                    badge: (
+                      <Badge variant="outline" className="text-xs">
                         {t(
                           'settings.general.git.commitTitleMode.notImplemented'
                         )}
                       </Badge>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="commit-title-mode-manual"
-                      name="commit-title-mode"
-                      checked={draft.git_commit_title_mode === 'Manual'}
-                      onChange={() =>
-                        updateDraft({ git_commit_title_mode: 'Manual' })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="commit-title-mode-manual"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.git.commitTitleMode.manual')}
-                    </Label>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.projects.git.commitTitleMode.helper')}
-                </p>
-              </div>
+                    ),
+                  },
+                  {
+                    value: 'Manual',
+                    label: t('settings.projects.git.commitTitleMode.manual'),
+                  },
+                ]}
+              />
 
-              <div className="space-y-2">
-                <Label>{t('settings.projects.autoPr.label')}</Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="auto-pr-default"
-                      name="auto-pr"
-                      checked={draft.auto_pr_on_review_enabled === null}
-                      onChange={() =>
-                        updateDraft({ auto_pr_on_review_enabled: null })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="auto-pr-default"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.autoPr.useGlobal')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="auto-pr-enabled"
-                      name="auto-pr"
-                      checked={draft.auto_pr_on_review_enabled === true}
-                      onChange={() =>
-                        updateDraft({ auto_pr_on_review_enabled: true })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="auto-pr-enabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.autoPr.enabled')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="auto-pr-disabled"
-                      name="auto-pr"
-                      checked={draft.auto_pr_on_review_enabled === false}
-                      onChange={() =>
-                        updateDraft({ auto_pr_on_review_enabled: false })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="auto-pr-disabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.autoPr.disabled')}
-                    </Label>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.projects.autoPr.helper')}
-                </p>
-              </div>
+              <TriStateToggle
+                label={t('settings.projects.autoPr.label')}
+                helper={t('settings.projects.autoPr.helper')}
+                value={draft.auto_pr_on_review_enabled}
+                onChange={(value) =>
+                  updateDraft({ auto_pr_on_review_enabled: value })
+                }
+                options={[
+                  {
+                    value: null,
+                    label: t('settings.projects.autoPr.useGlobal'),
+                  },
+                  {
+                    value: true,
+                    label: t('settings.projects.autoPr.enabled'),
+                  },
+                  {
+                    value: false,
+                    label: t('settings.projects.autoPr.disabled'),
+                  },
+                ]}
+              />
 
-              <div className="space-y-2">
-                <Label>{t('settings.projects.autoPrDraft.label')}</Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="auto-pr-draft-default"
-                      name="auto-pr-draft"
-                      checked={draft.auto_pr_draft === null}
-                      onChange={() => updateDraft({ auto_pr_draft: null })}
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="auto-pr-draft-default"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.autoPrDraft.useGlobal')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="auto-pr-draft-enabled"
-                      name="auto-pr-draft"
-                      checked={draft.auto_pr_draft === true}
-                      onChange={() => updateDraft({ auto_pr_draft: true })}
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="auto-pr-draft-enabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.autoPrDraft.enabled')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="auto-pr-draft-disabled"
-                      name="auto-pr-draft"
-                      checked={draft.auto_pr_draft === false}
-                      onChange={() => updateDraft({ auto_pr_draft: false })}
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="auto-pr-draft-disabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.autoPrDraft.disabled')}
-                    </Label>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.projects.autoPrDraft.helper')}
-                </p>
-              </div>
+              <TriStateToggle
+                label={t('settings.projects.autoPrDraft.label')}
+                helper={t('settings.projects.autoPrDraft.helper')}
+                value={draft.auto_pr_draft}
+                onChange={(value) => updateDraft({ auto_pr_draft: value })}
+                options={[
+                  {
+                    value: null,
+                    label: t('settings.projects.autoPrDraft.useGlobal'),
+                  },
+                  {
+                    value: true,
+                    label: t('settings.projects.autoPrDraft.enabled'),
+                  },
+                  {
+                    value: false,
+                    label: t('settings.projects.autoPrDraft.disabled'),
+                  },
+                ]}
+              />
 
-              <div className="space-y-2">
-                <Label>
-                  {t('settings.projects.tasks.redirectToAttempt.label')}
-                </Label>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="redirect-to-attempt-default"
-                      name="redirect-to-attempt"
-                      checked={draft.redirect_to_attempt_on_create === null}
-                      onChange={() =>
-                        updateDraft({ redirect_to_attempt_on_create: null })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="redirect-to-attempt-default"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.tasks.redirectToAttempt.useGlobal')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="redirect-to-attempt-enabled"
-                      name="redirect-to-attempt"
-                      checked={draft.redirect_to_attempt_on_create === true}
-                      onChange={() =>
-                        updateDraft({ redirect_to_attempt_on_create: true })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="redirect-to-attempt-enabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.tasks.redirectToAttempt.enabled')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="redirect-to-attempt-disabled"
-                      name="redirect-to-attempt"
-                      checked={draft.redirect_to_attempt_on_create === false}
-                      onChange={() =>
-                        updateDraft({ redirect_to_attempt_on_create: false })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <Label
-                      htmlFor="redirect-to-attempt-disabled"
-                      className="cursor-pointer font-normal"
-                    >
-                      {t('settings.projects.tasks.redirectToAttempt.disabled')}
-                    </Label>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.projects.tasks.redirectToAttempt.helper')}
-                </p>
-              </div>
+              <TriStateToggle
+                label={t('settings.projects.tasks.redirectToAttempt.label')}
+                helper={t('settings.projects.tasks.redirectToAttempt.helper')}
+                value={draft.redirect_to_attempt_on_create}
+                onChange={(value) =>
+                  updateDraft({ redirect_to_attempt_on_create: value })
+                }
+                options={[
+                  {
+                    value: null,
+                    label: t(
+                      'settings.projects.tasks.redirectToAttempt.useGlobal'
+                    ),
+                  },
+                  {
+                    value: true,
+                    label: t('settings.projects.tasks.redirectToAttempt.enabled'),
+                  },
+                  {
+                    value: false,
+                    label: t(
+                      'settings.projects.tasks.redirectToAttempt.disabled'
+                    ),
+                  },
+                ]}
+              />
 
               {/* Save Button */}
               <div className="flex items-center justify-between pt-4 border-t">
