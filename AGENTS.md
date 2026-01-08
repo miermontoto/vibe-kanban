@@ -1,5 +1,16 @@
 # Repository Guidelines
 
+## Git Workflow & Repository Management
+**CRITICAL: This is a FORK of BloopAI/vibe-kanban**
+- **NEVER** push commits directly to `upstream` (BloopAI/vibe-kanban)
+- **NEVER** create PRs against `upstream` without explicit user approval
+- **ALWAYS** push commits to `origin` (miermontoto/vibe-kanban fork)
+- **ALWAYS** create PRs from fork to upstream only when user explicitly requests
+- Default workflow: work on fork, push to fork, user will handle upstream PRs manually
+- Remote setup:
+  - `origin`: https://github.com/miermontoto/vibe-kanban (PUSH HERE)
+  - `upstream`: https://github.com/BloopAI/vibe-kanban.git (READ ONLY)
+
 ## Project Structure & Module Organization
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.
 - `frontend/`: React + TypeScript app (Vite, Tailwind). Source in `frontend/src`.
