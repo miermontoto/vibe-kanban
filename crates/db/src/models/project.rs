@@ -488,7 +488,7 @@ impl Project {
             r#"
             SELECT
                 p.id as "id!: Uuid",
-                p.name,
+                p.name as "name!",
                 p.dev_script,
                 p.dev_script_working_dir,
                 p.default_agent_working_dir,
@@ -508,7 +508,8 @@ impl Project {
             FROM projects p
             LEFT JOIN tasks t ON t.project_id = p.id
             GROUP BY p.id
-            ORDER BY p.created_at DESC
+            ORDER BY
+                COALESCE(MAX(t.updated_at), p.created_at) DESC
             "#
         )
         .fetch_all(pool)
