@@ -42,6 +42,10 @@
           "label": "Usar Google Fonts",
           "helper": "Cargar fuentes de Google Fonts (Chivo Mono). Cuando está deshabilitado, se usarán las fuentes del sistema."
         },
+        "useNerdFonts": {
+          "label": "Usar Nerd Fonts",
+          "helper": "Cargar símbolos de Nerd Fonts para soporte de iconos en la interfaz. Cuando está deshabilitado, se usarán las fuentes estándar del sistema."
+        },
         "fontFamily": {
           "label": "Sobrescribir Fuente",
           "placeholder": "ej. 'Fira Code', 'JetBrains Mono', monospace",

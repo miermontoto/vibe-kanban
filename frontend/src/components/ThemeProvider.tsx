@@ -6,6 +6,7 @@ type ThemeProviderProps = {
   initialTheme?: ThemeMode;
   initialFontFamily?: string | null;
   initialUseGoogleFonts?: boolean;
+  initialUseNerdFonts?: boolean;
 };
 
 type ThemeProviderState = {
@@ -15,6 +16,8 @@ type ThemeProviderState = {
   setFontFamily: (fontFamily: string | null) => void;
   useGoogleFonts: boolean;
   setUseGoogleFonts: (useGoogleFonts: boolean) => void;
+  useNerdFonts: boolean;
+  setUseNerdFonts: (useNerdFonts: boolean) => void;
 };
 
 const initialState: ThemeProviderState = {
@@ -24,6 +27,8 @@ const initialState: ThemeProviderState = {
   setFontFamily: () => null,
   useGoogleFonts: true,
   setUseGoogleFonts: () => null,
+  useNerdFonts: true,
+  setUseNerdFonts: () => null,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -33,6 +38,7 @@ export function ThemeProvider({
   initialTheme = ThemeMode.SYSTEM,
   initialFontFamily = null,
   initialUseGoogleFonts = true,
+  initialUseNerdFonts = true,
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
@@ -41,6 +47,9 @@ export function ThemeProvider({
   );
   const [useGoogleFonts, setUseGoogleFontsState] = useState<boolean>(
     initialUseGoogleFonts
+  );
+  const [useNerdFonts, setUseNerdFontsState] = useState<boolean>(
+    initialUseNerdFonts
   );
 
   // Update theme when initialTheme changes
@@ -57,6 +66,11 @@ export function ThemeProvider({
   useEffect(() => {
     setUseGoogleFontsState(initialUseGoogleFonts);
   }, [initialUseGoogleFonts]);
+
+  // Update use nerd fonts when initialUseNerdFonts changes
+  useEffect(() => {
+    setUseNerdFontsState(initialUseNerdFonts);
+  }, [initialUseNerdFonts]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -112,6 +126,30 @@ export function ThemeProvider({
     }
   }, [useGoogleFonts]);
 
+  // cargar o descargar Nerd Fonts Symbols dinámicamente
+  useEffect(() => {
+    const FONT_LINK_ID = 'nerd-fonts-symbols';
+    const FONT_URL =
+      'https://www.nerdfonts.com/assets/css/webfont.css';
+
+    if (useNerdFonts) {
+      // verificar si ya existe el link
+      if (!document.getElementById(FONT_LINK_ID)) {
+        const link = document.createElement('link');
+        link.id = FONT_LINK_ID;
+        link.rel = 'stylesheet';
+        link.href = FONT_URL;
+        document.head.appendChild(link);
+      }
+    } else {
+      // eliminar el link si existe
+      const existingLink = document.getElementById(FONT_LINK_ID);
+      if (existingLink) {
+        existingLink.remove();
+      }
+    }
+  }, [useNerdFonts]);
+
   const setTheme = (newTheme: ThemeMode) => {
     setThemeState(newTheme);
   };
@@ -124,6 +162,10 @@ export function ThemeProvider({
     setUseGoogleFontsState(newUseGoogleFonts);
   };
 
+  const setUseNerdFonts = (newUseNerdFonts: boolean) => {
+    setUseNerdFontsState(newUseNerdFonts);
+  };
+
   const value = {
     theme,
     setTheme,
@@ -131,6 +173,8 @@ export function ThemeProvider({
     setFontFamily,
     useGoogleFonts,
     setUseGoogleFonts,
+    useNerdFonts,
+    setUseNerdFonts,
   };
 
   return (

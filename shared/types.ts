@@ -401,6 +401,10 @@ font_family: string | null,
  */
 use_google_fonts: boolean, 
 /**
+ * cuando está habilitado, se cargarán los símbolos de Nerd Fonts para iconos en la interfaz
+ */
+use_nerd_fonts: boolean, 
+/**
  * cuando está habilitado, se muestra el contador de usuarios online de Discord en la barra de navegación
  */
 discord_counter_enabled: boolean, 
