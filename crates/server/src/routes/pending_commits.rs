@@ -6,10 +6,10 @@ use axum::{
     response::Json as ResponseJson,
     routing::{get, post},
 };
-use db::models::pending_commit::PendingCommit;
+use db::models::{merge::Merge, pending_commit::PendingCommit};
 use deployment::Deployment;
 use serde::Deserialize;
-use services::services::git::GitCli;
+use services::services::{config::GitAutoPushMode, git::GitCli};
 use ts_rs::TS;
 use utils::response::ApiResponse;
 use uuid::Uuid;
@@ -110,6 +110,36 @@ pub async fn commit_pending(
         title
     );
 
+    // determinar si debemos hacer auto-push después del commit
+    let should_auto_push = should_auto_push_after_commit(
+        &deployment,
+        workspace.task_id,
+        workspace.id,
+        pending_commit.repo_id,
+        &worktree_path,
+    )
+    .await;
+
+    if let Ok(true) = should_auto_push {
+        // obtener el nombre de la rama actual para hacer push
+        if let Ok(branch_name) = git.get_current_branch(&worktree_path) {
+            tracing::info!(
+                "Auto-pushing branch {} for workspace {} after manual commit",
+                branch_name,
+                workspace.id
+            );
+            if let Err(e) = deployment
+                .git_service()
+                .push_to_github(&worktree_path, &branch_name, false)
+            {
+                tracing::warn!("Auto-push failed after manual commit: {}", e);
+                // no retornamos error - el commit fue exitoso, solo el push falló
+            } else {
+                tracing::info!("Auto-push successful after manual commit");
+            }
+        }
+    }
+
     Ok(ResponseJson(ApiResponse::success(())))
 }
 
@@ -147,4 +177,63 @@ pub fn router() -> Router<DeploymentImpl> {
         );
 
     Router::new().nest("/pending-commits", inner)
+}
+
+/// determina si se debe hacer auto-push después de un commit
+/// retorna true si se debe hacer push, false si no
+async fn should_auto_push_after_commit(
+    deployment: &DeploymentImpl,
+    task_id: Uuid,
+    workspace_id: Uuid,
+    repo_id: Uuid,
+    worktree_path: &std::path::Path,
+) -> Result<bool, ApiError> {
+    // obtener la tarea para acceder al project_id
+    let task = db::models::task::Task::find_by_id(&deployment.db().pool, task_id)
+        .await?
+        .ok_or(ApiError::BadRequest("Task not found".to_string()))?;
+
+    // obtener el proyecto para verificar overrides
+    let project = db::models::project::Project::find_by_id(&deployment.db().pool, task.project_id)
+        .await?
+        .ok_or(ApiError::BadRequest("Project not found".to_string()))?;
+
+    // obtener la configuración global
+    let config = deployment.config();
+
+    // determinar el modo efectivo (project override > global config)
+    let auto_push_mode_str = project
+        .git_auto_push_mode
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or_else(|| match config.git_auto_push_mode {
+            GitAutoPushMode::Never => "Never",
+            GitAutoPushMode::Always => "Always",
+            GitAutoPushMode::IfPrExists => "IfPrExists",
+        });
+
+    match auto_push_mode_str {
+        "Never" => Ok(false),
+        "Always" => Ok(true),
+        "IfPrExists" => {
+            // verificar si existe un PR abierto para esta rama
+            let git = GitCli::new();
+            let branch_name = git
+                .get_current_branch(worktree_path)
+                .map_err(|e| ApiError::BadRequest(format!("Failed to get current branch: {e}")))?;
+
+            let has_pr =
+                Merge::has_open_pr_for_branch(&deployment.db().pool, workspace_id, repo_id, &branch_name)
+                    .await?;
+
+            Ok(has_pr)
+        }
+        _ => {
+            tracing::warn!(
+                "Unknown auto_push_mode value: {}, defaulting to Never",
+                auto_push_mode_str
+            );
+            Ok(false)
+        }
+    }
 }

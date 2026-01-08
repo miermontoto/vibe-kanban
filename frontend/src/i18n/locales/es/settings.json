@@ -168,6 +168,15 @@
             "helper": "Personaliza el prompt usado para generar títulos de commit. La IA usará este prompt para crear mensajes de commit convencionales."
           },
           "notImplemented": "Aún No Implementado"
+        },
+        "autoPush": {
+          "label": "Modo de Auto-push",
+          "helper": "Envía automáticamente los commits al repositorio remoto después de confirmarlos.",
+          "options": {
+            "never": "Nunca hacer auto-push",
+            "always": "Siempre hacer auto-push después de commit",
+            "ifPrExists": "Auto-push solo si existe PR para la rama"
+          }
         }
       },
       "tasks": {
