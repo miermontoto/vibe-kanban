@@ -101,12 +101,15 @@ export const useConversationHistory = ({
     getCachedEntries,
     setCachedEntries,
     getCachedLoadedInitial,
+    invalidateCache,
   } = useEntries();
   const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesRaw);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
   const streamingProcessIdsRef = useRef<Set<string>>(new Set());
   const onEntriesUpdatedRef = useRef<OnEntriesUpdated | null>(null);
+  // track current attempt to prevent race conditions when switching rapidly
+  const currentAttemptId = useRef(attempt.id);
 
   const mergeIntoDisplayed = (
     mutator: (state: ExecutionProcessStateStore) => void
@@ -608,6 +611,7 @@ export const useConversationHistory = ({
   // Initial load when attempt changes
   useEffect(() => {
     let cancelled = false;
+    const attemptIdSnapshot = attempt.id;
     (async () => {
       // Waiting for execution processes to load
       if (
@@ -618,7 +622,7 @@ export const useConversationHistory = ({
 
       // Initial entries
       const allInitialEntries = await loadInitialEntries();
-      if (cancelled) return;
+      if (cancelled || currentAttemptId.current !== attemptIdSnapshot) return;
       mergeIntoDisplayed((state) => {
         Object.assign(state, allInitialEntries);
       });
@@ -628,12 +632,15 @@ export const useConversationHistory = ({
       // Then load the remaining in batches
       while (
         !cancelled &&
+        currentAttemptId.current === attemptIdSnapshot &&
         (await loadRemainingEntriesInBatches(REMAINING_BATCH_SIZE))
       ) {
-        if (cancelled) return;
+        if (cancelled || currentAttemptId.current !== attemptIdSnapshot) return;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
-      emitEntriesRef.current(displayedExecutionProcesses.current, 'historic', false);
+      if (currentAttemptId.current === attemptIdSnapshot) {
+        emitEntriesRef.current(displayedExecutionProcesses.current, 'historic', false);
+      }
     })();
     return () => {
       cancelled = true;
@@ -708,26 +715,57 @@ export const useConversationHistory = ({
           delete state[id];
         });
       });
+      // invalidate cache when processes are removed
+      invalidateCache(attempt.id);
     }
-  }, [attempt.id, idListKey, executionProcessesRaw]);
+  }, [attempt.id, idListKey, executionProcessesRaw, invalidateCache]);
+
+  // Invalidate cache when execution processes complete or change status
+  useEffect(() => {
+    if (!executionProcessesRaw || executionProcessesRaw.length === 0) return;
+
+    // check if any process changed from running to completed/failed/killed
+    const hasStatusChange = executionProcessesRaw.some((currentProcess) => {
+      const previousProcess = executionProcesses.current.find(
+        (p) => p.id === currentProcess.id
+      );
+      if (!previousProcess) return false;
+
+      // detect status changes that indicate completion
+      return (
+        previousProcess.status === ExecutionProcessStatus.running &&
+        (currentProcess.status === ExecutionProcessStatus.completed ||
+          currentProcess.status === ExecutionProcessStatus.failed ||
+          currentProcess.status === ExecutionProcessStatus.killed)
+      );
+    });
+
+    if (hasStatusChange) {
+      // invalidate cache to ensure fresh data on next view
+      invalidateCache(attempt.id);
+    }
+  }, [attempt.id, idStatusKey, executionProcessesRaw, invalidateCache]);
 
   // Reset state when attempt changes
   useEffect(() => {
-    // intentar restaurar desde cache antes de resetear
+    // update current attempt ID to prevent race conditions
+    currentAttemptId.current = attempt.id;
+
+    // attempt to restore from cache before resetting
     const cachedEntries = getCachedEntries(attempt.id);
     const cachedLoadedInitial = getCachedLoadedInitial(attempt.id);
 
     if (cachedEntries && cachedEntries.length > 0) {
-      // si hay cache, emitirlo inmediatamente sin resetear el estado
-      // esto evita mostrar el loading mientras esperamos que los execution processes se carguen
+      // if cache exists, emit it immediately without resetting state
+      // this avoids showing loading while waiting for execution processes to load
       loadedInitialEntries.current = cachedLoadedInitial;
       streamingProcessIdsRef.current.clear();
 
-      // emitir directamente las entradas cacheadas sin tocar displayedExecutionProcesses
-      // el estado se actualizará naturalmente cuando los execution processes se carguen
+      // emit cached entries directly without touching displayedExecutionProcesses
+      // state will update naturally when execution processes load
       onEntriesUpdatedRef.current?.(cachedEntries, 'initial', false);
     } else {
-      // no hay cache, resetear normalmente
+      // no cache, reset normally
       displayedExecutionProcesses.current = {};
       loadedInitialEntries.current = false;
       streamingProcessIdsRef.current.clear();

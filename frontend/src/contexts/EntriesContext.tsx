@@ -9,12 +9,15 @@ import {
 } from 'react';
 import type { PatchTypeWithKey } from '@/hooks/useConversationHistory';
 
-// cache de conversaciones por attempt id
-type ConversationCache = Map<string, {
-  entries: PatchTypeWithKey[];
-  loadedInitial: boolean;
-  timestamp: number;
-}>;
+// cache of conversations indexed by attempt id
+type ConversationCache = Map<
+  string,
+  {
+    entries: PatchTypeWithKey[];
+    loadedInitial: boolean;
+    timestamp: number;
+  }
+>;
 
 interface EntriesContextType {
   entries: PatchTypeWithKey[];
@@ -46,47 +49,57 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
     setEntriesState([]);
   }, []);
 
-  // obtener entradas cacheadas para un attempt
-  const getCachedEntries = useCallback((attemptId: string): PatchTypeWithKey[] | null => {
-    const cached = conversationCache.current.get(attemptId);
-    if (!cached) return null;
+  // get cached entries for an attempt
+  const getCachedEntries = useCallback(
+    (attemptId: string): PatchTypeWithKey[] | null => {
+      const cached = conversationCache.current.get(attemptId);
+      if (!cached) return null;
 
-    // invalidar cache antiguo (más de 5 minutos)
-    const isStale = Date.now() - cached.timestamp > 5 * 60 * 1000;
-    if (isStale) {
-      conversationCache.current.delete(attemptId);
-      return null;
-    }
+      // invalidate stale cache (older than 5 minutes)
+      const isStale = Date.now() - cached.timestamp > 5 * 60 * 1000;
+      if (isStale) {
+        conversationCache.current.delete(attemptId);
+        return null;
+      }
 
-    return cached.entries;
-  }, []);
+      return cached.entries;
+    },
+    []
+  );
 
-  // guardar entradas en cache
-  const setCachedEntries = useCallback((
-    attemptId: string,
-    entries: PatchTypeWithKey[],
-    loadedInitial: boolean
-  ) => {
-    conversationCache.current.set(attemptId, {
-      entries: [...entries],
-      loadedInitial,
-      timestamp: Date.now(),
-    });
-  }, []);
+  // store entries in cache
+  const setCachedEntries = useCallback(
+    (
+      attemptId: string,
+      entries: PatchTypeWithKey[],
+      loadedInitial: boolean
+    ) => {
+      conversationCache.current.set(attemptId, {
+        entries: [...entries],
+        loadedInitial,
+        timestamp: Date.now(),
+      });
+    },
+    []
+  );
 
-  // verificar si existe cache
+  // check if cache exists (without side effects)
   const hasCachedEntries = useCallback((attemptId: string): boolean => {
-    return conversationCache.current.has(attemptId) &&
-           getCachedEntries(attemptId) !== null;
-  }, [getCachedEntries]);
+    const cached = conversationCache.current.get(attemptId);
+    if (!cached) return false;
 
-  // obtener estado de carga inicial
+    // check if stale without deleting
+    const isStale = Date.now() - cached.timestamp > 5 * 60 * 1000;
+    return !isStale;
+  }, []);
+
+  // get initial load state from cache
   const getCachedLoadedInitial = useCallback((attemptId: string): boolean => {
     const cached = conversationCache.current.get(attemptId);
     return cached?.loadedInitial ?? false;
   }, []);
 
-  // invalidar cache (un attempt específico o todo)
+  // invalidate cache (specific attempt or all)
   const invalidateCache = useCallback((attemptId?: string) => {
     if (attemptId) {
       conversationCache.current.delete(attemptId);
