@@ -656,6 +656,7 @@ export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in
 
 export const DEFAULT_PR_DESCRIPTION_PROMPT = `Update the GitHub PR that was just created with a better title and description.
 The PR number is #{pr_number} and the URL is {pr_url}.
+The repository is {repo_owner}/{repo_name}.
 
 Analyze the changes in this branch and write:
 1. A concise, descriptive title that summarizes the changes, postfixed with "(Vibe Kanban)"
@@ -665,7 +666,7 @@ Analyze the changes in this branch and write:
    - Any important implementation details
    - At the end, include a note: "This PR was written using [Vibe Kanban](https://vibekanban.com)"
 
-Use \`gh pr edit\` to update the PR.`;
+Use \`gh pr edit {pr_number} --repo {repo_owner}/{repo_name}\` to update the PR.`;
 
 export const DEFAULT_COMMIT_TITLE_PROMPT = `Generate a concise git commit title for the following changes.
 Follow conventional commits format: type(scope): description
