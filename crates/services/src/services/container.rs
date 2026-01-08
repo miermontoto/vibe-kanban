@@ -1001,6 +1001,7 @@ pub trait ContainerService {
             .ok_or(SqlxError::RowNotFound)?;
         if task.status != TaskStatus::InProgress
             && run_reason != &ExecutionProcessRunReason::DevServer
+            && run_reason != &ExecutionProcessRunReason::PrDescriptionGeneration
         {
             Task::update_status(&self.db().pool, task.id, TaskStatus::InProgress).await?;
 
