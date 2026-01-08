@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { useJsonPatchWsStream } from './useJsonPatchWsStream';
 import type { ExecutionProcess } from 'shared/types';
 
@@ -6,8 +6,10 @@ type ExecutionProcessState = {
   execution_processes: Record<string, ExecutionProcess>;
 };
 
-// store optimistic processes globally so they persist across hook instances
-const optimisticProcessesStore = new Map<string, ExecutionProcess>();
+interface OptimisticProcessEntry {
+  process: ExecutionProcess;
+  timestamp: number;
+}
 
 interface UseExecutionProcessesResult {
   executionProcesses: ExecutionProcess[];
@@ -19,6 +21,9 @@ interface UseExecutionProcessesResult {
   addOptimisticProcess: (process: ExecutionProcess) => void;
 }
 
+// timeout después del cual se eliminan procesos optimistas huérfanos (30 segundos)
+const OPTIMISTIC_PROCESS_TIMEOUT_MS = 30000;
+
 /**
  * Stream execution processes for a task attempt via WebSocket (JSON Patch) and expose as array + map.
  * Server sends initial snapshot: replace /execution_processes with an object keyed by id.
@@ -29,9 +34,16 @@ export const useExecutionProcesses = (
   opts?: { showSoftDeleted?: boolean }
 ): UseExecutionProcessesResult => {
   const showSoftDeleted = opts?.showSoftDeleted;
+
+  // store optimista local a esta instancia del hook, con timestamps
+  const optimisticProcessesRef = useRef<Map<string, OptimisticProcessEntry>>(
+    new Map()
+  );
   const [optimisticProcesses, setOptimisticProcesses] = useState<
     ExecutionProcess[]
   >([]);
+  const cleanupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   let endpoint: string | undefined;
 
   if (taskAttemptId) {
@@ -54,13 +66,20 @@ export const useExecutionProcesses = (
       initialData
     );
 
-  // función para añadir proceso optimista
+  // función para añadir proceso optimista con timestamp
   const addOptimisticProcess = useCallback((process: ExecutionProcess) => {
-    optimisticProcessesStore.set(process.id, process);
-    setOptimisticProcesses(Array.from(optimisticProcessesStore.values()));
+    optimisticProcessesRef.current.set(process.id, {
+      process,
+      timestamp: Date.now(),
+    });
+    setOptimisticProcesses(
+      Array.from(optimisticProcessesRef.current.values()).map(
+        (entry) => entry.process
+      )
+    );
   }, []);
 
-  // limpiar procesos optimistas cuando llegan los reales
+  // limpiar procesos optimistas cuando llegan los reales o expiran
   useEffect(() => {
     if (!data?.execution_processes) return;
 
@@ -68,17 +87,59 @@ export const useExecutionProcesses = (
     let hasChanges = false;
 
     // eliminar procesos optimistas que ya están en los datos reales
-    optimisticProcessesStore.forEach((_, id) => {
+    optimisticProcessesRef.current.forEach((_, id) => {
       if (realProcessIds.includes(id)) {
-        optimisticProcessesStore.delete(id);
+        optimisticProcessesRef.current.delete(id);
         hasChanges = true;
       }
     });
 
     if (hasChanges) {
-      setOptimisticProcesses(Array.from(optimisticProcessesStore.values()));
+      setOptimisticProcesses(
+        Array.from(optimisticProcessesRef.current.values()).map(
+          (entry) => entry.process
+        )
+      );
     }
   }, [data]);
+
+  // cleanup automático de procesos optimistas expirados
+  useEffect(() => {
+    cleanupTimerRef.current = setInterval(() => {
+      const now = Date.now();
+      let hasChanges = false;
+
+      optimisticProcessesRef.current.forEach((entry, id) => {
+        if (now - entry.timestamp > OPTIMISTIC_PROCESS_TIMEOUT_MS) {
+          optimisticProcessesRef.current.delete(id);
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        setOptimisticProcesses(
+          Array.from(optimisticProcessesRef.current.values()).map(
+            (entry) => entry.process
+          )
+        );
+      }
+    }, 5000); // revisar cada 5 segundos
+
+    return () => {
+      if (cleanupTimerRef.current) {
+        clearInterval(cleanupTimerRef.current);
+        cleanupTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // limpiar todos los procesos optimistas al desmontar o cambiar taskAttemptId
+  useEffect(() => {
+    return () => {
+      optimisticProcessesRef.current.clear();
+      setOptimisticProcesses([]);
+    };
+  }, [taskAttemptId]);
 
   // combinar procesos reales con optimistas
   const executionProcessesById = data?.execution_processes
