@@ -129,8 +129,7 @@ export function ThemeProvider({
   // cargar o descargar Nerd Fonts Symbols dinámicamente
   useEffect(() => {
     const FONT_LINK_ID = 'nerd-fonts-symbols';
-    const FONT_URL =
-      'https://www.nerdfonts.com/assets/css/webfont.css';
+    const FONT_URL = '/css/nerd-fonts.css';
 
     if (useNerdFonts) {
       // verificar si ya existe el link
