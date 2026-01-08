@@ -3,10 +3,21 @@ use std::{env, path::PathBuf};
 use tokio::fs;
 
 pub async fn write_port_file(port: u16) -> std::io::Result<PathBuf> {
-    let dir = env::temp_dir().join("vibe-kanban");
-    let path = dir.join("vibe-kanban.port");
+    // allow override for worktree-specific port files
+    let path = if let Ok(custom_path) = env::var("VK_PORT_FILE") {
+        PathBuf::from(custom_path)
+    } else {
+        // default: global temp directory
+        env::temp_dir().join("vibe-kanban").join("vibe-kanban.port")
+    };
+
     tracing::debug!("Writing port {} to {:?}", port, path);
-    fs::create_dir_all(&dir).await?;
+
+    // create parent directory if needed
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).await?;
+    }
+
     fs::write(&path, port.to_string()).await?;
     Ok(path)
 }

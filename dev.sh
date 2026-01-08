@@ -31,15 +31,20 @@ setup_symlinks() {
 
 setup_symlinks
 
-# kill any existing dev processes on common ports
-pkill -f "cargo.*run.*server" 2>/dev/null
-pkill -f "vite.*--port" 2>/dev/null
+# kill only dev processes running from THIS worktree
+# using lsof to find processes with cwd matching this directory
+WORKTREE_DIR="$(pwd)"
+for pid in $(lsof +D "$WORKTREE_DIR" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u); do
+    ps -p "$pid" -o comm= | grep -qE "(cargo|vite)" && kill "$pid" 2>/dev/null
+done
 
 # set up environment
 export DISABLE_WORKTREE_ORPHAN_CLEANUP=1
 export RUST_LOG=debug
 
-PORT_FILE="/tmp/vibe-kanban/vibe-kanban.port"
+# use worktree-local port file to avoid conflicts between worktrees
+PORT_FILE="$(pwd)/.vibe-kanban.port"
+export VK_PORT_FILE="$PORT_FILE"
 
 # remove stale port file
 rm -f "$PORT_FILE"
