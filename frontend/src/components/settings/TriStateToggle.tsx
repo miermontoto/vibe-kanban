@@ -1,12 +1,13 @@
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import { type ReactNode } from 'react';
 
 export interface TriStateOption<T> {
   value: T;
   label: string;
   description?: string;
-  badge?: React.ReactNode;
+  badge?: ReactNode;
 }
 
 interface TriStateToggleProps<T> {
