@@ -76,6 +76,7 @@ pub struct CreateTask {
     pub parent_workspace_id: Option<Uuid>,
     pub image_ids: Option<Vec<Uuid>>,
     pub shared_task_id: Option<Uuid>,
+    pub label_ids: Option<Vec<Uuid>>,
 }
 
 impl CreateTask {
@@ -92,6 +93,7 @@ impl CreateTask {
             parent_workspace_id: None,
             image_ids: None,
             shared_task_id: None,
+            label_ids: None,
         }
     }
 
@@ -110,6 +112,7 @@ impl CreateTask {
             parent_workspace_id: None,
             image_ids: None,
             shared_task_id: Some(shared_task_id),
+            label_ids: None,
         }
     }
 }
@@ -121,6 +124,7 @@ pub struct UpdateTask {
     pub status: Option<TaskStatus>,
     pub parent_workspace_id: Option<Uuid>,
     pub image_ids: Option<Vec<Uuid>>,
+    pub label_ids: Option<Vec<Uuid>>,
 }
 
 impl Task {
