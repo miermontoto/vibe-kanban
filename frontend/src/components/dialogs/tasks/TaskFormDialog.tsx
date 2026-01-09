@@ -38,6 +38,7 @@ import {
   useRepoBranchSelection,
   useProjects,
 } from '@/hooks';
+import { useProjectTasks } from '@/hooks/useProjectTasks';
 import {
   useKeySubmitTask,
   useKeySubmitTaskAlt,
@@ -60,6 +61,8 @@ interface Task {
   title: string;
   description: string | null;
   status: TaskStatus;
+  task_type: TaskType;
+  parent_task_id: string | null;
   use_ralph_wiggum: boolean;
   ralph_max_iterations: bigint | null;
   ralph_completion_promise: string | null;
@@ -144,6 +147,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   const { upload, uploadForTask } = useImageUpload();
   const { enableScope, disableScope } = useHotkeysContext();
 
+  // Fetch all tasks for parent selection
+  const { tasks } = useProjectTasks(projectId);
+
   // Local UI state
   const [images, setImages] = useState<ImageResponse[]>([]);
   const [newlyUploadedImageIds, setNewlyUploadedImageIds] = useState<string[]>(
@@ -183,8 +189,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           title: props.task.title,
           description: props.task.description || '',
           status: props.task.status,
-          taskType: 'story' as TaskType,
-          parentTaskId: null,
+          taskType: props.task.task_type,
+          parentTaskId: props.task.parent_task_id,
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
           autoStart: false,
@@ -229,6 +235,24 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         };
     }
   }, [mode, props, system.config?.executor_profile, defaultRepoBranches]);
+
+  // Compute available parent tasks based on current task type
+  const getAvailableParentTasks = useCallback((taskType: TaskType) => {
+    return tasks.filter((t) => {
+      // Can't be own parent
+      if (editMode && 'task' in props && t.id === props.task.id) return false;
+
+      // Filter based on task type rules
+      if (taskType === 'epic') {
+        return false; // EPICs cannot have parents
+      } else if (taskType === 'story') {
+        return t.task_type === 'epic'; // Stories can only have EPICs as parents
+      } else if (taskType === 'subtask') {
+        return t.task_type === 'epic' || t.task_type === 'story'; // Subtasks can have EPICs or Stories
+      }
+      return false;
+    });
+  }, [tasks, editMode, props]);
 
   // Form submission handler
   const handleSubmit = async ({ value }: { value: TaskFormValues }) => {
@@ -574,6 +598,61 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                 )}
               </div>
             )}
+          </form.Field>
+
+          {/* Parent Task Selector */}
+          <form.Field name="parentTaskId">
+            {(field) => {
+              const taskTypeField = form.getFieldValue('taskType');
+              const availableParents = getAvailableParentTasks(taskTypeField);
+              const isParentRequired = taskTypeField === 'subtask';
+              const isParentDisabled = taskTypeField === 'epic' || availableParents.length === 0;
+
+              return (
+                <div className="space-y-2">
+                  <Label htmlFor="parent-task-id">
+                    Parent Task {isParentRequired && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Select
+                    value={field.state.value || 'none'}
+                    onValueChange={(value) =>
+                      field.handleChange(value === 'none' ? null : value)
+                    }
+                    disabled={isSubmitting || isParentDisabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        isParentDisabled
+                          ? (taskTypeField === 'epic' ? 'EPICs cannot have parents' : 'No available parents')
+                          : 'Select parent task (optional)'
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {!isParentRequired && (
+                        <SelectItem value="none">No parent</SelectItem>
+                      )}
+                      {availableParents.map((task: TaskType_Full) => (
+                        <SelectItem key={task.id} value={task.id}>
+                          <span className="flex items-center gap-2">
+                            {task.task_type === 'epic' ? '📚' : '📄'} {task.title}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {taskTypeField === 'story' && availableParents.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Assign this story to an EPIC for organization
+                    </p>
+                  )}
+                  {taskTypeField === 'subtask' && (
+                    <p className="text-xs text-muted-foreground">
+                      Subtasks must belong to a story or epic
+                    </p>
+                  )}
+                </div>
+              );
+            }}
           </form.Field>
 
           {/* Edit mode status */}
