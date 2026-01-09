@@ -47,7 +47,8 @@ if (
     autocapture: false,
     opt_out_capturing_by_default: true,
   });
-} else {
+} else if (import.meta.env.MODE !== 'development') {
+  // solo muestra el warning en producción, en desarrollo es esperado
   console.warn(
     'PostHog API key or endpoint not set. Analytics will be disabled.'
   );
