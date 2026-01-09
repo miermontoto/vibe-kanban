@@ -17,16 +17,7 @@ pub async fn stream_with_heartbeat(
     let mut ping_interval = interval(Duration::from_secs(30));
     ping_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-    // drenar mensajes del cliente (maneja pongs automáticamente)
-    tokio::spawn(async move {
-        while let Some(msg) = receiver.next().await {
-            if let Ok(WsMessage::Close(_)) = msg {
-                break;
-            }
-        }
-    });
-
-    // combinar stream de datos con stream de pings
+    // combinar stream de datos, pings y mensajes del cliente en un solo select
     loop {
         tokio::select! {
             // mensaje del stream de datos
@@ -52,6 +43,26 @@ pub async fn stream_with_heartbeat(
                 if sender.send(WsMessage::Ping(vec![].into())).await.is_err() {
                     tracing::debug!("failed to send ping, client disconnected");
                     break;
+                }
+            }
+            // mensajes del cliente (pongs, close, etc)
+            msg = receiver.next() => {
+                match msg {
+                    Some(Ok(WsMessage::Close(_))) => {
+                        tracing::debug!("client sent close frame");
+                        break;
+                    }
+                    Some(Err(_)) => {
+                        tracing::debug!("error receiving from client");
+                        break;
+                    }
+                    None => {
+                        // cliente cerró conexión
+                        tracing::debug!("client closed connection");
+                        break;
+                    }
+                    // ignorar pongs y otros mensajes (solo los procesamos para mantener conexión viva)
+                    _ => {}
                 }
             }
         }
