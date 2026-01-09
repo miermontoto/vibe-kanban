@@ -44,6 +44,7 @@ export function useContainerWidth<T extends HTMLElement = HTMLDivElement>(): [
  * hook para detectar si los hijos del contenedor se desbordan horizontalmente
  * retorna true si los hijos necesitan más espacio que el disponible
  * funciona con contenedores que tienen overflow-hidden midiendo el tamaño natural de los hijos
+ * usa hysteresis para prevenir toggle continuo entre estados
  */
 export function useContainerOverflow<T extends HTMLElement = HTMLDivElement>(): [
   boolean,
@@ -76,9 +77,26 @@ export function useContainerOverflow<T extends HTMLElement = HTMLDivElement>(): 
       totalChildrenWidth += gapTotal;
 
       const availableWidth = element.clientWidth;
-      const hasOverflow = totalChildrenWidth > availableWidth + 1; // +1 para tolerancia de redondeo
 
-      setIsOverflowing(hasOverflow);
+      // usar hysteresis para prevenir toggle continuo:
+      // - para ACTIVAR overflow: necesitamos que el contenido sea > ancho disponible
+      // - para DESACTIVAR overflow: necesitamos espacio extra (~150px para labels de botones)
+      // esto previene el loop: overflow -> hide labels -> shrink -> no overflow -> show labels -> overflow...
+      const BUFFER_ZONE = 150; // espacio adicional necesario para volver a mostrar labels
+
+      if (isOverflowing) {
+        // ya estamos en overflow, solo salir si hay suficiente espacio EXTRA
+        const hasEnoughSpace = totalChildrenWidth + BUFFER_ZONE <= availableWidth;
+        if (hasEnoughSpace) {
+          setIsOverflowing(false);
+        }
+      } else {
+        // no hay overflow, solo entrar si realmente hay overflow
+        const hasOverflow = totalChildrenWidth > availableWidth + 1;
+        if (hasOverflow) {
+          setIsOverflowing(true);
+        }
+      }
     };
 
     // revisar overflow inicial con un pequeño delay para asegurar que el layout esté completo
