@@ -48,8 +48,10 @@ import { useHotkeysContext } from 'react-hotkeys-hook';
 import { cn } from '@/lib/utils';
 import type {
   TaskStatus,
+  TaskType,
   ExecutorProfileId,
   ImageResponse,
+  Task as TaskType_Full,
 } from 'shared/types';
 
 interface Task {
@@ -82,6 +84,8 @@ type TaskFormValues = {
   title: string;
   description: string;
   status: TaskStatus;
+  taskType: TaskType;
+  parentTaskId: string | null;
   executorProfileId: ExecutorProfileId | null;
   repoBranches: RepoBranch[];
   autoStart: boolean;
@@ -179,6 +183,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           title: props.task.title,
           description: props.task.description || '',
           status: props.task.status,
+          taskType: 'story' as TaskType,
+          parentTaskId: null,
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
           autoStart: false,
@@ -193,6 +199,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           title: props.initialTask.title,
           description: props.initialTask.description || '',
           status: 'todo',
+          taskType: 'story' as TaskType,
+          parentTaskId: null,
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
           autoStart: true,
@@ -209,6 +217,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           title: '',
           description: '',
           status: 'todo',
+          taskType: mode === 'subtask' ? ('subtask' as TaskType) : ('story' as TaskType),
+          parentTaskId: null,
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
           autoStart: true,
@@ -230,6 +240,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
             title: value.title,
             description: value.description,
             status: value.status,
+            task_type: value.taskType,
+            parent_task_id: value.parentTaskId,
             parent_workspace_id: null,
             image_ids: images.length > 0 ? images.map((img) => img.id) : null,
             use_ralph_wiggum: value.useRalphWiggum,
@@ -248,6 +260,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         title: value.title,
         description: value.description,
         status: null,
+        task_type: value.taskType,
+        parent_task_id: value.parentTaskId,
         parent_workspace_id:
           mode === 'subtask' ? props.parentTaskAttemptId : null,
         image_ids: imageIds,
@@ -524,6 +538,44 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
               </div>
             )}
           </form.Field>
+
+          {/* Task Type Selector */}
+          <form.Field name="taskType">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="task-type" className="text-sm font-medium">
+                  Task Type
+                </Label>
+                <Select
+                  value={field.state.value}
+                  onValueChange={(value) =>
+                    field.handleChange(value as TaskType)
+                  }
+                  disabled={isSubmitting || mode === 'subtask'}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="epic">Epic</SelectItem>
+                    <SelectItem value="story">Story</SelectItem>
+                    <SelectItem value="subtask">Subtask</SelectItem>
+                  </SelectContent>
+                </Select>
+                {field.state.value === 'epic' && (
+                  <p className="text-xs text-muted-foreground">
+                    EPICs organize multiple stories but cannot be executed
+                  </p>
+                )}
+                {field.state.value === 'subtask' && (
+                  <p className="text-xs text-muted-foreground">
+                    Subtasks must have a parent story or epic
+                  </p>
+                )}
+              </div>
+            )}
+          </form.Field>
+
           {/* Edit mode status */}
           {editMode && (
             <form.Field name="status">
