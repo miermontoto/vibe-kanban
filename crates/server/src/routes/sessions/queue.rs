@@ -31,11 +31,27 @@ pub async fn queue_message(
 
     let queued = deployment
         .queued_message_service()
-        .queue_message(session.id, data);
+        .queue_message(session.id, data);    Ok(ResponseJson(ApiResponse::success(QueueStatus::Queued {
+        message: queued,
+    })))
+}
 
+/// Cancel a queued follow-up message
+pub async fn cancel_queued_message(
+    Extension(session): Extension<Session>,
+    State(deployment): State<DeploymentImpl>,
+) -> Result<ResponseJson<ApiResponse<QueueStatus>>, ApiError> {
     deployment
+        .queued_message_service()
+        .cancel_queued(session.id);    Ok(ResponseJson(ApiResponse::success(QueueStatus::Empty)))
+}
 
-    deployment
+/// Get the current queue status for a session's workspace
+pub async fn get_queue_status(
+    Extension(session): Extension<Session>,
+    State(deployment): State<DeploymentImpl>,
+) -> Result<ResponseJson<ApiResponse<QueueStatus>>, ApiError> {
+    let status = deployment.queued_message_service().get_status(session.id);
 
     Ok(ResponseJson(ApiResponse::success(status)))
 }

@@ -115,9 +115,12 @@ pub async fn open_repo_in_editor(
                 repo_id,
                 repo.path.to_string_lossy(),
                 if url.is_some() { " (remote mode)" } else { "" }
-            );
-
-            deployment
+            );            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
+                url,
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Failed to open editor for repo {}: {:?}", repo_id, e);
             Err(ApiError::EditorOpen(e))
         }
     }

@@ -10,7 +10,7 @@ use axum::{
     http::StatusCode,
     middleware::from_fn_with_state,
     response::{IntoResponse, Json as ResponseJson},
-    routing::{delete, get, post, put},
+    routing::{get, post, put, delete},
 };
 use db::models::{
     image::TaskImage,
@@ -135,9 +135,21 @@ pub async fn create_task(
         TaskLabel::sync_task_labels(&deployment.db().pool, task.id, label_ids).await?;
     }
 
-    deployment
-    }
+    Ok(ResponseJson(ApiResponse::success(task)))
+}
 
+#[derive(Debug, Deserialize, TS)]
+pub struct CreateTaskAndStartRequest {
+    pub task: CreateTask,
+    pub repos: Vec<WorkspaceRepoInput>,
+    pub custom_branch_name: Option<String>,
+    pub executor_profile_id: ExecutorProfileId,
+}
+
+pub async fn create_task_and_start(
+    State(deployment): State<DeploymentImpl>,
+    Json(payload): Json<CreateTaskAndStartRequest>,
+) -> Result<ResponseJson<ApiResponse<TaskWithAttemptStatus>>, ApiError> {
     let pool = &deployment.db().pool;
 
     let task_id = Uuid::new_v4();
@@ -147,7 +159,12 @@ pub async fn create_task(
         TaskImage::associate_many_dedup(pool, task.id, image_ids).await?;
     }
 
-    deployment
+    let project = Project::find_by_id(pool, payload.task.project_id)
+        .await?
+        .ok_or(ApiError::Project(ProjectError::ProjectNotFound))?;
+
+    let attempt_id = Uuid::new_v4();
+
     let git_branch_name = match &payload.custom_branch_name {
         Some(name) if !name.trim().is_empty() => {
             // sanitize custom branch name to ensure it's git-safe
@@ -203,7 +220,7 @@ pub async fn create_task(
         .await
         .inspect_err(|err| tracing::error!("Failed to start task attempt: {}", err))
         .is_ok();
-    deployment
+
     Ok(ResponseJson(ApiResponse::success(TaskWithAttemptStatus {
         task,
         has_in_progress_attempt: is_attempt_running,
@@ -441,7 +458,8 @@ pub async fn delete_task(
         );
     }
 
-    deployment
+    let task_id = task.id;
+    let pool_clone = pool.clone();
     tokio::spawn(async move {
         tracing::info!(
             "Starting background cleanup for task {} ({} workspaces, {} repos)",
@@ -462,7 +480,7 @@ pub async fn delete_task(
             }
         }
 
-        match Repo::delete_orphaned(&pool).await {
+        match Repo::delete_orphaned(&pool_clone).await {
             Ok(count) if count > 0 => {
                 tracing::info!("Deleted {} orphaned repo records", count);
             }
@@ -498,11 +516,16 @@ pub async fn share_task(
         .ok_or(ShareError::MissingAuth)?;
     let shared_task_id = publisher.share_task(task.id, profile.user_id).await?;
 
-    let props = serde_json::json!({
-        "task_id": task.id,
-        "shared_task_id": shared_task_id,
-    });
-    deployment
+    Ok(ResponseJson(ApiResponse::success(ShareTaskResponse {
+        shared_task_id,
+    })))
+}
+
+pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
+    let task_actions_router = Router::new()
+        .route("/", put(update_task))
+        .route("/", delete(delete_task))
+        .route("/share", post(share_task));
 
     let task_id_router = Router::new()
         .route("/", get(get_task))

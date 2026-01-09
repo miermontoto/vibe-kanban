@@ -201,10 +201,30 @@ async fn apply_remote_project_link(
     let updated_project = deployment
         .project()
         .link_to_remote(&deployment.db().pool, project.id, remote_project)
-        .await?;
+        .await?;    Ok(updated_project)
+}
 
-    deployment
-    let repo_count = payload.repositories.len();
+pub async fn get_project_remotes(
+    Extension(project): Extension<Project>,
+    State(deployment): State<DeploymentImpl>,
+) -> Result<ResponseJson<ApiResponse<Vec<GitRemote>>>, ApiError> {
+    // Get the first repo for this project to read remotes from
+    let repos = deployment
+        .project()
+        .get_repositories(&deployment.db().pool, project.id)
+        .await?;
+    let repo = repos.first().ok_or(ApiError::BadRequest(
+        "Project has no repositories".to_string(),
+    ))?;
+    let remotes = deployment.git().get_all_remotes(&repo.path)?;
+    Ok(ResponseJson(ApiResponse::success(remotes)))
+}
+
+pub async fn create_project(
+    State(deployment): State<DeploymentImpl>,
+    Json(payload): Json<CreateProject>,
+) -> Result<ResponseJson<ApiResponse<Project>>, ApiError> {
+    tracing::debug!("Creating project '{}'", payload.name);
 
     match deployment
         .project()
@@ -212,8 +232,40 @@ async fn apply_remote_project_link(
         .await
     {
         Ok(project) => {
-            // Track project creation event
-            deployment
+            Ok(ResponseJson(ApiResponse::success(project)))
+        }
+        Err(ProjectServiceError::DuplicateGitRepoPath) => Ok(ResponseJson(ApiResponse::error(
+            "Duplicate repository path provided",
+        ))),
+        Err(ProjectServiceError::DuplicateRepositoryName) => Ok(ResponseJson(ApiResponse::error(
+            "Duplicate repository name provided",
+        ))),
+        Err(ProjectServiceError::PathNotFound(_)) => Ok(ResponseJson(ApiResponse::error(
+            "The specified path does not exist",
+        ))),
+        Err(ProjectServiceError::PathNotDirectory(_)) => Ok(ResponseJson(ApiResponse::error(
+            "The specified path is not a directory",
+        ))),
+        Err(ProjectServiceError::NotGitRepository(_)) => Ok(ResponseJson(ApiResponse::error(
+            "The specified directory is not a git repository",
+        ))),
+        Err(e) => Err(ProjectError::CreateFailed(e.to_string()).into()),
+    }
+}
+
+pub async fn update_project(
+    Extension(existing_project): Extension<Project>,
+    State(deployment): State<DeploymentImpl>,
+    Json(payload): Json<UpdateProject>,
+) -> Result<ResponseJson<ApiResponse<Project>>, StatusCode> {
+    match deployment
+        .project()
+        .update_project(&deployment.db().pool, &existing_project, payload)
+        .await
+    {
+        Ok(project) => Ok(ResponseJson(ApiResponse::success(project))),
+        Err(e) => {
+            tracing::error!("Failed to update project: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -231,12 +283,11 @@ pub async fn delete_project(
         Ok(rows_affected) => {
             if rows_affected == 0 {
                 Err(StatusCode::NOT_FOUND)
-            } else {
-                Ok(ResponseJson(ApiResponse::success(())))
+            } else {                Ok(ResponseJson(ApiResponse::success(())))
             }
         }
         Err(e) => {
-            tracing::error!("Error deleting project: {}", e);
+            tracing::error!("Failed to delete project: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -287,9 +338,12 @@ pub async fn open_project_in_editor(
                 project.id,
                 path.to_string_lossy(),
                 if url.is_some() { " (remote mode)" } else { "" }
-            );
-
-            deployment
+            );            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
+                url,
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Failed to open editor for project {}: {:?}", project.id, e);
             Err(ApiError::EditorOpen(e))
         }
     }
@@ -315,9 +369,10 @@ pub async fn open_project_in_terminal(
                 "Opened terminal for project {} at path: {}",
                 project.id,
                 path.to_string_lossy()
-            );
-
-            deployment
+            );            Ok(ResponseJson(ApiResponse::success(())))
+        }
+        Err(e) => {
+            tracing::error!("Failed to open terminal for project {}: {}", project.id, e);
             Err(ApiError::BadRequest(format!(
                 "Failed to open terminal: {}",
                 e
@@ -399,8 +454,13 @@ pub async fn add_project_repository(
         )
         .await
     {
-        Ok(repository) => {
-            deployment
+        Ok(repository) => {            Ok(ResponseJson(ApiResponse::success(repository)))
+        }
+        Err(ProjectServiceError::PathNotFound(_)) => {
+            tracing::warn!(
+                "Failed to add repository to project {}: path does not exist",
+                project.id
+            );
             Ok(ResponseJson(ApiResponse::error(
                 "The specified path does not exist",
             )))
@@ -460,8 +520,14 @@ pub async fn delete_project_repository(
         .delete_repository(&deployment.db().pool, project_id, repo_id)
         .await
     {
-        Ok(()) => {
-            deployment
+        Ok(()) => {            Ok(ResponseJson(ApiResponse::success(())))
+        }
+        Err(ProjectServiceError::RepositoryNotFound) => {
+            tracing::warn!(
+                "Failed to remove repository {} from project {}: not found",
+                repo_id,
+                project_id
+            );
             Ok(ResponseJson(ApiResponse::error("Repository not found")))
         }
         Err(e) => Err(e.into()),

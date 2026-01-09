@@ -5,7 +5,6 @@ use axum::{
     response::Json as ResponseJson,
     routing::{delete, get, patch, post},
 };
-use deployment::Deployment;
 use utils::{
     api::{
         organizations::{
@@ -95,6 +94,122 @@ async fn create_organization(
     let client = deployment.remote_client()?;
 
     let response = client.create_organization(&request).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn update_organization(
+    State(deployment): State<DeploymentImpl>,
+    Path(id): Path<Uuid>,
+    Json(request): Json<UpdateOrganizationRequest>,
+) -> Result<ResponseJson<ApiResponse<Organization>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.update_organization(id, &request).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn delete_organization(
+    State(deployment): State<DeploymentImpl>,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    let client = deployment.remote_client()?;
+
+    client.delete_organization(id).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn create_invitation(
+    State(deployment): State<DeploymentImpl>,
+    Path(org_id): Path<Uuid>,
+    Json(request): Json<CreateInvitationRequest>,
+) -> Result<ResponseJson<ApiResponse<CreateInvitationResponse>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.create_invitation(org_id, &request).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn list_invitations(
+    State(deployment): State<DeploymentImpl>,
+    Path(org_id): Path<Uuid>,
+) -> Result<ResponseJson<ApiResponse<ListInvitationsResponse>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.list_invitations(org_id).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn get_invitation(
+    State(deployment): State<DeploymentImpl>,
+    Path(token): Path<String>,
+) -> Result<ResponseJson<ApiResponse<GetInvitationResponse>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.get_invitation(&token).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn revoke_invitation(
+    State(deployment): State<DeploymentImpl>,
+    Path(org_id): Path<Uuid>,
+    Json(payload): Json<RevokeInvitationRequest>,
+) -> Result<StatusCode, ApiError> {
+    let client = deployment.remote_client()?;
+
+    client
+        .revoke_invitation(org_id, payload.invitation_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn accept_invitation(
+    State(deployment): State<DeploymentImpl>,
+    Path(invitation_token): Path<String>,
+) -> Result<ResponseJson<ApiResponse<AcceptInvitationResponse>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.accept_invitation(&invitation_token).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn list_members(
+    State(deployment): State<DeploymentImpl>,
+    Path(org_id): Path<Uuid>,
+) -> Result<ResponseJson<ApiResponse<ListMembersResponse>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.list_members(org_id).await?;
+
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+async fn remove_member(
+    State(deployment): State<DeploymentImpl>,
+    Path((org_id, user_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, ApiError> {
+    let client = deployment.remote_client()?;
+
+    client.remove_member(org_id, user_id).await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn update_member_role(
+    State(deployment): State<DeploymentImpl>,
+    Path((org_id, user_id)): Path<(Uuid, Uuid)>,
+    Json(request): Json<UpdateMemberRoleRequest>,
+) -> Result<ResponseJson<ApiResponse<UpdateMemberRoleResponse>>, ApiError> {
+    let client = deployment.remote_client()?;
+
+    let response = client.update_member_role(org_id, user_id, &request).await?;
 
     Ok(ResponseJson(ApiResponse::success(response)))
 }

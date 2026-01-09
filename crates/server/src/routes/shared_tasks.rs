@@ -47,27 +47,31 @@ pub async fn assign_shared_task(
         .assign_shared_task(shared_task_id, payload.new_assignee_user_id.clone())
         .await?;
 
-    let props = serde_json::json!({
-        "shared_task_id": shared_task_id,
-        "new_assignee_user_id": payload.new_assignee_user_id,
-    });
-    deployment
+    Ok(ResponseJson(ApiResponse::success(updated_shared_task)))
+}
+
+pub async fn delete_shared_task(
+    Path(shared_task_id): Path<Uuid>,
+    State(deployment): State<DeploymentImpl>,
+) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
+    let Ok(publisher) = deployment.share_publisher() else {
+        return Err(ShareError::MissingConfig("share publisher unavailable").into());
     };
 
     publisher.delete_shared_task(shared_task_id).await?;
 
-    let props = serde_json::json!({
-        "shared_task_id": shared_task_id,
-    });
-    deployment
+    Ok(ResponseJson(ApiResponse::success(())))
+}
+
+pub async fn link_shared_task_to_local(
+    State(deployment): State<DeploymentImpl>,
+    Json(shared_task_details): Json<SharedTaskDetails>,
+) -> Result<ResponseJson<ApiResponse<Option<Task>>>, ApiError> {
+    let Ok(publisher) = deployment.share_publisher() else {
+        return Err(ShareError::MissingConfig("share publisher unavailable").into());
     };
 
     let task = publisher.link_shared_task(shared_task_details).await?;
 
-    if let Some(ref task) = task {
-        let props = serde_json::json!({
-            "shared_task_id": task.shared_task_id,
-            "task_id": task.id,
-            "project_id": task.project_id,
-        });
-        deployment
+    Ok(ResponseJson(ApiResponse::success(task)))
+}

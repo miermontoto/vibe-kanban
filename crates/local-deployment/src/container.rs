@@ -41,7 +41,6 @@ use executors::{
     profile::ExecutorProfileId,
 };
 use futures::{FutureExt, TryStreamExt, stream::select};
-use serde_json::json;
 use services::services::{
     analytics::AnalyticsContext,
     approvals::{Approvals, executor_approvals::ExecutorApprovalBridge},
@@ -75,7 +74,7 @@ pub struct LocalContainerService {
     config: Arc<RwLock<Config>>,
     git: GitService,
     image_service: ImageService,
-    analytics: Option<AnalyticsContext>,
+    _analytics: Option<AnalyticsContext>,
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
     publisher: Result<SharePublisher, RemoteClientNotConfigured>,
@@ -90,7 +89,7 @@ impl LocalContainerService {
         config: Arc<RwLock<Config>>,
         git: GitService,
         image_service: ImageService,
-        analytics: Option<AnalyticsContext>,
+        _analytics: Option<AnalyticsContext>,
         approvals: Approvals,
         queued_message_service: QueuedMessageService,
         publisher: Result<SharePublisher, RemoteClientNotConfigured>,
@@ -107,7 +106,7 @@ impl LocalContainerService {
             config,
             git,
             image_service,
-            analytics,
+            _analytics,
             approvals,
             queued_message_service,
             publisher,
@@ -452,9 +451,7 @@ impl LocalContainerService {
         let child_store = self.child_store.clone();
         let msg_stores = self.msg_stores.clone();
         let db = self.db.clone();
-        let config = self.config.clone();
         let container = self.clone();
-        let analytics = self.analytics.clone();
         let publisher = self.publisher.clone();
 
         let mut process_exit_rx = self.spawn_os_exit_watcher(exec_id);

@@ -49,4 +49,26 @@ pub async fn create_label(
 ) -> Result<ResponseJson<ApiResponse<TaskLabel>>, ApiError> {
     let label = TaskLabel::create(&deployment.db().pool, &payload).await?;
 
-    deployment
+    Ok(ResponseJson(ApiResponse::success(label)))
+}
+
+/// actualizar etiqueta existente
+pub async fn update_label(
+    State(deployment): State<DeploymentImpl>,
+    axum::extract::Path((_project_id, label_id)): axum::extract::Path<(Uuid, Uuid)>,
+    Json(payload): Json<UpdateTaskLabel>,
+) -> Result<ResponseJson<ApiResponse<TaskLabel>>, ApiError> {
+    let label = TaskLabel::update(&deployment.db().pool, label_id, &payload).await?;
+
+    Ok(ResponseJson(ApiResponse::success(label)))
+}
+
+/// eliminar etiqueta
+pub async fn delete_label(
+    State(deployment): State<DeploymentImpl>,
+    axum::extract::Path((_project_id, label_id)): axum::extract::Path<(Uuid, Uuid)>,
+) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
+    TaskLabel::delete(&deployment.db().pool, label_id).await?;
+
+    Ok(ResponseJson(ApiResponse::success(())))
+}
