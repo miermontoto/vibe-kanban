@@ -91,7 +91,7 @@ export function BranchStatusInfo({
     ? 'grid grid-cols-1 items-start gap-3 overflow-hidden'
     : isCompact
       ? 'flex flex-col gap-2 p-3 border-b bg-muted/30'
-      : 'flex items-center gap-2 overflow-hidden';
+      : 'flex flex-1 items-center gap-2 overflow-hidden min-w-0';
 
   const settingsBtnClasses = isVertical
     ? 'inline-flex h-5 w-5 p-0 hover:bg-muted'

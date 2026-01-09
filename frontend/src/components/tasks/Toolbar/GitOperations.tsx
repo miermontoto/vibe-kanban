@@ -218,7 +218,7 @@ function GitOperations({
         className={
           isVertical
             ? 'grid grid-cols-1 items-start gap-3 overflow-hidden'
-            : 'flex items-center gap-2 overflow-hidden'
+            : 'flex items-center justify-between gap-2 overflow-hidden'
         }
       >
         <BranchStatusInfo
