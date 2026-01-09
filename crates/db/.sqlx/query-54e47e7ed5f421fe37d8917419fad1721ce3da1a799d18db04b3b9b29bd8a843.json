@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", use_ralph_wiggum as \"use_ralph_wiggum!: bool\", ralph_max_iterations as \"ralph_max_iterations: i64\", ralph_completion_promise as \"ralph_completion_promise: String\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE id = $1",
+  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", task_type as \"task_type!: TaskType\", parent_task_id as \"parent_task_id: Uuid\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", use_ralph_wiggum as \"use_ralph_wiggum!: bool\", ralph_max_iterations as \"ralph_max_iterations: i64\", ralph_completion_promise as \"ralph_completion_promise: String\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE rowid = $1",
   "describe": {
     "columns": [
       {
@@ -29,38 +29,48 @@
         "type_info": "Text"
       },
       {
-        "name": "parent_workspace_id: Uuid",
+        "name": "task_type!: TaskType",
         "ordinal": 5,
-        "type_info": "Blob"
+        "type_info": "Text"
       },
       {
-        "name": "shared_task_id: Uuid",
+        "name": "parent_task_id: Uuid",
         "ordinal": 6,
         "type_info": "Blob"
       },
       {
-        "name": "use_ralph_wiggum!: bool",
+        "name": "parent_workspace_id: Uuid",
         "ordinal": 7,
+        "type_info": "Blob"
+      },
+      {
+        "name": "shared_task_id: Uuid",
+        "ordinal": 8,
+        "type_info": "Blob"
+      },
+      {
+        "name": "use_ralph_wiggum!: bool",
+        "ordinal": 9,
         "type_info": "Integer"
       },
       {
         "name": "ralph_max_iterations: i64",
-        "ordinal": 8,
+        "ordinal": 10,
         "type_info": "Integer"
       },
       {
         "name": "ralph_completion_promise: String",
-        "ordinal": 9,
+        "ordinal": 11,
         "type_info": "Text"
       },
       {
         "name": "created_at!: DateTime<Utc>",
-        "ordinal": 10,
+        "ordinal": 12,
         "type_info": "Text"
       },
       {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 11,
+        "ordinal": 13,
         "type_info": "Text"
       }
     ],
@@ -73,6 +83,8 @@
       false,
       true,
       false,
+      false,
+      true,
       true,
       true,
       false,
@@ -82,5 +94,5 @@
       false
     ]
   },
-  "hash": "5d473417f556971814305560940762a2af0ed2c7183e680882ee64e2b7e9f817"
+  "hash": "54e47e7ed5f421fe37d8917419fad1721ce3da1a799d18db04b3b9b29bd8a843"
 }

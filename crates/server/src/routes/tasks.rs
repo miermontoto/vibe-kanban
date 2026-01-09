@@ -16,7 +16,7 @@ use db::models::{
     image::TaskImage,
     project::{Project, ProjectError},
     repo::Repo,
-    task::{CreateTask, Task, TaskStatus, TaskWithAttemptStatus, UpdateTask},
+    task::{CreateTask, Task, TaskStatus, TaskType, TaskWithAttemptStatus, UpdateTask},
     task_label::TaskLabel,
     workspace::{CreateWorkspace, Workspace},
     workspace_repo::{CreateWorkspaceRepo, WorkspaceRepo},
@@ -124,6 +124,15 @@ pub async fn create_task(
         payload.title,
         payload.project_id
     );
+
+    // validar parent_task_id si está presente
+    let task_type = payload.task_type.as_ref().unwrap_or(&TaskType::Story);
+    Task::validate_parent_task_relationship(
+        &deployment.db().pool,
+        task_type,
+        payload.parent_task_id,
+    )
+    .await?;
 
     let task = Task::create(&deployment.db().pool, &payload, id).await?;
 
@@ -303,12 +312,22 @@ pub async fn update_task(
         None => existing_task.description.clone(), // Field omitted = keep existing
     };
     let status = payload.status.unwrap_or(existing_task.status.clone());
+    let task_type = payload.task_type.unwrap_or(existing_task.task_type.clone());
+    let parent_task_id = payload.parent_task_id.or(existing_task.parent_task_id);
     let parent_workspace_id = payload
         .parent_workspace_id
         .or(existing_task.parent_workspace_id);
     let use_ralph_wiggum = payload.use_ralph_wiggum.unwrap_or(existing_task.use_ralph_wiggum);
     let ralph_max_iterations = payload.ralph_max_iterations.or(existing_task.ralph_max_iterations);
     let ralph_completion_promise = payload.ralph_completion_promise.or(existing_task.ralph_completion_promise);
+
+    // validar parent_task_id si cambió
+    Task::validate_parent_task_relationship(
+        &deployment.db().pool,
+        &task_type,
+        parent_task_id,
+    )
+    .await?;
 
     let task = Task::update(
         &deployment.db().pool,
@@ -317,6 +336,8 @@ pub async fn update_task(
         title,
         description,
         status.clone(),
+        task_type,
+        parent_task_id,
         parent_workspace_id,
         use_ralph_wiggum,
         ralph_max_iterations,

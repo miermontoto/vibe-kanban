@@ -22,6 +22,19 @@ pub enum TaskStatus {
     Cancelled,
 }
 
+#[derive(
+    Debug, Clone, Type, Serialize, Deserialize, PartialEq, TS, EnumString, Display, Default,
+)]
+#[sqlx(type_name = "task_type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum TaskType {
+    Epic,
+    #[default]
+    Story,
+    Subtask,
+}
+
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize, TS)]
 pub struct Task {
     pub id: Uuid,
@@ -29,7 +42,9 @@ pub struct Task {
     pub title: String,
     pub description: Option<String>,
     pub status: TaskStatus,
-    pub parent_workspace_id: Option<Uuid>, // Foreign key to parent Workspace
+    pub task_type: TaskType, // epic, story, or subtask
+    pub parent_task_id: Option<Uuid>, // Foreign key to parent Task (logical hierarchy)
+    pub parent_workspace_id: Option<Uuid>, // Foreign key to parent Workspace (execution hierarchy)
     pub shared_task_id: Option<Uuid>,
     pub use_ralph_wiggum: bool,
     pub ralph_max_iterations: Option<i64>,
@@ -76,6 +91,8 @@ pub struct CreateTask {
     pub title: String,
     pub description: Option<String>,
     pub status: Option<TaskStatus>,
+    pub task_type: Option<TaskType>,
+    pub parent_task_id: Option<Uuid>,
     pub parent_workspace_id: Option<Uuid>,
     pub image_ids: Option<Vec<Uuid>>,
     pub shared_task_id: Option<Uuid>,
@@ -96,6 +113,8 @@ impl CreateTask {
             title,
             description,
             status: Some(TaskStatus::Todo),
+            task_type: None, // default to Story
+            parent_task_id: None,
             parent_workspace_id: None,
             image_ids: None,
             shared_task_id: None,
@@ -118,6 +137,8 @@ impl CreateTask {
             title,
             description,
             status: Some(status),
+            task_type: None, // default to Story
+            parent_task_id: None,
             parent_workspace_id: None,
             image_ids: None,
             shared_task_id: Some(shared_task_id),
@@ -134,6 +155,8 @@ pub struct UpdateTask {
     pub title: Option<String>,
     pub description: Option<String>,
     pub status: Option<TaskStatus>,
+    pub task_type: Option<TaskType>,
+    pub parent_task_id: Option<Uuid>,
     pub parent_workspace_id: Option<Uuid>,
     pub image_ids: Option<Vec<Uuid>>,
     pub use_ralph_wiggum: Option<bool>,
@@ -193,6 +216,8 @@ The task will loop until you output the completion signal or reach the iteration
   t.title,
   t.description,
   t.status                        AS "status!: TaskStatus",
+  t.task_type                     AS "task_type!: TaskType",
+  t.parent_task_id                AS "parent_task_id: Uuid",
   t.parent_workspace_id           AS "parent_workspace_id: Uuid",
   t.shared_task_id                AS "shared_task_id: Uuid",
   t.use_ralph_wiggum              AS "use_ralph_wiggum!: bool",
@@ -269,6 +294,8 @@ ORDER BY t.created_at DESC"#,
                     title: rec.title,
                     description: rec.description,
                     status: rec.status,
+                    task_type: rec.task_type,
+                    parent_task_id: rec.parent_task_id,
                     parent_workspace_id: rec.parent_workspace_id,
                     shared_task_id: rec.shared_task_id,
                     use_ralph_wiggum: rec.use_ralph_wiggum,
@@ -291,7 +318,7 @@ ORDER BY t.created_at DESC"#,
     pub async fn find_by_id(pool: &SqlitePool, id: Uuid) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE id = $1"#,
             id
@@ -303,7 +330,7 @@ ORDER BY t.created_at DESC"#,
     pub async fn find_by_rowid(pool: &SqlitePool, rowid: i64) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE rowid = $1"#,
             rowid
@@ -321,7 +348,7 @@ ORDER BY t.created_at DESC"#,
     {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE shared_task_id = $1
                LIMIT 1"#,
@@ -334,7 +361,7 @@ ORDER BY t.created_at DESC"#,
     pub async fn find_all_shared(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE shared_task_id IS NOT NULL"#
         )
@@ -348,17 +375,20 @@ ORDER BY t.created_at DESC"#,
         task_id: Uuid,
     ) -> Result<Self, sqlx::Error> {
         let status = data.status.clone().unwrap_or_default();
+        let task_type = data.task_type.clone().unwrap_or_default();
         let use_ralph_wiggum = data.use_ralph_wiggum.unwrap_or(false);
         sqlx::query_as!(
             Task,
-            r#"INSERT INTO tasks (id, project_id, title, description, status, parent_workspace_id, shared_task_id, use_ralph_wiggum, ralph_max_iterations, ralph_completion_promise)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
+            r#"INSERT INTO tasks (id, project_id, title, description, status, task_type, parent_task_id, parent_workspace_id, shared_task_id, use_ralph_wiggum, ralph_max_iterations, ralph_completion_promise)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
             task_id,
             data.project_id,
             data.title,
             data.description,
             status,
+            task_type,
+            data.parent_task_id,
             data.parent_workspace_id,
             data.shared_task_id,
             use_ralph_wiggum,
@@ -376,6 +406,8 @@ ORDER BY t.created_at DESC"#,
         title: String,
         description: Option<String>,
         status: TaskStatus,
+        task_type: TaskType,
+        parent_task_id: Option<Uuid>,
         parent_workspace_id: Option<Uuid>,
         use_ralph_wiggum: bool,
         ralph_max_iterations: Option<i64>,
@@ -384,14 +416,16 @@ ORDER BY t.created_at DESC"#,
         sqlx::query_as!(
             Task,
             r#"UPDATE tasks
-               SET title = $3, description = $4, status = $5, parent_workspace_id = $6, use_ralph_wiggum = $7, ralph_max_iterations = $8, ralph_completion_promise = $9
+               SET title = $3, description = $4, status = $5, task_type = $6, parent_task_id = $7, parent_workspace_id = $8, use_ralph_wiggum = $9, ralph_max_iterations = $10, ralph_completion_promise = $11
                WHERE id = $1 AND project_id = $2
-               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
+               RETURNING id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>""#,
             id,
             project_id,
             title,
             description,
             status,
+            task_type,
+            parent_task_id,
             parent_workspace_id,
             use_ralph_wiggum,
             ralph_max_iterations,
@@ -532,7 +566,7 @@ ORDER BY t.created_at DESC"#,
         // Find only child tasks that have this workspace as their parent
         sqlx::query_as!(
             Task,
-            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
                FROM tasks
                WHERE parent_workspace_id = $1
                ORDER BY created_at DESC"#,
@@ -574,5 +608,103 @@ ORDER BY t.created_at DESC"#,
             current_workspace: workspace.clone(),
             children,
         })
+    }
+
+    /// validar que parent_task_id es compatible con task_type
+    /// reglas:
+    /// - EPIC: no puede tener parent
+    /// - SUBTASK: debe tener parent (STORY o EPIC)
+    /// - STORY: puede tener parent EPIC (opcional)
+    pub async fn validate_parent_task_relationship(
+        pool: &SqlitePool,
+        task_type: &TaskType,
+        parent_task_id: Option<Uuid>,
+    ) -> Result<(), sqlx::Error> {
+        match (task_type, parent_task_id) {
+            (TaskType::Epic, Some(_)) => {
+                Err(sqlx::Error::Protocol(
+                    "EPICs cannot have parent tasks".to_string(),
+                ))
+            }
+            (TaskType::Subtask, None) => {
+                Err(sqlx::Error::Protocol(
+                    "SUBTASKs must have a parent task".to_string(),
+                ))
+            }
+            (_, Some(parent_id)) => {
+                // verificar que parent existe y tipo es válido
+                let parent = Self::find_by_id(pool, parent_id)
+                    .await?
+                    .ok_or_else(|| sqlx::Error::RowNotFound)?;
+
+                match (task_type, &parent.task_type) {
+                    (TaskType::Story, TaskType::Epic) => Ok(()),
+                    (TaskType::Subtask, TaskType::Story | TaskType::Epic) => Ok(()),
+                    _ => Err(sqlx::Error::Protocol(format!(
+                        "Invalid parent-child relationship: {:?} cannot be child of {:?}",
+                        task_type, parent.task_type
+                    ))),
+                }
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// buscar tasks hijas por parent_task_id (logical hierarchy, no workspace)
+    pub async fn find_children_by_parent_task_id(
+        pool: &SqlitePool,
+        parent_task_id: Uuid,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as!(
+            Task,
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+               FROM tasks
+               WHERE parent_task_id = $1
+               ORDER BY created_at DESC"#,
+            parent_task_id,
+        )
+        .fetch_all(pool)
+        .await
+    }
+
+    /// buscar todas las EPICs de un proyecto
+    pub async fn find_epics_by_project_id(
+        pool: &SqlitePool,
+        project_id: Uuid,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as!(
+            Task,
+            r#"SELECT id as "id!: Uuid", project_id as "project_id!: Uuid", title, description, status as "status!: TaskStatus", task_type as "task_type!: TaskType", parent_task_id as "parent_task_id: Uuid", parent_workspace_id as "parent_workspace_id: Uuid", shared_task_id as "shared_task_id: Uuid", use_ralph_wiggum as "use_ralph_wiggum!: bool", ralph_max_iterations as "ralph_max_iterations: i64", ralph_completion_promise as "ralph_completion_promise: String", created_at as "created_at!: DateTime<Utc>", updated_at as "updated_at!: DateTime<Utc>"
+               FROM tasks
+               WHERE project_id = $1 AND task_type = 'epic'
+               ORDER BY created_at DESC"#,
+            project_id,
+        )
+        .fetch_all(pool)
+        .await
+    }
+
+    /// actualizar parent_task_id (con validación)
+    pub async fn update_parent_task_id(
+        pool: &SqlitePool,
+        task_id: Uuid,
+        parent_task_id: Option<Uuid>,
+    ) -> Result<(), sqlx::Error> {
+        // primero obtener el task para validar
+        let task = Self::find_by_id(pool, task_id)
+            .await?
+            .ok_or_else(|| sqlx::Error::RowNotFound)?;
+
+        // validar relación antes de actualizar
+        Self::validate_parent_task_relationship(pool, &task.task_type, parent_task_id).await?;
+
+        sqlx::query!(
+            "UPDATE tasks SET parent_task_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+            task_id,
+            parent_task_id
+        )
+        .execute(pool)
+        .await?;
+        Ok(())
     }
 }

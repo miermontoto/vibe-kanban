@@ -128,15 +128,17 @@ export type UpdateTag = { tag_name: string | null, content: string | null, };
 
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";
 
-export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
+export type TaskType = "epic" | "story" | "subtask";
 
-export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
+export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
+
+export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
 
 export type TaskRelationships = { parent_task: Task | null, current_workspace: Workspace, children: Array<Task>, };
 
-export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
+export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, task_type: TaskType | null, parent_task_id: string | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
 
-export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
+export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, task_type: TaskType | null, parent_task_id: string | null, parent_workspace_id: string | null, image_ids: Array<string> | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
 
 export type TaskLabel = { id: string, project_id: string, name: string, color: string, created_at: string, updated_at: string, };
 
@@ -397,7 +399,7 @@ export type AutoPrResult = { repo_id: string, repo_name: string, success: boolea
 
 export type AutoPrError = { "type": "github_cli_not_installed" } | { "type": "github_cli_not_logged_in" } | { "type": "git_cli_not_logged_in" } | { "type": "git_cli_not_installed" } | { "type": "target_branch_not_found", branch: string, } | { "type": "no_branch_to_push" } | { "type": "pr_already_exists", url: string, } | { "type": "no_workspace" } | { "type": "repo_not_found" } | { "type": "other", message: string, };
 
-export type TaskUpdateResponse = { auto_pr_results: Array<AutoPrResult> | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
+export type TaskUpdateResponse = { auto_pr_results: Array<AutoPrResult> | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
 
 export type UnifiedPrComment = { "comment_type": "general", id: string, author: string, author_association: string, body: string, created_at: string, url: string, } | { "comment_type": "review", id: bigint, author: string, author_association: string, body: string, created_at: string, url: string, path: string, line: bigint | null, diff_hunk: string, };
 
