@@ -206,7 +206,7 @@ function WYSIWYGEditor({
   // Memoized placeholder element
   const placeholderElement = useMemo(
     () => (
-      <div className="absolute top-0 left-0 text-base text-secondary-foreground text-low pointer-events-none truncate">
+      <div className="absolute top-0 left-0 text-sm text-secondary-foreground text-low pointer-events-none truncate">
         {placeholder}
       </div>
     ),
@@ -214,7 +214,7 @@ function WYSIWYGEditor({
   );
 
   const editorContent = (
-    <div className="wysiwyg text-base">
+    <div className="wysiwyg text-sm">
       <TaskAttemptContext.Provider value={taskAttemptId}>
         <TaskContext.Provider value={taskId}>
           <LocalImagesContext.Provider value={localImages ?? []}>
