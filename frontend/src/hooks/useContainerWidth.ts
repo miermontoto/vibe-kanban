@@ -39,3 +39,53 @@ export function useContainerWidth<T extends HTMLElement = HTMLDivElement>(): [
 
   return [width, containerRef];
 }
+
+/**
+ * hook para detectar si el contenedor tiene overflow horizontal
+ * retorna true si el contenido es más ancho que el espacio visible
+ */
+export function useContainerOverflow<T extends HTMLElement = HTMLDivElement>(): [
+  boolean,
+  RefObject<T>
+] {
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const containerRef = useRef<T>(null);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const checkOverflow = () => {
+      // scrollWidth incluye contenido oculto, clientWidth es el ancho visible
+      const hasOverflow = element.scrollWidth > element.clientWidth;
+      setIsOverflowing(hasOverflow);
+    };
+
+    // revisar overflow inicial
+    checkOverflow();
+
+    const resizeObserver = new ResizeObserver(() => {
+      checkOverflow();
+    });
+
+    resizeObserver.observe(element);
+
+    // también observar cambios en el contenido usando MutationObserver
+    const mutationObserver = new MutationObserver(() => {
+      checkOverflow();
+    });
+
+    mutationObserver.observe(element, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, []);
+
+  return [isOverflowing, containerRef];
+}

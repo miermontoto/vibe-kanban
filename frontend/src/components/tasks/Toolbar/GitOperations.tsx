@@ -18,7 +18,7 @@ import { CreatePRDialog } from '@/components/dialogs/tasks/CreatePRDialog';
 import { useTranslation } from 'react-i18next';
 import { BranchStatusInfo } from '@/components/tasks/BranchStatusInfo';
 import { useRepoStatusOperations } from '@/hooks/useRepoStatusOperations';
-import { useContainerWidth } from '@/hooks/useContainerWidth';
+import { useContainerOverflow } from '@/hooks/useContainerWidth';
 
 interface GitOperationsProps {
   selectedAttempt: Workspace;
@@ -43,8 +43,8 @@ function GitOperations({
 }: GitOperationsProps) {
   const { t } = useTranslation('tasks');
 
-  // detectar el ancho del contenedor de acciones para responsive labels
-  const [actionsWidth, actionsRef] = useContainerWidth<HTMLDivElement>();
+  // detectar si el contenedor tiene overflow para responsive labels
+  const [isOverflowing, containerRef] = useContainerOverflow<HTMLDivElement>();
 
   // use custom hook for repo status operations
   const {
@@ -245,10 +245,10 @@ function GitOperations({
 
   const isVertical = layout === 'vertical';
 
-  // determinar si mostrar labels basado en el ancho disponible del contenedor padre
-  // cuando el container es estrecho (< 600px), ocultamos las labels
+  // determinar si mostrar labels basado en si hay overflow
+  // si el contenido desborda el container, ocultamos las labels para dar más espacio
   // esto previene que BranchStatusInfo sea empujado fuera de vista
-  const showLabels = isVertical || actionsWidth === 0 || actionsWidth >= 600;
+  const showLabels = isVertical || !isOverflowing;
 
   const actionsClasses = isVertical
     ? 'flex flex-wrap items-center gap-2'
@@ -257,7 +257,7 @@ function GitOperations({
   return (
     <div className="w-full border-b py-2">
       <div
-        ref={actionsRef}
+        ref={containerRef}
         className={
           isVertical
             ? 'grid grid-cols-1 items-start gap-3 overflow-hidden'
