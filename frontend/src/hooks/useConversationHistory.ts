@@ -509,12 +509,24 @@ export const useConversationHistory = ({
   // Sometimes it can take a few seconds for the stream to start, wrap the loadRunningAndEmit method
   const loadRunningAndEmitWithBackoff = useCallback(
     async (executionProcess: ExecutionProcess) => {
-      for (let i = 0; i < 20; i++) {
+      const MAX_RETRIES = 12; // 12 intentos = ~1 minuto total
+      for (let i = 0; i < MAX_RETRIES; i++) {
         try {
           await loadRunningAndEmit(executionProcess);
-          break;
-        } catch (_) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          return; // éxito
+        } catch (error) {
+          const isLastAttempt = i === MAX_RETRIES - 1;
+          if (isLastAttempt) {
+            console.error(
+              `Failed to load stream for process ${executionProcess.id} after ${MAX_RETRIES} attempts:`,
+              error
+            );
+            return; // falló después de todos los intentos
+          }
+
+          // exponential backoff: 500ms, 1s, 2s, 4s, 8s (max)
+          const delay = Math.min(8000, 500 * Math.pow(2, i));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     },

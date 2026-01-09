@@ -45,9 +45,8 @@ export function useDevServer(
       await attemptsApi.startDevServer(attemptId);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ['executionProcesses', attemptId],
-      });
+      // WebSocket stream will handle updates automatically
+      // Solo invalidamos workspace summary como backup
       queryClient.invalidateQueries({ queryKey: workspaceSummaryKeys.all });
       options?.onStartSuccess?.();
     },
@@ -65,17 +64,14 @@ export function useDevServer(
       await executionProcessesApi.stopExecutionProcess(runningDevServer.id);
     },
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['executionProcesses', attemptId],
-        }),
-        runningDevServer
-          ? queryClient.invalidateQueries({
-              queryKey: ['processDetails', runningDevServer.id],
-            })
-          : Promise.resolve(),
-      ]);
+      // WebSocket stream will handle updates automatically
+      // Solo invalidamos workspace summary y process details como backup
       queryClient.invalidateQueries({ queryKey: workspaceSummaryKeys.all });
+      if (runningDevServer) {
+        queryClient.invalidateQueries({
+          queryKey: ['processDetails', runningDevServer.id],
+        });
+      }
       options?.onStopSuccess?.();
     },
     onError: (err) => {
