@@ -2,6 +2,7 @@ import {
   GitBranch as GitBranchIcon,
   GitPullRequest,
   RefreshCw,
+  ArrowDownUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import { useMemo, useState } from 'react';
@@ -55,8 +56,10 @@ function GitOperations({
   const [merging, setMerging] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [rebasing, setRebasing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [mergeSuccess, setMergeSuccess] = useState(false);
   const [pushSuccess, setPushSuccess] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   // Memoize merge status information to avoid repeated calculations
   const mergeInfo = useMemo(() => {
@@ -105,6 +108,12 @@ function GitOperations({
     return t('git.states.rebase');
   }, [rebasing, t]);
 
+  const syncButtonLabel = useMemo(() => {
+    if (syncSuccess) return t('git.states.synced', 'Synced');
+    if (syncing) return t('git.states.syncing', 'Syncing');
+    return t('git.states.sync', 'Sync');
+  }, [syncSuccess, syncing, t]);
+
   const prButtonLabel = useMemo(() => {
     if (mergeInfo.hasOpenPR) {
       return pushSuccess
@@ -146,6 +155,27 @@ function GitOperations({
       setTimeout(() => setMergeSuccess(false), 2000);
     } finally {
       setMerging(false);
+    }
+  };
+
+  const handleSyncClick = async () => {
+    setSyncing(true);
+    try {
+      const repoId = getSelectedRepoId();
+      if (!repoId) return;
+      const targetBranch = selectedRepoStatus?.target_branch_name;
+      if (!targetBranch) return;
+
+      // rebase task branch onto the current target branch (pulling latest upstream changes)
+      await git.actions.rebase({
+        repoId,
+        newBaseBranch: targetBranch,
+        oldBaseBranch: targetBranch,
+      });
+      setSyncSuccess(true);
+      setTimeout(() => setSyncSuccess(false), 2000);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -237,6 +267,26 @@ function GitOperations({
 
         {/* Right: Actions */}
         <div className={actionsClasses}>
+          <Button
+            onClick={handleSyncClick}
+            disabled={
+              !selectedRepoStatus ||
+              syncing ||
+              hasConflictsCalculated ||
+              isAttemptRunning ||
+              (selectedRepoStatus?.commits_behind ?? 0) === 0
+            }
+            variant="outline"
+            size="xs"
+            className="border-purple-500 text-purple-500 hover:bg-purple-500 gap-1 shrink-0"
+            aria-label={syncButtonLabel}
+          >
+            <ArrowDownUp
+              className={`h-3.5 w-3.5 ${syncing ? 'animate-bounce' : ''}`}
+            />
+            <span className="truncate max-w-[10ch]">{syncButtonLabel}</span>
+          </Button>
+
           <Button
             onClick={handleMergeClick}
             disabled={
