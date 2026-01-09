@@ -300,10 +300,8 @@ export function BranchStatusInfo({
               className="w-auto max-w-[200px] rounded-full bg-muted border-0 h-6 px-2 py-0.5 text-xs font-medium"
             />
           )}
-          <div className="flex flex-1 items-center justify-center gap-2 min-w-0 overflow-hidden">
-            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-              {branchChips}
-            </div>
+          <div className="flex flex-1 items-center gap-2 min-w-0 overflow-hidden">
+            {branchChips}
             {statusChips}
           </div>
         </>
