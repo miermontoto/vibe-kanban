@@ -957,6 +957,124 @@ impl LocalContainerService {
         )
         .await
     }
+
+    /// intenta hacer auto-push después de un commit exitoso
+    /// solo hace push si la configuración (proyecto o global) lo permite
+    async fn try_auto_push_after_commit(
+        &self,
+        ctx: &ExecutionContext,
+        committed_repos: Vec<(db::models::repo::Repo, PathBuf)>,
+    ) {
+        use db::models::merge::Merge;
+        use services::services::config::GitAutoPushMode;
+
+        // determinar el modo de auto-push efectivo (proyecto override o config global)
+        let auto_push_mode = if let Some(mode_str) = &ctx.project.git_auto_push_mode {
+            match mode_str.as_str() {
+                "Never" => GitAutoPushMode::Never,
+                "Always" => GitAutoPushMode::Always,
+                "IfPrExists" => GitAutoPushMode::IfPrExists,
+                _ => {
+                    tracing::warn!(
+                        "Invalid git_auto_push_mode '{}' in project, using global config",
+                        mode_str
+                    );
+                    self.config.read().await.git_auto_push_mode.clone()
+                }
+            }
+        } else {
+            self.config.read().await.git_auto_push_mode.clone()
+        };
+
+        // si el modo es Never, no hacer nada
+        if matches!(auto_push_mode, GitAutoPushMode::Never) {
+            tracing::debug!("Auto-push disabled, skipping push after commit");
+            return;
+        }
+
+        for (repo, worktree_path) in committed_repos {
+            // obtener el nombre de la rama actual
+            let branch_name = match self.git().get_current_branch(&worktree_path) {
+                Ok(name) => name,
+                Err(e) => {
+                    tracing::warn!("Failed to get current branch for repo '{}': {}", repo.name, e);
+                    continue;
+                }
+            };
+
+            // verificar si debemos hacer push según el modo
+            let should_push = match auto_push_mode {
+                GitAutoPushMode::Always => true,
+                GitAutoPushMode::IfPrExists => {
+                    // verificar si existe un PR abierto para esta rama
+                    match Merge::has_open_pr_for_branch(
+                        &self.db().pool,
+                        ctx.workspace.id,
+                        repo.id,
+                        &branch_name,
+                    )
+                    .await
+                    {
+                        Ok(has_pr) => {
+                            if has_pr {
+                                tracing::info!(
+                                    "Found open PR for branch '{}' in repo '{}', will auto-push",
+                                    branch_name,
+                                    repo.name
+                                );
+                            } else {
+                                tracing::debug!(
+                                    "No open PR found for branch '{}' in repo '{}', skipping auto-push",
+                                    branch_name,
+                                    repo.name
+                                );
+                            }
+                            has_pr
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to check for open PR in repo '{}': {}, skipping auto-push",
+                                repo.name,
+                                e
+                            );
+                            false
+                        }
+                    }
+                }
+                GitAutoPushMode::Never => false,
+            };
+
+            if !should_push {
+                continue;
+            }
+
+            // intentar hacer push
+            tracing::info!(
+                "Auto-pushing branch '{}' in repo '{}' after commit",
+                branch_name,
+                repo.name
+            );
+
+            if let Err(e) = self
+                .git()
+                .push_to_github(&worktree_path, &branch_name, false)
+            {
+                tracing::warn!(
+                    "Auto-push failed for repo '{}' branch '{}': {}",
+                    repo.name,
+                    branch_name,
+                    e
+                );
+                // no retornamos error - el commit fue exitoso, solo el push falló
+            } else {
+                tracing::info!(
+                    "Auto-push successful for repo '{}' branch '{}'",
+                    repo.name,
+                    branch_name
+                );
+            }
+        }
+    }
 }
 
 fn failure_exit_status() -> std::process::ExitStatus {
@@ -1471,126 +1589,6 @@ impl ContainerService for LocalContainerService {
                 }
                 // retornar false porque no se hizo commit automático
                 Ok(false)
-            }
-        }
-    }
-
-    /// intenta hacer auto-push después de un commit exitoso
-    /// solo hace push si la configuración (proyecto o global) lo permite
-    async fn try_auto_push_after_commit(
-        &self,
-        ctx: &ExecutionContext,
-        committed_repos: Vec<(db::models::repo::Repo, PathBuf)>,
-    ) {
-        use db::models::merge::Merge;
-        use services::services::config::GitAutoPushMode;
-
-        // determinar el modo de auto-push efectivo (proyecto override o config global)
-        let auto_push_mode = if let Some(mode_str) = &ctx.project.git_auto_push_mode {
-            match mode_str.as_str() {
-                "Never" => GitAutoPushMode::Never,
-                "Always" => GitAutoPushMode::Always,
-                "IfPrExists" => GitAutoPushMode::IfPrExists,
-                _ => {
-                    tracing::warn!(
-                        "Invalid git_auto_push_mode '{}' in project, using global config",
-                        mode_str
-                    );
-                    self.config.read().await.git_auto_push_mode.clone()
-                }
-            }
-        } else {
-            self.config.read().await.git_auto_push_mode.clone()
-        };
-
-        // si el modo es Never, no hacer nada
-        if matches!(auto_push_mode, GitAutoPushMode::Never) {
-            tracing::debug!("Auto-push disabled, skipping push after commit");
-            return;
-        }
-
-        let git = GitCli::new();
-
-        for (repo, worktree_path) in committed_repos {
-            // obtener el nombre de la rama actual
-            let branch_name = match git.get_current_branch(&worktree_path) {
-                Ok(name) => name,
-                Err(e) => {
-                    tracing::warn!("Failed to get current branch for repo '{}': {}", repo.name, e);
-                    continue;
-                }
-            };
-
-            // verificar si debemos hacer push según el modo
-            let should_push = match auto_push_mode {
-                GitAutoPushMode::Always => true,
-                GitAutoPushMode::IfPrExists => {
-                    // verificar si existe un PR abierto para esta rama
-                    match Merge::has_open_pr_for_branch(
-                        &self.db().pool,
-                        ctx.workspace.id,
-                        repo.id,
-                        &branch_name,
-                    )
-                    .await
-                    {
-                        Ok(has_pr) => {
-                            if has_pr {
-                                tracing::info!(
-                                    "Found open PR for branch '{}' in repo '{}', will auto-push",
-                                    branch_name,
-                                    repo.name
-                                );
-                            } else {
-                                tracing::debug!(
-                                    "No open PR found for branch '{}' in repo '{}', skipping auto-push",
-                                    branch_name,
-                                    repo.name
-                                );
-                            }
-                            has_pr
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to check for open PR in repo '{}': {}, skipping auto-push",
-                                repo.name,
-                                e
-                            );
-                            false
-                        }
-                    }
-                }
-                GitAutoPushMode::Never => false,
-            };
-
-            if !should_push {
-                continue;
-            }
-
-            // intentar hacer push
-            tracing::info!(
-                "Auto-pushing branch '{}' in repo '{}' after commit",
-                branch_name,
-                repo.name
-            );
-
-            if let Err(e) = self
-                .git()
-                .push_to_github(&worktree_path, &branch_name, false)
-            {
-                tracing::warn!(
-                    "Auto-push failed for repo '{}' branch '{}': {}",
-                    repo.name,
-                    branch_name,
-                    e
-                );
-                // no retornamos error - el commit fue exitoso, solo el push falló
-            } else {
-                tracing::info!(
-                    "Auto-push successful for repo '{}' branch '{}'",
-                    repo.name,
-                    branch_name
-                );
             }
         }
     }

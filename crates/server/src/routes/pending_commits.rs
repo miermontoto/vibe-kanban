@@ -122,14 +122,14 @@ pub async fn commit_pending(
 
     if let Ok(true) = should_auto_push {
         // obtener el nombre de la rama actual para hacer push
-        if let Ok(branch_name) = git.get_current_branch(&worktree_path) {
+        if let Ok(branch_name) = deployment.git().get_current_branch(&worktree_path) {
             tracing::info!(
                 "Auto-pushing branch {} for workspace {} after manual commit",
                 branch_name,
                 workspace.id
             );
             if let Err(e) = deployment
-                .git_service()
+                .git()
                 .push_to_github(&worktree_path, &branch_name, false)
             {
                 tracing::warn!("Auto-push failed after manual commit: {}", e);
@@ -202,23 +202,22 @@ async fn should_auto_push_after_commit(
     let config = deployment.config();
 
     // determinar el modo efectivo (project override > global config)
-    let auto_push_mode_str = project
-        .git_auto_push_mode
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or_else(|| match config.git_auto_push_mode {
+    let auto_push_mode_str = if let Some(mode) = &project.git_auto_push_mode {
+        mode.as_str()
+    } else {
+        match config.read().await.git_auto_push_mode {
             GitAutoPushMode::Never => "Never",
             GitAutoPushMode::Always => "Always",
             GitAutoPushMode::IfPrExists => "IfPrExists",
-        });
+        }
+    };
 
     match auto_push_mode_str {
         "Never" => Ok(false),
         "Always" => Ok(true),
         "IfPrExists" => {
             // verificar si existe un PR abierto para esta rama
-            let git = GitCli::new();
-            let branch_name = git
+            let branch_name = deployment.git()
                 .get_current_branch(worktree_path)
                 .map_err(|e| ApiError::BadRequest(format!("Failed to get current branch: {e}")))?;
 

@@ -16,11 +16,11 @@ use crate::{error::ApiError, DeploymentImpl};
 
 pub fn routes() -> Router<DeploymentImpl> {
     Router::new()
-        .route("/projects/:project_id/labels", get(get_labels))
-        .route("/projects/:project_id/labels", post(create_label))
-        .route("/projects/:project_id/labels/:label_id", put(update_label))
+        .route("/projects/{project_id}/labels", get(get_labels))
+        .route("/projects/{project_id}/labels", post(create_label))
+        .route("/projects/{project_id}/labels/{label_id}", put(update_label))
         .route(
-            "/projects/:project_id/labels/:label_id",
+            "/projects/{project_id}/labels/{label_id}",
             delete(delete_label),
         )
 }
