@@ -12,12 +12,14 @@ interface TaskAttemptPanelProps {
   attempt: WorkspaceWithSession | undefined;
   task: TaskWithAttemptStatus | null;
   children: (sections: { logs: ReactNode; followUp: ReactNode }) => ReactNode;
+  hideGitOperations?: boolean;
 }
 
 const TaskAttemptPanel = ({
   attempt,
   task,
   children,
+  hideGitOperations = false,
 }: TaskAttemptPanelProps) => {
   // fetch all data internally for self-contained component
   const { data: branchStatus } = useBranchStatus(attempt?.id);
@@ -37,7 +39,7 @@ const TaskAttemptPanel = ({
         {children({
           logs: (
             <>
-              {branchStatus && (
+              {!hideGitOperations && branchStatus && (
                 <div className="px-3">
                   <GitOperations
                     selectedAttempt={attempt}
