@@ -11,13 +11,17 @@ export function formatTimestamp(timestamp: string | null): string {
     const day = date.getDate().toString().padStart(2, '0');
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+
+    const dateStr = `${month}/${day}`;
+    const timeStr = `${hours}:${minutes}:${seconds}`;
 
     // si es del mismo año, no mostrar año
-    if (date.getFullYear() === now.getFullYear()) {
-      return `${month}/${day} ${hours}:${minutes}`;
+    if (date.getFullYear() !== now.getFullYear()) {
+      dateStr += `/${date.getFullYear()}`;
     }
 
-    return `${month}/${day}/${date.getFullYear()} ${hours}:${minutes}`;
+    return `${dateStr} ${timeStr}`;
   } catch (e) {
     return '';
   }
