@@ -27,7 +27,6 @@ import { HotkeysProvider } from 'react-hotkeys-hook';
 
 import { ProjectProvider } from '@/contexts/ProjectContext';
 import { ThemeMode } from 'shared/types';
-import * as Sentry from '@sentry/react';
 
 import { DisclaimerDialog } from '@/components/dialogs/global/DisclaimerDialog';
 import { OnboardingDialog } from '@/components/dialogs/global/OnboardingDialog';
@@ -41,8 +40,6 @@ import { NewDesignScope } from '@/components/ui-new/scope/NewDesignScope';
 // New design pages
 import { Workspaces } from '@/pages/ui-new/Workspaces';
 import { WorkspacesLanding } from '@/pages/ui-new/WorkspacesLanding';
-
-const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
 function AppContent() {
   const { config, analyticsUserId, updateAndSaveConfig } = useUserSystem();
@@ -131,7 +128,7 @@ function AppContent() {
         initialUseNerdFonts={config?.use_nerd_fonts ?? true}
       >
         <SearchProvider>
-          <SentryRoutes>
+          <Routes>
             {/* ========== LEGACY DESIGN ROUTES ========== */}
             {/* VS Code full-page logs route (outside NormalLayout for minimal UI) */}
             <Route
@@ -195,7 +192,7 @@ function AppContent() {
               <Route path="create" element={<Workspaces />} />
               <Route path=":workspaceId" element={<Workspaces />} />
             </Route>
-          </SentryRoutes>
+          </Routes>
         </SearchProvider>
       </ThemeProvider>
     </I18nextProvider>
