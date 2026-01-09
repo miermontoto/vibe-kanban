@@ -230,7 +230,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
             parent_workspace_id: null,
             image_ids: images.length > 0 ? images.map((img) => img.id) : null,
             use_ralph_wiggum: value.useRalphWiggum,
-            ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
+            ralph_max_iterations: value.useRalphWiggum ? value.ralphMaxIterations : null,
             ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
             label_ids: null,
           },
@@ -250,7 +250,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         image_ids: imageIds,
         shared_task_id: null,
         use_ralph_wiggum: value.useRalphWiggum,
-        ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
+        ralph_max_iterations: value.useRalphWiggum ? value.ralphMaxIterations : null,
         ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
         label_ids: null,
       };
