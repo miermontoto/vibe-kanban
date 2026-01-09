@@ -18,6 +18,7 @@ import { CreatePRDialog } from '@/components/dialogs/tasks/CreatePRDialog';
 import { useTranslation } from 'react-i18next';
 import { BranchStatusInfo } from '@/components/tasks/BranchStatusInfo';
 import { useRepoStatusOperations } from '@/hooks/useRepoStatusOperations';
+import { useContainerWidth } from '@/hooks/useContainerWidth';
 
 interface GitOperationsProps {
   selectedAttempt: Workspace;
@@ -41,6 +42,9 @@ function GitOperations({
   layout = 'horizontal',
 }: GitOperationsProps) {
   const { t } = useTranslation('tasks');
+
+  // detectar el ancho del contenedor de acciones para responsive labels
+  const [actionsWidth, actionsRef] = useContainerWidth<HTMLDivElement>();
 
   // use custom hook for repo status operations
   const {
@@ -241,6 +245,11 @@ function GitOperations({
 
   const isVertical = layout === 'vertical';
 
+  // determinar si mostrar labels basado en el ancho disponible
+  // threshold: ~50px por botón con label, ~36px sin label
+  // estimamos que necesitamos ~280px para mostrar 4 botones con labels cómodamente
+  const showLabels = isVertical || actionsWidth === 0 || actionsWidth >= 280;
+
   const actionsClasses = isVertical
     ? 'flex flex-wrap items-center gap-2'
     : 'shrink-0 flex flex-wrap items-center gap-2 overflow-y-hidden overflow-x-visible max-h-8';
@@ -275,7 +284,7 @@ function GitOperations({
             <span>{t('git.errors.branchStatusUnavailable')}</span>
           </div>
         ) : selectedRepoStatus ? (
-          <div className={actionsClasses}>
+          <div ref={actionsRef} className={actionsClasses}>
             <Button
               onClick={handleSyncClick}
               disabled={
@@ -293,7 +302,9 @@ function GitOperations({
               <ArrowDownUp
                 className={`h-3.5 w-3.5 ${syncing ? 'animate-bounce' : ''}`}
               />
-              <span className="truncate max-w-[10ch]">{syncButtonLabel}</span>
+              {showLabels && (
+                <span className="truncate max-w-[10ch]">{syncButtonLabel}</span>
+              )}
             </Button>
 
             <Button
@@ -313,7 +324,9 @@ function GitOperations({
               aria-label={mergeButtonLabel}
             >
               <GitBranchIcon className="h-3.5 w-3.5" />
-              <span className="truncate max-w-[10ch]">{mergeButtonLabel}</span>
+              {showLabels && (
+                <span className="truncate max-w-[10ch]">{mergeButtonLabel}</span>
+              )}
             </Button>
 
             <Button
@@ -333,7 +346,9 @@ function GitOperations({
               aria-label={prButtonLabel}
             >
               <GitPullRequest className="h-3.5 w-3.5" />
-              <span className="truncate max-w-[10ch]">{prButtonLabel}</span>
+              {showLabels && (
+                <span className="truncate max-w-[10ch]">{prButtonLabel}</span>
+              )}
             </Button>
 
             <Button
@@ -352,7 +367,9 @@ function GitOperations({
               <RefreshCw
                 className={`h-3.5 w-3.5 ${rebasing ? 'animate-spin' : ''}`}
               />
-              <span className="truncate max-w-[10ch]">{rebaseButtonLabel}</span>
+              {showLabels && (
+                <span className="truncate max-w-[10ch]">{rebaseButtonLabel}</span>
+              )}
             </Button>
           </div>
         ) : null}
