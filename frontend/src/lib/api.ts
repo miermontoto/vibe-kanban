@@ -114,6 +114,19 @@ export class ApiError<E = unknown> extends Error {
   }
 }
 
+// Custom JSON.stringify replacer to handle BigInt values
+const bigIntReplacer = (_key: string, value: any) => {
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+  return value;
+};
+
+// Helper to stringify with BigInt support
+export const stringifyWithBigInt = (data: any): string => {
+  return JSON.stringify(data, bigIntReplacer);
+};
+
 const makeRequest = async (url: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers ?? {});
   if (!headers.has('Content-Type')) {
@@ -411,7 +424,7 @@ export const tasksApi = {
   create: async (data: CreateTask): Promise<Task> => {
     const response = await makeRequest(`/api/tasks`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: stringifyWithBigInt(data),
     });
     return handleApiResponse<Task>(response);
   },
@@ -421,7 +434,7 @@ export const tasksApi = {
   ): Promise<TaskWithAttemptStatus> => {
     const response = await makeRequest(`/api/tasks/create-and-start`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: stringifyWithBigInt(data),
     });
     return handleApiResponse<TaskWithAttemptStatus>(response);
   },
@@ -432,7 +445,7 @@ export const tasksApi = {
   ): Promise<TaskUpdateResponse> => {
     const response = await makeRequest(`/api/tasks/${taskId}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: stringifyWithBigInt(data),
     });
     return handleApiResponse<TaskUpdateResponse>(response);
   },

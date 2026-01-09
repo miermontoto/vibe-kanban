@@ -1,8 +1,8 @@
 import { ReactNode, useState } from 'react';
 import {
-  PanelGroup,
+  Group,
   Panel,
-  PanelResizeHandle,
+  Separator,
 } from 'react-resizable-panels';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -61,8 +61,10 @@ function RightWorkArea({
 }) {
   const [isAttemptCollapsed, setIsAttemptCollapsed] = useState(false);
 
-  const handleAttemptResize = (sizes: number[]) => {
-    setIsAttemptCollapsed(sizes[0] === COLLAPSED_SIZE);
+  const handleAttemptResize = (panelSize: { asPercentage: number; inPixels: number }, id: string | number | undefined) => {
+    if (id === 'attempt') {
+      setIsAttemptCollapsed(panelSize.asPercentage === COLLAPSED_SIZE);
+    }
   };
 
   return (
@@ -76,11 +78,9 @@ function RightWorkArea({
         {mode === null ? (
           attempt
         ) : (
-          <PanelGroup
-            direction="horizontal"
+          <Group
+            orientation="horizontal"
             className="h-full min-h-0"
-            autoSaveId="tasksLayout-attemptAux"
-            onLayout={handleAttemptResize}
           >
             <Panel
               id="attempt"
@@ -96,7 +96,7 @@ function RightWorkArea({
               {attempt}
             </Panel>
 
-            <PanelResizeHandle
+            <Separator
               id="handle-aa"
               className={cn(
                 'relative z-30 bg-border cursor-col-resize group touch-none',
@@ -113,7 +113,7 @@ function RightWorkArea({
                 <span className="w-1 h-1 rounded-full bg-muted-foreground" />
                 <span className="w-1 h-1 rounded-full bg-muted-foreground" />
               </div>
-            </PanelResizeHandle>
+            </Separator>
 
             <Panel
               id="aux"
@@ -125,7 +125,7 @@ function RightWorkArea({
             >
               <AuxRouter mode={mode} aux={aux} />
             </Panel>
-          </PanelGroup>
+          </Group>
         )}
       </div>
     </div>
@@ -152,8 +152,10 @@ function DesktopSimple({
 }) {
   const [isKanbanCollapsed, setIsKanbanCollapsed] = useState(false);
 
-  const handleKanbanResize = (sizes: number[]) => {
-    setIsKanbanCollapsed(sizes[0] === COLLAPSED_SIZE);
+  const handleKanbanResize = (panelSize: { asPercentage: number; inPixels: number }, id: string | number | undefined) => {
+    if (id === 'kanban') {
+      setIsKanbanCollapsed(panelSize.asPercentage === COLLAPSED_SIZE);
+    }
   };
 
   // When preview/diffs is open, hide Kanban entirely and render only RightWorkArea
@@ -170,11 +172,9 @@ function DesktopSimple({
 
   // When only viewing attempt logs, show Kanban | Attempt (no aux)
   return (
-    <PanelGroup
-      direction="horizontal"
+    <Group
+      orientation="horizontal"
       className="h-full min-h-0"
-      autoSaveId="tasksLayout-kanbanAttempt"
-      onLayout={handleKanbanResize}
     >
       <Panel
         id="kanban"
@@ -190,7 +190,7 @@ function DesktopSimple({
         {kanban}
       </Panel>
 
-      <PanelResizeHandle
+      <Separator
         id="handle-kr"
         className={cn(
           'relative z-30 bg-border cursor-col-resize group touch-none',
@@ -207,7 +207,7 @@ function DesktopSimple({
           <span className="w-1 h-1 rounded-full bg-muted-foreground" />
           <span className="w-1 h-1 rounded-full bg-muted-foreground" />
         </div>
-      </PanelResizeHandle>
+      </Separator>
 
       <Panel
         id="right"
@@ -222,7 +222,7 @@ function DesktopSimple({
           rightHeader={rightHeader}
         />
       </Panel>
-    </PanelGroup>
+    </Group>
   );
 }
 
