@@ -336,6 +336,7 @@ impl ProjectService {
                     path: format!("{}/{}", repo_name, r.path),
                     is_file: r.is_file,
                     match_type: r.match_type.clone(),
+                    score: r.score,
                 })
             })
             .collect();
@@ -348,7 +349,7 @@ impl ProjectService {
             };
             priority(&a.match_type)
                 .cmp(&priority(&b.match_type))
-                .then_with(|| a.path.cmp(&b.path))
+                .then_with(|| b.score.cmp(&a.score)) // Higher scores first
         });
 
         all_results.truncate(10);
@@ -444,6 +445,7 @@ impl ProjectService {
                     path: relative_path.to_string_lossy().to_string(),
                     is_file: path.is_file(),
                     match_type: SearchMatchType::FileName,
+                    score: 0,
                 });
             } else if relative_path_str.contains(&query_lower) {
                 let match_type = if path
@@ -462,6 +464,7 @@ impl ProjectService {
                     path: relative_path.to_string_lossy().to_string(),
                     is_file: path.is_file(),
                     match_type,
+                    score: 0,
                 });
             }
         }
@@ -471,6 +474,10 @@ impl ProjectService {
         match file_ranker.get_stats(repo_path).await {
             Ok(stats) => {
                 file_ranker.rerank(&mut results, &stats);
+                // Populate scores for sorted results
+                for result in &mut results {
+                    result.score = file_ranker.calculate_score(result, &stats);
+                }
             }
             Err(_) => {
                 // Fallback to basic priority sorting

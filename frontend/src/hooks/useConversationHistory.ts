@@ -19,7 +19,7 @@ export type PatchTypeWithKey = PatchType & {
   executionProcessId: string;
 };
 
-export type AddEntryType = 'initial' | 'running' | 'historic';
+export type AddEntryType = 'initial' | 'running' | 'historic' | 'plan';
 
 export type OnEntriesUpdated = (
   newEntries: PatchTypeWithKey[],
@@ -433,7 +433,21 @@ export const useConversationHistory = ({
       loading: boolean
     ) => {
       const entries = flattenEntriesForEmit(executionProcessState);
-      onEntriesUpdatedRef.current?.(entries, addEntryType, loading);
+      let modifiedAddEntryType = addEntryType;
+
+      // Modify so that if add entry type is 'running' and last entry is a plan, emit special plan type
+      if (entries.length > 0) {
+        const lastEntry = entries[entries.length - 1];
+        if (
+          lastEntry.type === 'NORMALIZED_ENTRY' &&
+          lastEntry.content.entry_type.type === 'tool_use' &&
+          lastEntry.content.entry_type.tool_name === 'ExitPlanMode'
+        ) {
+          modifiedAddEntryType = 'plan';
+        }
+      }
+
+      onEntriesUpdatedRef.current?.(entries, modifiedAddEntryType, loading);
 
       // actualizar cache cuando se emiten entradas
       // solo cachear si no está cargando (estado final o intermedio estable)

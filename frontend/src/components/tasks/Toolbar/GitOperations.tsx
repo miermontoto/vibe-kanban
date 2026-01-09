@@ -3,6 +3,7 @@ import {
   GitPullRequest,
   RefreshCw,
   ArrowDownUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import { useMemo, useState } from 'react';
@@ -22,6 +23,7 @@ interface GitOperationsProps {
   selectedAttempt: Workspace;
   task: TaskWithAttemptStatus;
   branchStatus: RepoBranchStatus[] | null;
+  branchStatusError?: Error | null;
   isAttemptRunning: boolean;
   selectedBranch: string | null;
   layout?: 'horizontal' | 'vertical';
@@ -33,6 +35,7 @@ function GitOperations({
   selectedAttempt,
   task,
   branchStatus,
+  branchStatusError,
   isAttemptRunning,
   selectedBranch,
   layout = 'horizontal',
@@ -266,86 +269,93 @@ function GitOperations({
         />
 
         {/* Right: Actions */}
-        <div className={actionsClasses}>
-          <Button
-            onClick={handleSyncClick}
-            disabled={
-              !selectedRepoStatus ||
-              syncing ||
-              hasConflictsCalculated ||
-              isAttemptRunning ||
-              (selectedRepoStatus?.commits_behind ?? 0) === 0
-            }
-            variant="outline"
-            size="xs"
-            className="border-purple-500 text-purple-500 hover:bg-purple-500 gap-1 shrink-0"
-            aria-label={syncButtonLabel}
-          >
-            <ArrowDownUp
-              className={`h-3.5 w-3.5 ${syncing ? 'animate-bounce' : ''}`}
-            />
-            <span className="truncate max-w-[10ch]">{syncButtonLabel}</span>
-          </Button>
+        {branchStatusError && !selectedRepoStatus ? (
+          <div className="flex items-center gap-2 text-xs text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>{t('git.errors.branchStatusUnavailable')}</span>
+          </div>
+        ) : selectedRepoStatus ? (
+          <div className={actionsClasses}>
+            <Button
+              onClick={handleSyncClick}
+              disabled={
+                !selectedRepoStatus ||
+                syncing ||
+                hasConflictsCalculated ||
+                isAttemptRunning ||
+                (selectedRepoStatus?.commits_behind ?? 0) === 0
+              }
+              variant="outline"
+              size="xs"
+              className="border-purple-500 text-purple-500 hover:bg-purple-500 gap-1 shrink-0"
+              aria-label={syncButtonLabel}
+            >
+              <ArrowDownUp
+                className={`h-3.5 w-3.5 ${syncing ? 'animate-bounce' : ''}`}
+              />
+              <span className="truncate max-w-[10ch]">{syncButtonLabel}</span>
+            </Button>
 
-          <Button
-            onClick={handleMergeClick}
-            disabled={
-              !selectedRepoStatus ||
-              mergeInfo.hasMergedPR ||
-              mergeInfo.hasOpenPR ||
-              merging ||
-              hasConflictsCalculated ||
-              isAttemptRunning ||
-              (selectedRepoStatus?.commits_ahead ?? 0) === 0
-            }
-            variant="outline"
-            size="xs"
-            className="border-success text-success hover:bg-success gap-1 shrink-0"
-            aria-label={mergeButtonLabel}
-          >
-            <GitBranchIcon className="h-3.5 w-3.5" />
-            <span className="truncate max-w-[10ch]">{mergeButtonLabel}</span>
-          </Button>
+            <Button
+              onClick={handleMergeClick}
+              disabled={
+                !selectedRepoStatus ||
+                mergeInfo.hasMergedPR ||
+                mergeInfo.hasOpenPR ||
+                merging ||
+                hasConflictsCalculated ||
+                isAttemptRunning ||
+                (selectedRepoStatus?.commits_ahead ?? 0) === 0
+              }
+              variant="outline"
+              size="xs"
+              className="border-success text-success hover:bg-success gap-1 shrink-0"
+              aria-label={mergeButtonLabel}
+            >
+              <GitBranchIcon className="h-3.5 w-3.5" />
+              <span className="truncate max-w-[10ch]">{mergeButtonLabel}</span>
+            </Button>
 
-          <Button
-            onClick={handlePRButtonClick}
-            disabled={
-              !selectedRepoStatus ||
-              mergeInfo.hasMergedPR ||
-              pushing ||
-              isAttemptRunning ||
-              hasConflictsCalculated ||
-              (mergeInfo.hasOpenPR &&
-                (selectedRepoStatus?.remote_commits_ahead ?? 0) === 0)
-            }
-            variant="outline"
-            size="xs"
-            className="border-info text-info hover:bg-info gap-1 shrink-0"
-            aria-label={prButtonLabel}
-          >
-            <GitPullRequest className="h-3.5 w-3.5" />
-            <span className="truncate max-w-[10ch]">{prButtonLabel}</span>
-          </Button>
+            <Button
+              onClick={handlePRButtonClick}
+              disabled={
+                !selectedRepoStatus ||
+                mergeInfo.hasMergedPR ||
+                pushing ||
+                isAttemptRunning ||
+                hasConflictsCalculated ||
+                (mergeInfo.hasOpenPR &&
+                  (selectedRepoStatus?.remote_commits_ahead ?? 0) === 0)
+              }
+              variant="outline"
+              size="xs"
+              className="border-info text-info hover:bg-info gap-1 shrink-0"
+              aria-label={prButtonLabel}
+            >
+              <GitPullRequest className="h-3.5 w-3.5" />
+              <span className="truncate max-w-[10ch]">{prButtonLabel}</span>
+            </Button>
 
-          <Button
-            onClick={handleRebaseDialogOpen}
-            disabled={
-              !selectedRepoStatus ||
-              rebasing ||
-              isAttemptRunning ||
-              hasConflictsCalculated
-            }
-            variant="outline"
-            size="xs"
-            className="border-warning text-warning hover:bg-warning gap-1 shrink-0"
-            aria-label={rebaseButtonLabel}
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${rebasing ? 'animate-spin' : ''}`}
-            />
-            <span className="truncate max-w-[10ch]">{rebaseButtonLabel}</span>
-          </Button>
-        </div>
+            <Button
+              onClick={handleRebaseDialogOpen}
+              disabled={
+                !selectedRepoStatus ||
+                rebasing ||
+                isAttemptRunning ||
+                hasConflictsCalculated
+              }
+              variant="outline"
+              size="xs"
+              className="border-warning text-warning hover:bg-warning gap-1 shrink-0"
+              aria-label={rebaseButtonLabel}
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${rebasing ? 'animate-spin' : ''}`}
+              />
+              <span className="truncate max-w-[10ch]">{rebaseButtonLabel}</span>
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

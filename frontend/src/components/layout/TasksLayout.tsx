@@ -1,5 +1,9 @@
 import { ReactNode, useState } from 'react';
-import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
+import {
+  PanelGroup,
+  Panel,
+  PanelResizeHandle,
+} from 'react-resizable-panels';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -15,37 +19,8 @@ interface TasksLayoutProps {
   rightHeader?: ReactNode;
 }
 
-type SplitSizes = [number, number];
-
-const MIN_PANEL_SIZE = 20;
-const DEFAULT_KANBAN_ATTEMPT: SplitSizes = [66, 34];
-const DEFAULT_ATTEMPT_AUX: SplitSizes = [34, 66];
-
-const STORAGE_KEYS = {
-  KANBAN_ATTEMPT: 'tasksLayout.desktop.v2.kanbanAttempt',
-  ATTEMPT_AUX: 'tasksLayout.desktop.v2.attemptAux',
-} as const;
-
-function loadSizes(key: string, fallback: SplitSizes): SplitSizes {
-  try {
-    const saved = localStorage.getItem(key);
-    if (!saved) return fallback;
-    const parsed = JSON.parse(saved);
-    if (Array.isArray(parsed) && parsed.length === 2)
-      return parsed as SplitSizes;
-    return fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveSizes(key: string, sizes: SplitSizes): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(sizes));
-  } catch {
-    // Ignore errors
-  }
-}
+const MIN_PANEL_SIZE = 20; // percentage (0-100)
+const COLLAPSED_SIZE = 0; // percentage (0-100)
 
 /**
  * AuxRouter - Handles nested AnimatePresence for preview/diffs transitions.
@@ -84,10 +59,11 @@ function RightWorkArea({
   mode: LayoutMode;
   rightHeader?: ReactNode;
 }) {
-  const [innerSizes] = useState<SplitSizes>(() =>
-    loadSizes(STORAGE_KEYS.ATTEMPT_AUX, DEFAULT_ATTEMPT_AUX)
-  );
   const [isAttemptCollapsed, setIsAttemptCollapsed] = useState(false);
+
+  const handleAttemptResize = (sizes: number[]) => {
+    setIsAttemptCollapsed(sizes[0] === COLLAPSED_SIZE);
+  };
 
   return (
     <div className="h-full min-h-0 flex flex-col">
@@ -103,21 +79,16 @@ function RightWorkArea({
           <PanelGroup
             direction="horizontal"
             className="h-full min-h-0"
-            onLayout={(layout) => {
-              if (layout.length === 2) {
-                saveSizes(STORAGE_KEYS.ATTEMPT_AUX, [layout[0], layout[1]]);
-              }
-            }}
+            autoSaveId="tasksLayout-attemptAux"
+            onLayout={handleAttemptResize}
           >
             <Panel
               id="attempt"
-              order={1}
-              defaultSize={innerSizes[0]}
+              defaultSize={34}
               minSize={MIN_PANEL_SIZE}
               collapsible
-              collapsedSize={0}
-              onCollapse={() => setIsAttemptCollapsed(true)}
-              onExpand={() => setIsAttemptCollapsed(false)}
+              collapsedSize={COLLAPSED_SIZE}
+              onResize={handleAttemptResize}
               className="min-w-0 min-h-0 overflow-hidden"
               role="region"
               aria-label="Details"
@@ -135,8 +106,6 @@ function RightWorkArea({
                 isAttemptCollapsed ? 'w-6' : 'w-1'
               )}
               aria-label="Resize panels"
-              role="separator"
-              aria-orientation="vertical"
             >
               <div className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border" />
               <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 bg-muted/90 border border-border rounded-full px-1.5 py-3 opacity-70 group-hover:opacity-100 group-focus:opacity-100 transition-opacity shadow-sm">
@@ -148,10 +117,8 @@ function RightWorkArea({
 
             <Panel
               id="aux"
-              order={2}
-              defaultSize={innerSizes[1]}
+              defaultSize={66}
               minSize={MIN_PANEL_SIZE}
-              collapsible={false}
               className="min-w-0 min-h-0 overflow-hidden"
               role="region"
               aria-label={mode === 'preview' ? 'Preview' : 'Diffs'}
@@ -183,10 +150,11 @@ function DesktopSimple({
   mode: LayoutMode;
   rightHeader?: ReactNode;
 }) {
-  const [outerSizes] = useState<SplitSizes>(() =>
-    loadSizes(STORAGE_KEYS.KANBAN_ATTEMPT, DEFAULT_KANBAN_ATTEMPT)
-  );
   const [isKanbanCollapsed, setIsKanbanCollapsed] = useState(false);
+
+  const handleKanbanResize = (sizes: number[]) => {
+    setIsKanbanCollapsed(sizes[0] === COLLAPSED_SIZE);
+  };
 
   // When preview/diffs is open, hide Kanban entirely and render only RightWorkArea
   if (mode !== null) {
@@ -205,21 +173,16 @@ function DesktopSimple({
     <PanelGroup
       direction="horizontal"
       className="h-full min-h-0"
-      onLayout={(layout) => {
-        if (layout.length === 2) {
-          saveSizes(STORAGE_KEYS.KANBAN_ATTEMPT, [layout[0], layout[1]]);
-        }
-      }}
+      autoSaveId="tasksLayout-kanbanAttempt"
+      onLayout={handleKanbanResize}
     >
       <Panel
         id="kanban"
-        order={1}
-        defaultSize={outerSizes[0]}
+        defaultSize={66}
         minSize={MIN_PANEL_SIZE}
         collapsible
-        collapsedSize={0}
-        onCollapse={() => setIsKanbanCollapsed(true)}
-        onExpand={() => setIsKanbanCollapsed(false)}
+        collapsedSize={COLLAPSED_SIZE}
+        onResize={handleKanbanResize}
         className="min-w-0 min-h-0 overflow-hidden"
         role="region"
         aria-label="Kanban board"
@@ -237,8 +200,6 @@ function DesktopSimple({
           isKanbanCollapsed ? 'w-6' : 'w-1'
         )}
         aria-label="Resize panels"
-        role="separator"
-        aria-orientation="vertical"
       >
         <div className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border" />
         <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 bg-muted/90 border border-border rounded-full px-1.5 py-3 opacity-70 group-hover:opacity-100 group-focus:opacity-100 transition-opacity shadow-sm">
@@ -250,10 +211,8 @@ function DesktopSimple({
 
       <Panel
         id="right"
-        order={2}
-        defaultSize={outerSizes[1]}
+        defaultSize={34}
         minSize={MIN_PANEL_SIZE}
-        collapsible={false}
         className="min-w-0 min-h-0 overflow-hidden"
       >
         <RightWorkArea

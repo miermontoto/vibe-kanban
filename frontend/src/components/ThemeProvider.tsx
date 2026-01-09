@@ -90,15 +90,22 @@ export function ThemeProvider({
     root.classList.add(theme.toLowerCase());
   }, [theme]);
 
-  // aplicar la fuente personalizada al body
+  // aplicar la fuente personalizada al body y a .legacy-design
   useEffect(() => {
     const body = window.document.body;
+    const legacyDesign = document.querySelector('.legacy-design') as HTMLElement;
 
     if (fontFamily) {
-      body.style.fontFamily = fontFamily;
+      body.style.setProperty('font-family', fontFamily, 'important');
+      if (legacyDesign) {
+        legacyDesign.style.setProperty('font-family', fontFamily, 'important');
+      }
     } else {
       // eliminar el estilo inline para volver a usar la fuente del tailwind config
-      body.style.fontFamily = '';
+      body.style.removeProperty('font-family');
+      if (legacyDesign) {
+        legacyDesign.style.removeProperty('font-family');
+      }
     }
   }, [fontFamily]);
 

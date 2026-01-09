@@ -12,8 +12,8 @@ import {
   GITHUB_COMMENT_TRANSFORMER,
   GITHUB_COMMENT_EXPORT_TRANSFORMER,
 } from './wysiwyg/nodes/github-comment-node';
-import { TableNode, TABLE_TRANSFORMERS } from './wysiwyg/nodes/table-node';
 import { CODE_BLOCK_TRANSFORMER } from './wysiwyg/transformers/code-block-transformer';
+import { TABLE_TRANSFORMER } from './wysiwyg/transformers/table-transformer';
 import {
   TaskAttemptContext,
   TaskContext,
@@ -25,6 +25,7 @@ import { SlashCommandTypeaheadPlugin } from './wysiwyg/plugins/slash-command-typ
 import { KeyboardCommandsPlugin } from './wysiwyg/plugins/keyboard-commands-plugin';
 import { ImageKeyboardPlugin } from './wysiwyg/plugins/image-keyboard-plugin';
 import { ReadOnlyLinkPlugin } from './wysiwyg/plugins/read-only-link-plugin';
+import { ClickableCodePlugin } from './wysiwyg/plugins/clickable-code-plugin';
 import { ToolbarPlugin } from './wysiwyg/plugins/toolbar-plugin';
 import { CodeBlockShortcutPlugin } from './wysiwyg/plugins/code-block-shortcut-plugin';
 import { MarkdownSyncPlugin } from './wysiwyg/plugins/markdown-sync-plugin';
@@ -36,6 +37,8 @@ import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import { CodeHighlightPlugin } from './wysiwyg/plugins/code-highlight-plugin';
 import { CODE_HIGHLIGHT_CLASSES } from './wysiwyg/lib/code-highlight-theme';
 import { LinkNode } from '@lexical/link';
+import { TableNode, TableRowNode, TableCellNode } from '@lexical/table';
+import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { EditorState } from 'lexical';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -69,6 +72,10 @@ type WysiwygProps = {
   onDelete?: () => void;
   /** Auto-focus the editor on mount */
   autoFocus?: boolean;
+  /** Function to find a matching diff path for clickable inline code (only in read-only mode) */
+  findMatchingDiffPath?: (text: string) => string | null;
+  /** Callback when clickable inline code is clicked (only in read-only mode) */
+  onCodeClick?: (fullPath: string) => void;
 };
 
 function WYSIWYGEditor({
@@ -88,13 +95,17 @@ function WYSIWYGEditor({
   onEdit,
   onDelete,
   autoFocus = false,
+  findMatchingDiffPath,
+  onCodeClick,
 }: WysiwygProps) {
   // Copy button state
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(async () => {
     if (!value) return;
     try {
-      await writeClipboardViaBridge(value);
+      // Unescape markdown-escaped underscores for cleaner clipboard output
+      const unescaped = value.replace(/\\_/g, '_');
+      await writeClipboardViaBridge(unescaped);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 400);
     } catch {
@@ -132,10 +143,15 @@ function WYSIWYGEditor({
           italic: 'italic',
           underline: 'underline underline-offset-2',
           strikethrough: 'line-through',
-          code: 'font-mono bg-muted px-1 py-0.5 rounded',
+          code: 'font-mono bg-muted bg-panel px-1 py-0.5 rounded',
         },
         code: 'block font-mono bg-secondary rounded-md px-3 py-2 my-2 whitespace-pre overflow-x-auto',
         codeHighlight: CODE_HIGHLIGHT_CLASSES,
+        table: 'border-collapse my-2 w-full text-sm',
+        tableRow: '',
+        tableCell: 'border border-low px-3 py-2 text-left align-top',
+        tableCellHeader:
+          'bg-muted font-semibold border border-low px-3 py-2 text-left align-top',
       },
       nodes: [
         HeadingNode,
@@ -148,6 +164,8 @@ function WYSIWYGEditor({
         ImageNode,
         GitHubCommentNode,
         TableNode,
+        TableRowNode,
+        TableCellNode,
       ],
     }),
     []
@@ -156,10 +174,10 @@ function WYSIWYGEditor({
   // Extended transformers with image, GitHub comment, table, and code block support (memoized to prevent unnecessary re-renders)
   const extendedTransformers: Transformer[] = useMemo(
     () => [
+      TABLE_TRANSFORMER,
       IMAGE_TRANSFORMER,
       GITHUB_COMMENT_EXPORT_TRANSFORMER, // Export transformer for DecoratorNode (must be before import transformer)
       GITHUB_COMMENT_TRANSFORMER, // Import transformer for fenced code block
-      ...TABLE_TRANSFORMERS, // Table support for markdown tables
       CODE_BLOCK_TRANSFORMER,
       ...TRANSFORMERS,
     ],
@@ -187,17 +205,16 @@ function WYSIWYGEditor({
 
   // Memoized placeholder element
   const placeholderElement = useMemo(
-    () =>
-      !disabled ? (
-        <div className="absolute top-0 left-0 text-sm text-secondary-foreground pointer-events-none">
-          {placeholder}
-        </div>
-      ) : null,
-    [disabled, placeholder]
+    () => (
+      <div className="absolute top-0 left-0 text-base text-secondary-foreground text-low pointer-events-none truncate">
+        {placeholder}
+      </div>
+    ),
+    [placeholder]
   );
 
   const editorContent = (
-    <div className="wysiwyg text-sm">
+    <div className="wysiwyg text-base">
       <TaskAttemptContext.Provider value={taskAttemptId}>
         <TaskContext.Provider value={taskId}>
           <LocalImagesContext.Provider value={localImages ?? []}>
@@ -214,11 +231,7 @@ function WYSIWYGEditor({
                 <RichTextPlugin
                   contentEditable={
                     <ContentEditable
-                      className={cn(
-                        'outline-none',
-                        !disabled && 'min-h-[200px]',
-                        className
-                      )}
+                      className={cn('outline-none', className)}
                       aria-label={
                         disabled ? 'Markdown content' : 'Markdown editor'
                       }
@@ -231,6 +244,7 @@ function WYSIWYGEditor({
               </div>
 
               <ListPlugin />
+              <TablePlugin />
               <CodeHighlightPlugin />
               {/* Only include editing plugins when not in read-only mode */}
               {!disabled && (
@@ -243,6 +257,8 @@ function WYSIWYGEditor({
                   <KeyboardCommandsPlugin
                     onCmdEnter={onCmdEnter}
                     onShiftCmdEnter={onShiftCmdEnter}
+                    onChange={onChange}
+                    transformers={extendedTransformers}
                   />
                   <ImageKeyboardPlugin />
                   <CodeBlockShortcutPlugin />
@@ -250,6 +266,13 @@ function WYSIWYGEditor({
               )}
               {/* Link sanitization for read-only mode */}
               {disabled && <ReadOnlyLinkPlugin />}
+              {/* Clickable code for file paths in read-only mode */}
+              {disabled && findMatchingDiffPath && onCodeClick && (
+                <ClickableCodePlugin
+                  findMatchingDiffPath={findMatchingDiffPath}
+                  onCodeClick={onCodeClick}
+                />
+              )}
             </LexicalComposer>
           </LocalImagesContext.Provider>
         </TaskContext.Provider>

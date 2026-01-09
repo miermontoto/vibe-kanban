@@ -101,10 +101,12 @@ function DiffsPanelContainer({
   attempt,
   selectedTask,
   branchStatus,
+  branchStatusError,
 }: {
   attempt: Workspace | null;
   selectedTask: TaskWithAttemptStatus | null;
   branchStatus: RepoBranchStatus[] | null;
+  branchStatusError?: Error | null;
 }) {
   const { isAttemptRunning } = useAttemptExecution(attempt?.id);
 
@@ -116,6 +118,7 @@ function DiffsPanelContainer({
           ? {
               task: selectedTask,
               branchStatus: branchStatus ?? null,
+              branchStatusError,
               isAttemptRunning,
               selectedBranch: branchStatus?.[0]?.target_branch_name ?? null,
             }
@@ -282,7 +285,9 @@ export function ProjectTasks() {
   const isTaskView = !!taskId && !effectiveAttemptId;
   const { data: attempt } = useTaskAttemptWithSession(effectiveAttemptId);
 
-  const { data: branchStatus } = useBranchStatus(attempt?.id);
+  const { data: branchStatus, error: branchStatusError } = useBranchStatus(
+    attempt?.id
+  );
 
   const rawMode = searchParams.get('view') as LayoutMode;
   const mode: LayoutMode =
@@ -949,7 +954,7 @@ export function ProjectTasks() {
   ) : null;
 
   const attemptContent = selectedTask ? (
-    <NewCard className="h-full min-h-0 flex flex-col bg-diagonal-lines bg-muted border-0">
+    <NewCard className="h-full min-h-0 flex flex-col bg-muted border-0">
       {isTaskView ? (
         <TaskPanel task={selectedTask} />
       ) : (
@@ -982,7 +987,7 @@ export function ProjectTasks() {
       )}
     </NewCard>
   ) : selectedSharedTask ? (
-    <NewCard className="h-full min-h-0 flex flex-col bg-diagonal-lines bg-muted border-0">
+    <NewCard className="h-full min-h-0 flex flex-col bg-muted border-0">
       <SharedTaskPanel task={selectedSharedTask} />
     </NewCard>
   ) : null;
@@ -996,6 +1001,7 @@ export function ProjectTasks() {
             attempt={attempt}
             selectedTask={selectedTask}
             branchStatus={branchStatus ?? null}
+            branchStatusError={branchStatusError}
           />
         )}
       </div>
@@ -1009,7 +1015,10 @@ export function ProjectTasks() {
     <GitOperationsProvider attemptId={attempt?.id}>
       <ClickedElementsProvider attempt={attempt}>
         <ReviewProvider attemptId={attempt?.id}>
-          <ExecutionProcessesProvider attemptId={attempt?.id}>
+          <ExecutionProcessesProvider
+            attemptId={attempt?.id}
+            sessionId={attempt?.session?.id}
+          >
             <TasksLayout
               kanban={kanbanContent}
               attempt={attemptContent}
@@ -1026,7 +1035,7 @@ export function ProjectTasks() {
   );
 
   return (
-    <div className="min-h-full h-full flex flex-col">
+    <div className="h-full flex flex-col">
       {streamError && (
         <Alert className="w-full z-30 xl:sticky xl:top-0">
           <AlertTitle className="flex items-center gap-2">

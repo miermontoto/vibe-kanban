@@ -13,7 +13,7 @@ export function formatTimestamp(timestamp: string | null): string {
     const minutes = date.getMinutes().toString().padStart(2, '0');
     const seconds = date.getSeconds().toString().padStart(2, '0');
 
-    const dateStr = `${month}/${day}`;
+    let dateStr = `${month}/${day}`;
     const timeStr = `${hours}:${minutes}:${seconds}`;
 
     // si es del mismo año, no mostrar año

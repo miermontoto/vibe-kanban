@@ -52,7 +52,11 @@ export default schemas;
 export default defineConfig({
   plugins: [
     react(),
-    sentryVitePlugin({ org: "bloop-ai", project: "vibe-kanban" }),
+    sentryVitePlugin({
+      org: "bloop-ai",
+      project: "vibe-kanban",
+      telemetry: false
+    }),
     executorSchemasPlugin(),
   ],
   resolve: {
@@ -85,6 +89,9 @@ export default defineConfig({
       allow: [path.resolve(__dirname, "."), path.resolve(__dirname, "..")],
     },
     open: process.env.VITE_OPEN === "true",
+    allowedHosts: [
+      ".trycloudflare.com", // allow all cloudflared tunnels
+    ],
   },
   optimizeDeps: {
     exclude: ["wa-sqlite"],
