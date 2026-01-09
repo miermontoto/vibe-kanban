@@ -81,8 +81,6 @@ pub struct Config {
     pub github: GitHubConfig,
     pub analytics_enabled: bool,
     pub workspace_dir: Option<String>,
-    pub last_app_version: Option<String>,
-    pub show_release_notes: bool,
     #[serde(default)]
     pub language: UiLanguage,
     #[serde(default = "default_git_branch_prefix")]
@@ -141,8 +139,6 @@ impl Config {
             github: old_config.github,
             analytics_enabled: old_config.analytics_enabled,
             workspace_dir: old_config.workspace_dir,
-            last_app_version: old_config.last_app_version,
-            show_release_notes: old_config.show_release_notes,
             language: old_config.language,
             git_branch_prefix: old_config.git_branch_prefix,
             showcases: old_config.showcases,
@@ -203,8 +199,6 @@ impl Default for Config {
             github: GitHubConfig::default(),
             analytics_enabled: true,
             workspace_dir: None,
-            last_app_version: None,
-            show_release_notes: false,
             language: UiLanguage::default(),
             git_branch_prefix: default_git_branch_prefix(),
             showcases: ShowcaseState::default(),
