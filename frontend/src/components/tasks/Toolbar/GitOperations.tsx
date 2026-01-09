@@ -245,10 +245,10 @@ function GitOperations({
 
   const isVertical = layout === 'vertical';
 
-  // determinar si mostrar labels basado en el ancho disponible
-  // threshold: ~50px por botón con label, ~36px sin label
-  // estimamos que necesitamos ~280px para mostrar 4 botones con labels cómodamente
-  const showLabels = isVertical || actionsWidth === 0 || actionsWidth >= 280;
+  // determinar si mostrar labels basado en el ancho disponible del contenedor padre
+  // cuando el container es estrecho (< 600px), ocultamos las labels
+  // esto previene que BranchStatusInfo sea empujado fuera de vista
+  const showLabels = isVertical || actionsWidth === 0 || actionsWidth >= 600;
 
   const actionsClasses = isVertical
     ? 'flex flex-wrap items-center gap-2'
@@ -257,6 +257,7 @@ function GitOperations({
   return (
     <div className="w-full border-b py-2">
       <div
+        ref={actionsRef}
         className={
           isVertical
             ? 'grid grid-cols-1 items-start gap-3 overflow-hidden'
@@ -284,7 +285,7 @@ function GitOperations({
             <span>{t('git.errors.branchStatusUnavailable')}</span>
           </div>
         ) : selectedRepoStatus ? (
-          <div ref={actionsRef} className={actionsClasses}>
+          <div className={actionsClasses}>
             <Button
               onClick={handleSyncClick}
               disabled={
