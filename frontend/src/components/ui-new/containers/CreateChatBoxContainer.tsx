@@ -115,12 +115,17 @@ export function CreateChatBoxContainer() {
         parent_workspace_id: null,
         image_ids: getImageIds(),
         shared_task_id: null,
+        use_ralph_wiggum: null,
+        ralph_max_iterations: null,
+        ralph_completion_promise: null,
+        label_ids: null,
       },
       executor_profile_id: effectiveProfile,
       repos: repos.map((r) => ({
         repo_id: r.id,
         target_branch: targetBranches[r.id] ?? 'main',
       })),
+      custom_branch_name: null,
     });
 
     // Clear attachments and draft after successful creation

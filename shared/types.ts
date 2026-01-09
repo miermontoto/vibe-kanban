@@ -128,8 +128,6 @@ export type UpdateTag = { tag_name: string | null, content: string | null, };
 
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";
 
-export type GitAutoPushMode = "Never" | "Always" | "IfPrExists";
-
 export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
 
 export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
@@ -139,6 +137,12 @@ export type TaskRelationships = { parent_task: Task | null, current_workspace: W
 export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
 
 export type UpdateTask = { title: string | null, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };
+
+export type TaskLabel = { id: string, project_id: string, name: string, color: string, created_at: string, updated_at: string, };
+
+export type CreateTaskLabel = { project_id: string, name: string, color: string, };
+
+export type UpdateTaskLabel = { name: string | null, color: string | null, };
 
 export type DraftFollowUpData = { message: string, variant: string | null, };
 
@@ -528,6 +532,8 @@ export type UiLanguage = "BROWSER" | "EN" | "JA" | "ES" | "KO" | "ZH_HANS" | "ZH
 export type ShowcaseState = { seen_features: Array<string>, };
 
 export type GitCommitTitleMode = "AgentSummary" | "AiGenerated" | "Manual";
+
+export type GitAutoPushMode = "Never" | "Always" | "IfPrExists";
 
 export type PendingCommit = { id: string, workspace_id: string, repo_id: string, 
 /**

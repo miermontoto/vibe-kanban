@@ -624,6 +624,8 @@ export const Actions = {
           has_in_progress_attempt: false,
           last_attempt_failed: false,
           executor: '',
+          pr_number: null,
+          pr_url: null,
         },
         repoId,
       });
