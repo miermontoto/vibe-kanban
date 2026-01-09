@@ -151,9 +151,8 @@ export function useWorkspaces(): UseWorkspacesResult {
       queryKey: workspaceSummaryKeys.byArchived(false),
       queryFn: () => fetchWorkspaceSummariesByArchived(false),
       enabled: activeIsInitialized,
-      staleTime: 1000,
-      refetchInterval: 15000,
-      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 seconds - rely on WebSocket for real-time updates
+      refetchOnWindowFocus: true, // refetch cuando el usuario vuelve a la ventana
       refetchOnMount: 'always',
       placeholderData: keepPreviousData,
     });
@@ -164,9 +163,8 @@ export function useWorkspaces(): UseWorkspacesResult {
       queryKey: workspaceSummaryKeys.byArchived(true),
       queryFn: () => fetchWorkspaceSummariesByArchived(true),
       enabled: archivedIsInitialized,
-      staleTime: 1000,
-      refetchInterval: 15000,
-      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 seconds - rely on WebSocket for real-time updates
+      refetchOnWindowFocus: true, // refetch cuando el usuario vuelve a la ventana
       refetchOnMount: 'always',
       placeholderData: keepPreviousData,
     });

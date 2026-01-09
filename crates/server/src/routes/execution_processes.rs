@@ -14,13 +14,13 @@ use db::models::{
     execution_process_repo_state::ExecutionProcessRepoState,
 };
 use deployment::Deployment;
-use futures_util::{SinkExt, StreamExt, TryStreamExt};
+use futures_util::TryStreamExt;
 use serde::Deserialize;
 use services::services::container::ContainerService;
 use utils::{log_msg::LogMsg, response::ApiResponse};
 use uuid::Uuid;
 
-use crate::{DeploymentImpl, error::ApiError, middleware::load_execution_process_middleware};
+use crate::{DeploymentImpl, error::ApiError, middleware::load_execution_process_middleware, ws_utils::stream_with_heartbeat};
 
 #[derive(Debug, Deserialize)]
 pub struct SessionExecutionProcessQuery {
@@ -79,7 +79,7 @@ async fn handle_raw_logs_ws(
         .ok_or_else(|| anyhow::anyhow!("Execution process not found"))?;
 
     let counter = Arc::new(AtomicUsize::new(0));
-    let mut stream = raw_stream.map_ok({
+    let stream = raw_stream.map_ok({
         let counter = counter.clone();
         move |m| match m {
             LogMsg::Stdout(content) => {
@@ -95,29 +95,9 @@ async fn handle_raw_logs_ws(
             LogMsg::Finished => LogMsg::Finished.to_ws_message_unchecked(),
             _ => unreachable!("Raw stream should only have Stdout/Stderr/Finished"),
         }
-    });
+    }).err_into::<anyhow::Error>();
 
-    // Split socket into sender and receiver
-    let (mut sender, mut receiver) = socket.split();
-
-    // Drain (and ignore) any client->server messages so pings/pongs work
-    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
-
-    // Forward server messages
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(msg) => {
-                if sender.send(msg).await.is_err() {
-                    break; // client disconnected
-                }
-            }
-            Err(e) => {
-                tracing::error!("stream error: {}", e);
-                break;
-            }
-        }
-    }
-    Ok(())
+    stream_with_heartbeat(socket, stream).await
 }
 
 pub async fn stream_normalized_logs_ws(
@@ -147,23 +127,10 @@ async fn handle_normalized_logs_ws(
     socket: WebSocket,
     stream: impl futures_util::Stream<Item = anyhow::Result<LogMsg>> + Unpin + Send + 'static,
 ) -> anyhow::Result<()> {
-    let mut stream = stream.map_ok(|msg| msg.to_ws_message_unchecked());
-    let (mut sender, mut receiver) = socket.split();
-    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(msg) => {
-                if sender.send(msg).await.is_err() {
-                    break;
-                }
-            }
-            Err(e) => {
-                tracing::error!("stream error: {}", e);
-                break;
-            }
-        }
-    }
-    Ok(())
+    let stream = stream
+        .map_ok(|msg| msg.to_ws_message_unchecked())
+        .map_err(|e| anyhow::anyhow!("{}", e));
+    stream_with_heartbeat(socket, stream).await
 }
 
 pub async fn stop_execution_process(
@@ -204,33 +171,14 @@ async fn handle_execution_processes_by_session_ws(
     show_soft_deleted: bool,
 ) -> anyhow::Result<()> {
     // Get the raw stream and convert LogMsg to WebSocket messages
-    let mut stream = deployment
+    let stream = deployment
         .events()
         .stream_execution_processes_for_session_raw(session_id, show_soft_deleted)
         .await?
-        .map_ok(|msg| msg.to_ws_message_unchecked());
+        .map_ok(|msg| msg.to_ws_message_unchecked())
+        .map_err(|e| anyhow::anyhow!("{}", e));
 
-    // Split socket into sender and receiver
-    let (mut sender, mut receiver) = socket.split();
-
-    // Drain (and ignore) any client->server messages so pings/pongs work
-    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
-
-    // Forward server messages
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(msg) => {
-                if sender.send(msg).await.is_err() {
-                    break; // client disconnected
-                }
-            }
-            Err(e) => {
-                tracing::error!("stream error: {}", e);
-                break;
-            }
-        }
-    }
-    Ok(())
+    stream_with_heartbeat(socket, stream).await
 }
 
 pub async fn get_execution_process_repo_states(
