@@ -18,7 +18,7 @@ import { CreatePRDialog } from '@/components/dialogs/tasks/CreatePRDialog';
 import { useTranslation } from 'react-i18next';
 import { BranchStatusInfo } from '@/components/tasks/BranchStatusInfo';
 import { useRepoStatusOperations } from '@/hooks/useRepoStatusOperations';
-import { useContainerOverflow } from '@/hooks/useContainerWidth';
+import { useContainerWidth } from '@/hooks/useContainerWidth';
 
 interface GitOperationsProps {
   selectedAttempt: Workspace;
@@ -43,8 +43,8 @@ function GitOperations({
 }: GitOperationsProps) {
   const { t } = useTranslation('tasks');
 
-  // detectar si el contenedor tiene overflow para responsive labels
-  const [isOverflowing, containerRef] = useContainerOverflow<HTMLDivElement>();
+  // medir el ancho del contenedor outer (estable, no afectado por label visibility)
+  const [containerWidth, outerContainerRef] = useContainerWidth<HTMLDivElement>();
 
   // use custom hook for repo status operations
   const {
@@ -245,19 +245,17 @@ function GitOperations({
 
   const isVertical = layout === 'vertical';
 
-  // determinar si mostrar labels basado en si hay overflow
-  // si el contenido desborda el container, ocultamos las labels para dar más espacio
-  // esto previene que BranchStatusInfo sea empujado fuera de vista
-  const showLabels = isVertical || !isOverflowing;
+  // simple threshold: mostrar labels si el container es >= 700px de ancho
+  // debajo de este threshold, ocultar labels para dar espacio a BranchStatusInfo
+  const showLabels = isVertical || containerWidth === 0 || containerWidth >= 700;
 
   const actionsClasses = isVertical
     ? 'flex flex-wrap items-center gap-2'
     : 'shrink-0 flex flex-wrap items-center gap-2 overflow-y-hidden overflow-x-visible max-h-8';
 
   return (
-    <div className="w-full border-b py-2">
+    <div ref={outerContainerRef} className="w-full border-b py-2">
       <div
-        ref={containerRef}
         className={
           isVertical
             ? 'grid grid-cols-1 items-start gap-3 overflow-hidden'
