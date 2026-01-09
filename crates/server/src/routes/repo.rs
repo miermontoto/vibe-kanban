@@ -118,22 +118,6 @@ pub async fn open_repo_in_editor(
             );
 
             deployment
-                .track_if_analytics_allowed(
-                    "repo_editor_opened",
-                    serde_json::json!({
-                        "repo_id": repo_id.to_string(),
-                        "editor_type": payload.as_ref().and_then(|req| req.editor_type.as_ref()),
-                        "remote_mode": url.is_some(),
-                    }),
-                )
-                .await;
-
-            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
-                url,
-            })))
-        }
-        Err(e) => {
-            tracing::error!("Failed to open editor for repo {}: {:?}", repo_id, e);
             Err(ApiError::EditorOpen(e))
         }
     }

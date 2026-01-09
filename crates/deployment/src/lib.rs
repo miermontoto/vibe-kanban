@@ -14,7 +14,6 @@ use db::{
 use executors::executors::ExecutorError;
 use futures::{StreamExt, TryStreamExt};
 use git2::Error as Git2Error;
-use serde_json::Value;
 use services::services::{
     analytics::{AnalyticsContext, AnalyticsService},
     approvals::Approvals,
@@ -136,14 +135,6 @@ pub trait Deployment: Clone + Send + Sync + 'static {
         PrMonitorService::spawn(db, analytics, publisher).await
     }
 
-    async fn track_if_analytics_allowed(&self, event_name: &str, properties: Value) {
-        let analytics_enabled = self.config().read().await.analytics_enabled;
-        // Track events unless user has explicitly opted out
-        if analytics_enabled && let Some(analytics) = self.analytics() {
-            analytics.track_event(self.user_id(), event_name, Some(properties.clone()));
-        }
-    }
-
     /// Trigger background auto-setup of default projects for new users
     async fn trigger_auto_project_setup(&self) {
         // soft timeout to give the filesystem search a chance to complete
@@ -185,17 +176,6 @@ pub trait Deployment: Clone + Send + Sync + 'static {
                                 project.name,
                                 repo_path
                             );
-
-                            // Track project creation event
-                            self.track_if_analytics_allowed(
-                                "project_created",
-                                serde_json::json!({
-                                    "project_id": project.id.to_string(),
-                                    "repository_count": 1,
-                                    "trigger": "auto_setup",
-                                }),
-                            )
-                            .await;
                         }
                         Err(e) => {
                             tracing::warn!(

@@ -41,54 +41,6 @@ pub async fn create_tag(
     let tag = Tag::create(&deployment.db().pool, &payload).await?;
 
     deployment
-        .track_if_analytics_allowed(
-            "tag_created",
-            serde_json::json!({
-                "tag_id": tag.id.to_string(),
-                "tag_name": tag.tag_name,
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(tag)))
-}
-
-pub async fn update_tag(
-    Extension(tag): Extension<Tag>,
-    State(deployment): State<DeploymentImpl>,
-    Json(payload): Json<UpdateTag>,
-) -> Result<ResponseJson<ApiResponse<Tag>>, ApiError> {
-    let updated_tag = Tag::update(&deployment.db().pool, tag.id, &payload).await?;
-
-    deployment
-        .track_if_analytics_allowed(
-            "tag_updated",
-            serde_json::json!({
-                "tag_id": tag.id.to_string(),
-                "tag_name": updated_tag.tag_name,
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(updated_tag)))
-}
-
-pub async fn delete_tag(
-    Extension(tag): Extension<Tag>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
-    let rows_affected = Tag::delete(&deployment.db().pool, tag.id).await?;
-    if rows_affected == 0 {
-        Err(ApiError::Database(sqlx::Error::RowNotFound))
-    } else {
-        Ok(ResponseJson(ApiResponse::success(())))
-    }
-}
-
-pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
-    let tag_router = Router::new()
-        .route("/", put(update_tag).delete(delete_tag))
-        .layer(from_fn_with_state(deployment.clone(), load_tag_middleware));
 
     let inner = Router::new()
         .route("/", get(get_tags).post(create_tag))

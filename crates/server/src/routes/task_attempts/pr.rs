@@ -353,30 +353,6 @@ pub async fn create_github_pr(
                 tracing::warn!("Failed to open PR in browser: {}", e);
             }
             deployment
-                .track_if_analytics_allowed(
-                    "github_pr_created",
-                    serde_json::json!({
-                        "workspace_id": workspace.id.to_string(),
-                    }),
-                )
-                .await;
-
-            // Trigger auto-description follow-up if enabled
-            if request.auto_generate_description
-                && let Err(e) = trigger_pr_description_follow_up(
-                    &deployment,
-                    &workspace,
-                    pr_info.number,
-                    &pr_info.url,
-                    &repo_info,
-                )
-                .await
-            {
-                tracing::warn!(
-                    "Failed to trigger PR description follow-up for attempt {}: {}",
-                    workspace.id,
-                    e
-                );
             }
 
             Ok(ResponseJson(ApiResponse::success(pr_info.url)))
@@ -880,26 +856,6 @@ async fn auto_create_pr_for_repo(
             }
 
             deployment
-                .track_if_analytics_allowed(
-                    "auto_github_pr_created",
-                    serde_json::json!({
-                        "workspace_id": workspace.id.to_string(),
-                        "task_id": task.id.to_string(),
-                    }),
-                )
-                .await;
-
-            AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: true,
-                pr_url: Some(pr_info.url),
-                pr_number: Some(pr_info.number),
-                error: None,
-            }
-        }
-        Err(e) => {
-            tracing::error!("Failed to create auto-PR: {}", e);
             AutoPrResult {
                 repo_id: workspace_repo.repo_id,
                 repo_name,

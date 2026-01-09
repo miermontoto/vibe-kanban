@@ -625,24 +625,6 @@ impl LocalContainerService {
                         container.finalize_task(publisher.as_ref().ok(), &ctx).await;
                     }
                 }
-
-                // Fire analytics event when CodingAgent execution has finished
-                if config.read().await.analytics_enabled
-                    && matches!(
-                        &ctx.execution_process.run_reason,
-                        ExecutionProcessRunReason::CodingAgent
-                    )
-                    && let Some(analytics) = &analytics
-                {
-                    analytics.analytics_service.track_event(&analytics.user_id, "task_attempt_finished", Some(json!({
-                        "task_id": ctx.task.id.to_string(),
-                        "project_id": ctx.task.project_id.to_string(),
-                        "workspace_id": ctx.workspace.id.to_string(),
-                        "session_id": ctx.session.id.to_string(),
-                        "execution_success": matches!(ctx.execution_process.status, ExecutionProcessStatus::Completed),
-                        "exit_code": ctx.execution_process.exit_code,
-                    })));
-                }
             }
 
             // Now that commit/next-action/finalization steps for this process are complete,

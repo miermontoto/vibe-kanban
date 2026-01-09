@@ -225,19 +225,6 @@ pub async fn create_task_attempt(
     }
 
     deployment
-        .track_if_analytics_allowed(
-            "task_attempt_started",
-            serde_json::json!({
-                "task_id": workspace.task_id.to_string(),
-                "variant": &executor_profile_id.variant,
-                "executor": &executor_profile_id.executor,
-                "workspace_id": workspace.id.to_string(),
-                "repository_count": payload.repos.len(),
-            }),
-        )
-        .await;
-
-    tracing::info!("Created attempt for task {}", task.id);
 
     Ok(ResponseJson(ApiResponse::success(workspace)))
 }
@@ -262,26 +249,6 @@ pub async fn run_agent_setup(
     }
 
     deployment
-        .track_if_analytics_allowed(
-            "agent_setup_script_executed",
-            serde_json::json!({
-                "executor_profile_id": executor_profile_id.to_string(),
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(RunAgentSetupResponse {})))
-}
-
-#[axum::debug_handler]
-pub async fn stream_task_attempt_diff_ws(
-    ws: WebSocketUpgrade,
-    Query(params): Query<DiffStreamQuery>,
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> impl IntoResponse {
-    let _ = Workspace::touch(&deployment.db().pool, workspace.id).await;
 
     let stats_only = params.stats_only;
     ws.on_upgrade(move |socket| async move {
@@ -507,42 +474,6 @@ pub async fn merge_task_attempt(
     }
 
     deployment
-        .track_if_analytics_allowed(
-            "task_attempt_merged",
-            serde_json::json!({
-                "task_id": task.id.to_string(),
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(())))
-}
-
-pub async fn push_task_attempt_branch(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-    Json(request): Json<PushTaskAttemptRequest>,
-) -> Result<ResponseJson<ApiResponse<(), PushError>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    let github_service = GitHubService::new()?;
-    github_service.check_token().await?;
-
-    let workspace_repo =
-        WorkspaceRepo::find_by_workspace_and_repo_id(pool, workspace.id, request.repo_id)
-            .await?
-            .ok_or(RepoError::NotFound)?;
-
-    let repo = Repo::find_by_id(pool, workspace_repo.repo_id)
-        .await?
-        .ok_or(RepoError::NotFound)?;
-
-    let container_ref = deployment
-        .container()
-        .ensure_container_exists(&workspace)
-        .await?;
-    let workspace_path = Path::new(&container_ref);
     let worktree_path = workspace_path.join(&repo.name);
 
     match deployment
@@ -653,26 +584,6 @@ pub async fn open_task_attempt_in_editor(
             );
 
             deployment
-                .track_if_analytics_allowed(
-                    "task_attempt_editor_opened",
-                    serde_json::json!({
-                        "workspace_id": workspace.id.to_string(),
-                        "editor_type": payload.editor_type.as_ref(),
-                        "remote_mode": url.is_some(),
-                    }),
-                )
-                .await;
-
-            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
-                url,
-            })))
-        }
-        Err(e) => {
-            tracing::error!(
-                "Failed to open editor for attempt {}: {:?}",
-                workspace.id,
-                e
-            );
             Err(ApiError::EditorOpen(e))
         }
     }
@@ -706,22 +617,6 @@ pub async fn open_task_attempt_in_terminal(
             );
 
             deployment
-                .track_if_analytics_allowed(
-                    "task_attempt_terminal_opened",
-                    serde_json::json!({
-                        "attempt_id": workspace.id.to_string(),
-                    }),
-                )
-                .await;
-
-            Ok(ResponseJson(ApiResponse::success(())))
-        }
-        Err(e) => {
-            tracing::error!(
-                "Failed to open terminal for attempt {}: {}",
-                workspace.id,
-                e
-            );
             Err(ApiError::BadRequest(format!(
                 "Failed to open terminal: {}",
                 e
@@ -959,31 +854,6 @@ pub async fn change_target_branch(
             .get_branch_status(&repo.path, &workspace.branch, &new_target_branch)?;
 
     deployment
-        .track_if_analytics_allowed(
-            "task_attempt_target_branch_changed",
-            serde_json::json!({
-                "repo_id": repo_id.to_string(),
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(
-        ChangeTargetBranchResponse {
-            repo_id,
-            new_target_branch,
-            status,
-        },
-    )))
-}
-
-#[axum::debug_handler]
-pub async fn rename_branch(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-    Json(payload): Json<RenameBranchRequest>,
-) -> Result<ResponseJson<ApiResponse<RenameBranchResponse, RenameBranchError>>, ApiError> {
-    let new_branch_name = payload.new_branch_name.trim();
 
     if new_branch_name.is_empty() {
         return Ok(ResponseJson(ApiResponse::error_with_data(
@@ -1104,39 +974,6 @@ pub async fn rename_branch(
     }
 
     deployment
-        .track_if_analytics_allowed(
-            "task_attempt_branch_renamed",
-            serde_json::json!({
-                "updated_children": updated_children_count,
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(RenameBranchResponse {
-        branch: new_branch_name.to_string(),
-    })))
-}
-
-#[axum::debug_handler]
-pub async fn rebase_task_attempt(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-    Json(payload): Json<RebaseTaskAttemptRequest>,
-) -> Result<ResponseJson<ApiResponse<(), GitOperationError>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    let workspace_repo =
-        WorkspaceRepo::find_by_workspace_and_repo_id(pool, workspace.id, payload.repo_id)
-            .await?
-            .ok_or(RepoError::NotFound)?;
-
-    let repo = Repo::find_by_id(pool, workspace_repo.repo_id)
-        .await?
-        .ok_or(RepoError::NotFound)?;
-
-    let old_base_branch = payload
-        .old_base_branch
-        .unwrap_or_else(|| workspace_repo.target_branch.clone());
     let new_base_branch = payload
         .new_base_branch
         .unwrap_or_else(|| workspace_repo.target_branch.clone());
@@ -1202,35 +1039,6 @@ pub async fn rebase_task_attempt(
     }
 
     deployment
-        .track_if_analytics_allowed(
-            "task_attempt_rebased",
-            serde_json::json!({
-                "workspace_id": workspace.id.to_string(),
-                "repo_id": payload.repo_id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(())))
-}
-
-#[axum::debug_handler]
-pub async fn abort_conflicts_task_attempt(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-    Json(payload): Json<AbortConflictsRequest>,
-) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    let repo = Repo::find_by_id(pool, payload.repo_id)
-        .await?
-        .ok_or(RepoError::NotFound)?;
-
-    let container_ref = deployment
-        .container()
-        .ensure_container_exists(&workspace)
-        .await?;
-    let workspace_path = Path::new(&container_ref);
     let worktree_path = workspace_path.join(&repo.name);
 
     deployment.git().abort_conflicts(&worktree_path)?;
@@ -1342,44 +1150,6 @@ pub async fn start_dev_server(
         .await?;
 
     deployment
-        .track_if_analytics_allowed(
-            "dev_server_started",
-            serde_json::json!({
-                "task_id": task.id.to_string(),
-                "project_id": project.id.to_string(),
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(())))
-}
-
-pub async fn get_task_attempt_children(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<TaskRelationships>>, StatusCode> {
-    match Task::find_relationships_for_workspace(&deployment.db().pool, &workspace).await {
-        Ok(relationships) => {
-            deployment
-                .track_if_analytics_allowed(
-                    "task_attempt_children_viewed",
-                    serde_json::json!({
-                        "workspace_id": workspace.id.to_string(),
-                        "children_count": relationships.children.len(),
-                        "parent_count": if relationships.parent_task.is_some() { 1 } else { 0 },
-                    }),
-                )
-                .await;
-
-            Ok(ResponseJson(ApiResponse::success(relationships)))
-        }
-        Err(e) => {
-            tracing::error!(
-                "Failed to fetch relationships for task attempt {}: {}",
-                workspace.id,
-                e
-            );
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -1392,39 +1162,6 @@ pub async fn stop_task_attempt_execution(
     deployment.container().try_stop(&workspace, false).await;
 
     deployment
-        .track_if_analytics_allowed(
-            "task_attempt_stopped",
-            serde_json::json!({
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(())))
-}
-
-#[derive(Debug, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[ts(tag = "type", rename_all = "snake_case")]
-pub enum RunScriptError {
-    NoScriptConfigured,
-    ProcessAlreadyRunning,
-}
-
-#[axum::debug_handler]
-pub async fn run_setup_script(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<ExecutionProcess, RunScriptError>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    // Check if any non-dev-server processes are already running for this workspace
-    if ExecutionProcess::has_running_non_dev_server_processes_for_workspace(pool, workspace.id)
-        .await?
-    {
-        return Ok(ResponseJson(ApiResponse::error_with_data(
-            RunScriptError::ProcessAlreadyRunning,
-        )));
     }
 
     deployment
@@ -1482,33 +1219,6 @@ pub async fn run_setup_script(
         .await?;
 
     deployment
-        .track_if_analytics_allowed(
-            "setup_script_executed",
-            serde_json::json!({
-                "task_id": task.id.to_string(),
-                "project_id": project.id.to_string(),
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(execution_process)))
-}
-
-#[axum::debug_handler]
-pub async fn run_cleanup_script(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<ExecutionProcess, RunScriptError>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    // Check if any non-dev-server processes are already running for this workspace
-    if ExecutionProcess::has_running_non_dev_server_processes_for_workspace(pool, workspace.id)
-        .await?
-    {
-        return Ok(ResponseJson(ApiResponse::error_with_data(
-            RunScriptError::ProcessAlreadyRunning,
-        )));
     }
 
     deployment
@@ -1566,108 +1276,6 @@ pub async fn run_cleanup_script(
         .await?;
 
     deployment
-        .track_if_analytics_allowed(
-            "cleanup_script_executed",
-            serde_json::json!({
-                "task_id": task.id.to_string(),
-                "project_id": project.id.to_string(),
-                "workspace_id": workspace.id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(execution_process)))
-}
-
-#[axum::debug_handler]
-pub async fn gh_cli_setup_handler(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<ExecutionProcess, GhCliSetupError>>, ApiError> {
-    match gh_cli_setup::run_gh_cli_setup(&deployment, &workspace).await {
-        Ok(execution_process) => {
-            deployment
-                .track_if_analytics_allowed(
-                    "gh_cli_setup_executed",
-                    serde_json::json!({
-                        "workspace_id": workspace.id.to_string(),
-                    }),
-                )
-                .await;
-
-            Ok(ResponseJson(ApiResponse::success(execution_process)))
-        }
-        Err(ApiError::Executor(ExecutorError::ExecutableNotFound { program }))
-            if program == "brew" =>
-        {
-            Ok(ResponseJson(ApiResponse::error_with_data(
-                GhCliSetupError::BrewMissing,
-            )))
-        }
-        Err(ApiError::Executor(ExecutorError::SetupHelperNotSupported)) => Ok(ResponseJson(
-            ApiResponse::error_with_data(GhCliSetupError::SetupHelperNotSupported),
-        )),
-        Err(ApiError::Executor(err)) => Ok(ResponseJson(ApiResponse::error_with_data(
-            GhCliSetupError::Other {
-                message: err.to_string(),
-            },
-        ))),
-        Err(err) => Err(err),
-    }
-}
-
-pub async fn get_task_attempt_repos(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<Vec<RepoWithTargetBranch>>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    let repos =
-        WorkspaceRepo::find_repos_with_target_branch_for_workspace(pool, workspace.id).await?;
-
-    Ok(ResponseJson(ApiResponse::success(repos)))
-}
-
-pub async fn get_first_user_message(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<Option<String>>>, ApiError> {
-    let pool = &deployment.db().pool;
-
-    let message = Workspace::get_first_user_message(pool, workspace.id).await?;
-
-    Ok(ResponseJson(ApiResponse::success(message)))
-}
-
-#[derive(Debug, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[ts(tag = "type", rename_all = "snake_case")]
-pub enum DeleteWorkspaceError {
-    HasRunningProcesses,
-}
-
-pub async fn delete_workspace(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<
-    (
-        StatusCode,
-        ResponseJson<ApiResponse<(), DeleteWorkspaceError>>,
-    ),
-    ApiError,
-> {
-    let pool = &deployment.db().pool;
-
-    // Check for running execution processes
-    if ExecutionProcess::has_running_non_dev_server_processes_for_workspace(pool, workspace.id)
-        .await?
-    {
-        return Ok((
-            StatusCode::CONFLICT,
-            ResponseJson(ApiResponse::error_with_data(
-                DeleteWorkspaceError::HasRunningProcesses,
-            )),
-        ));
     }
 
     // Stop any running dev servers for this workspace
@@ -1717,24 +1325,6 @@ pub async fn delete_workspace(
     }
 
     deployment
-        .track_if_analytics_allowed(
-            "workspace_deleted",
-            serde_json::json!({
-                "workspace_id": workspace.id.to_string(),
-                "task_id": workspace.task_id.to_string(),
-            }),
-        )
-        .await;
-
-    // Spawn background cleanup task for filesystem resources
-    if let Some(workspace_dir) = workspace_dir {
-        let workspace_id = workspace.id;
-        tokio::spawn(async move {
-            tracing::info!(
-                "Starting background cleanup for workspace {} at {}",
-                workspace_id,
-                workspace_dir.display()
-            );
 
             if let Err(e) = WorkspaceManager::cleanup_workspace(&workspace_dir, &repositories).await
             {
