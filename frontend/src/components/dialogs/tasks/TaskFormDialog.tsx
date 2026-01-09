@@ -58,6 +58,9 @@ interface Task {
   title: string;
   description: string | null;
   status: TaskStatus;
+  use_ralph_wiggum: boolean;
+  ralph_max_iterations: bigint | null;
+  ralph_completion_promise: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -180,9 +183,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           repoBranches: defaultRepoBranches,
           autoStart: false,
           customBranchName: '',
-          useRalphWiggum: false,
-          ralphMaxIterations: 10,
-          ralphCompletionPromise: 'COMPLETE',
+          useRalphWiggum: props.task.use_ralph_wiggum,
+          ralphMaxIterations: props.task.ralph_max_iterations ? Number(props.task.ralph_max_iterations) : 10,
+          ralphCompletionPromise: props.task.ralph_completion_promise || 'COMPLETE',
         };
 
       case 'duplicate':
@@ -194,9 +197,9 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           repoBranches: defaultRepoBranches,
           autoStart: true,
           customBranchName: '',
-          useRalphWiggum: false,
-          ralphMaxIterations: 10,
-          ralphCompletionPromise: 'COMPLETE',
+          useRalphWiggum: props.initialTask.use_ralph_wiggum,
+          ralphMaxIterations: props.initialTask.ralph_max_iterations ? Number(props.initialTask.ralph_max_iterations) : 10,
+          ralphCompletionPromise: props.initialTask.ralph_completion_promise || 'COMPLETE',
         };
 
       case 'subtask':
