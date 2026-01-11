@@ -15,9 +15,15 @@ struct FrontMatter {
 
 pub struct SlashCommandService;
 
+impl Default for SlashCommandService {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl SlashCommandService {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 
     /// Generate a unique, collision-resistant command ID based on the file path
@@ -96,7 +102,7 @@ impl SlashCommandService {
                 Ok(entry) if entry.file_type().is_file() => {
                     let path = entry.path();
 
-                    if self.is_command_file(&path) {
+                    if self.is_command_file(path) {
                         // Calculate namespace relative to base path
                         let namespace = path
                             .parent()
@@ -104,7 +110,7 @@ impl SlashCommandService {
                             .and_then(|p| p.to_str())
                             .filter(|s| !s.is_empty());
 
-                        match self.parse_command_file(&path, namespace, category).await {
+                        match self.parse_command_file(path, namespace, category).await {
                             Ok(command) => {
                                 tracing::info!(
                                     "Successfully parsed command: {} (namespace: {:?})",
@@ -239,10 +245,7 @@ impl SlashCommandService {
         let global_commands_path = home_dir.join(".claude/commands");
 
         let project_root = std::env::current_dir().map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to get current directory: {}", e),
-            )
+            std::io::Error::other(format!("Failed to get current directory: {}", e))
         })?;
         let project_commands_path = project_root.join(".claude/commands");
 
@@ -262,10 +265,7 @@ fn validate_command_path(path: &Path) -> Result<(), std::io::Error> {
         std::io::Error::new(std::io::ErrorKind::NotFound, "Home directory not found")
     })?;
     let current_dir = std::env::current_dir().map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to get current directory: {}", e),
-        )
+        std::io::Error::other(format!("Failed to get current directory: {}", e))
     })?;
 
     let allowed_paths = [
