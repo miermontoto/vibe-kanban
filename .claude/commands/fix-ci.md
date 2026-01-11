@@ -57,7 +57,16 @@ Please fix all linting, formatting, type errors, and other CI/CD checks for the 
 ## 3. Testing
 - Run `cargo test --workspace` to ensure all tests pass
 
-## 4. Final Verification
+## 4. i18n (Internationalization) Check
+- Run `./scripts/check-i18n.sh` to verify translation keys are complete
+- If missing translation keys are found:
+  - Locate the translation files in `frontend/src/i18n/locales/`
+  - Add missing keys to each language file (ja, ko, zh-Hans, zh-Hant, es)
+  - Use English text as placeholder or add "[Translation needed: ...]" markers
+  - Re-run the check to verify all keys exist
+- Note: This check is non-blocking in CI (continues even if it fails)
+
+## 5. Final Verification
 After all fixes:
 1. Run `pnpm run check` (frontend type check)
 2. Run `pnpm run lint` (frontend lint)
