@@ -3,7 +3,14 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Plus, X } from 'lucide-react';
+import { AlertTriangle, Plus, X, Columns, Rows3 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader } from '@/components/ui/loader';
 import { tasksApi } from '@/lib/api';
 import type { RepoBranchStatus, Workspace } from 'shared/types';
@@ -11,7 +18,6 @@ import { openTaskForm } from '@/lib/openTaskForm';
 import { FeatureShowcaseDialog } from '@/components/dialogs/global/FeatureShowcaseDialog';
 import { showcases } from '@/config/showcases';
 import { useUserSystem } from '@/components/ConfigProvider';
-import { usePostHog } from 'posthog-js/react';
 
 import { useSearch } from '@/contexts/SearchContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -43,7 +49,9 @@ import {
 
 import TaskKanbanBoard, {
   type KanbanColumnItem,
+  type KanbanColumns,
 } from '@/components/tasks/TaskKanbanBoard';
+import EpicSwimlane from '@/components/tasks/EpicSwimlane';
 import type { DragEndEvent } from '@/components/ui/shadcn-io/kanban';
 import {
   useProjectTasks,
@@ -140,11 +148,15 @@ export function ProjectTasks() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isXL = useMediaQuery('(min-width: 1280px)');
   const isMobile = !isXL;
-  const posthog = usePostHog();
   const [selectedSharedTaskId, setSelectedSharedTaskId] = useState<
     string | null
   >(null);
   const { userId } = useAuth();
+
+  // view mode: 'flat' (default) or 'swimlane' (grouped by epic)
+  const [viewMode, setViewMode] = useState<'flat' | 'swimlane'>('flat');
+  // epic filter: null = show all, 'no-epic' = tasks without epic, or epic ID
+  const [epicFilter, setEpicFilter] = useState<string | null>(null);
 
   const {
     projectId,
@@ -383,6 +395,18 @@ export function ProjectTasks() {
       );
     };
 
+    const matchesEpicFilter = (task: Task): boolean => {
+      if (!epicFilter) return true; // no filter, show all
+      if (epicFilter === 'no-epic') {
+        return !task.parent_task_id && task.task_type !== 'epic';
+      }
+      if (epicFilter === 'epics-only') {
+        return task.task_type === 'epic';
+      }
+      // filter by specific epic ID
+      return task.parent_task_id === epicFilter;
+    };
+
     tasks.forEach((task) => {
       const statusKey = normalizeStatus(task.status);
       const sharedTask = task.shared_task_id
@@ -390,6 +414,10 @@ export function ProjectTasks() {
         : sharedTasksById[task.id];
 
       if (!matchesSearch(task.title, task.description)) {
+        return;
+      }
+
+      if (!matchesEpicFilter(task)) {
         return;
       }
 
@@ -451,7 +479,79 @@ export function ProjectTasks() {
     sharedTasksById,
     showSharedTasks,
     userId,
+    epicFilter,
   ]);
+
+  // obtener todas las EPICs para el dropdown filter
+  const epicsForFilter = useMemo(() => {
+    return tasks.filter((t) => t.task_type === 'epic');
+  }, [tasks]);
+
+  // agrupar tasks por epic para swimlane view
+  const epicSwimlanes = useMemo(() => {
+    if (viewMode !== 'swimlane') return null;
+
+    // extraer todas las EPICs
+    const epics = tasks.filter((t) => t.task_type === 'epic');
+
+    // crear map de epic_id -> columns
+    const swimlanes: Array<{
+      epic: Task | null;
+      columns: KanbanColumns;
+    }> = [];
+
+    // para cada EPIC, crear sus columns
+    epics.forEach((epic) => {
+      const columns: KanbanColumns = {
+        todo: [],
+        inprogress: [],
+        inreview: [],
+        done: [],
+        cancelled: [],
+      };
+
+      // añadir tasks que tienen este epic como parent
+      Object.entries(kanbanColumns).forEach(([status, items]) => {
+        const statusKey = status as TaskStatus;
+        items.forEach((item) => {
+          const task = item.type === 'task' ? item.task : null;
+          if (task && task.parent_task_id === epic.id) {
+            columns[statusKey].push(item);
+          }
+        });
+      });
+
+      swimlanes.push({ epic, columns });
+    });
+
+    // agregar lane para tasks sin epic (parent_task_id === null)
+    const noEpicColumns: KanbanColumns = {
+      todo: [],
+      inprogress: [],
+      inreview: [],
+      done: [],
+      cancelled: [],
+    };
+
+    Object.entries(kanbanColumns).forEach(([status, items]) => {
+      const statusKey = status as TaskStatus;
+      items.forEach((item) => {
+        const task = item.type === 'task' ? item.task : null;
+        // incluir tasks sin parent Y tasks que no son EPICs
+        if (task && !task.parent_task_id && task.task_type !== 'epic') {
+          noEpicColumns[statusKey].push(item);
+        }
+        // también incluir shared tasks
+        if (item.type === 'shared') {
+          noEpicColumns[statusKey].push(item);
+        }
+      });
+    });
+
+    swimlanes.push({ epic: null, columns: noEpicColumns });
+
+    return swimlanes;
+  }, [viewMode, tasks, kanbanColumns]);
 
   const visibleTasksByStatus = useMemo(() => {
     const map: Record<TaskStatus, Task[]> = {
@@ -557,27 +657,6 @@ export function ProjectTasks() {
   useKeyOpenDetails(
     () => {
       if (isPanelOpen) {
-        // Track keyboard shortcut before cycling view
-        const order: LayoutMode[] = [null, 'preview', 'diffs'];
-        const idx = order.indexOf(mode);
-        const next = order[(idx + 1) % order.length];
-
-        if (next === 'preview') {
-          posthog?.capture('preview_navigated', {
-            trigger: 'keyboard',
-            direction: 'forward',
-            timestamp: new Date().toISOString(),
-            source: 'frontend',
-          });
-        } else if (next === 'diffs') {
-          posthog?.capture('diffs_navigated', {
-            trigger: 'keyboard',
-            direction: 'forward',
-            timestamp: new Date().toISOString(),
-            source: 'frontend',
-          });
-        }
-
         cycleViewForward();
       } else if (selectedTask) {
         handleViewTaskDetails(selectedTask);
@@ -590,27 +669,6 @@ export function ProjectTasks() {
   useKeyCycleViewBackward(
     () => {
       if (isPanelOpen) {
-        // Track keyboard shortcut before cycling view
-        const order: LayoutMode[] = [null, 'preview', 'diffs'];
-        const idx = order.indexOf(mode);
-        const next = order[(idx - 1 + order.length) % order.length];
-
-        if (next === 'preview') {
-          posthog?.capture('preview_navigated', {
-            trigger: 'keyboard',
-            direction: 'backward',
-            timestamp: new Date().toISOString(),
-            source: 'frontend',
-          });
-        } else if (next === 'diffs') {
-          posthog?.capture('diffs_navigated', {
-            trigger: 'keyboard',
-            direction: 'backward',
-            timestamp: new Date().toISOString(),
-            source: 'frontend',
-          });
-        }
-
         cycleViewBackward();
       }
     },
@@ -764,6 +822,8 @@ export function ProjectTasks() {
           title: task.title,
           description: task.description,
           status: newStatus,
+          task_type: task.task_type,
+          parent_task_id: task.parent_task_id,
           parent_workspace_id: task.parent_workspace_id,
           image_ids: null,
           use_ralph_wiggum: task.use_ralph_wiggum,
@@ -855,8 +915,71 @@ export function ProjectTasks() {
           </CardContent>
         </Card>
       </div>
+    ) : viewMode === 'swimlane' && epicSwimlanes ? (
+      <div className="w-full h-full overflow-x-auto overflow-y-auto overscroll-x-contain p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Swimlane View</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode('flat')}
+          >
+            <Columns className="h-4 w-4 mr-2" />
+            Switch to Flat View
+          </Button>
+        </div>
+        {epicSwimlanes.map((swimlane) => (
+          <EpicSwimlane
+            key={swimlane.epic?.id || 'no-epic'}
+            epic={swimlane.epic}
+            columns={swimlane.columns}
+            onDragEnd={handleDragEnd}
+            onViewTaskDetails={handleViewTaskDetails}
+            onViewSharedTask={handleViewSharedTask}
+            selectedTaskId={selectedTask?.id}
+            selectedSharedTaskId={selectedSharedTaskId}
+            onCreateTask={handleCreateNewTask}
+            projectId={projectId!}
+          />
+        ))}
+      </div>
     ) : (
       <div className="w-full h-full overflow-x-auto overflow-y-auto overscroll-x-contain">
+        <div className="flex items-center justify-between p-4 pb-0">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Kanban Board</h2>
+            {epicsForFilter.length > 0 && (
+              <Select
+                value={epicFilter || 'all'}
+                onValueChange={(value) =>
+                  setEpicFilter(value === 'all' ? null : value)
+                }
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by EPIC" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tasks</SelectItem>
+                  <SelectItem value="epics-only">EPICs Only</SelectItem>
+                  <SelectItem value="no-epic">No EPIC</SelectItem>
+                  {epicsForFilter.map((epic) => (
+                    <SelectItem key={epic.id} value={epic.id}>
+                      📚 {epic.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode('swimlane')}
+          >
+            <Rows3 className="h-4 w-4 mr-2" />
+            Switch to Swimlane View
+          </Button>
+        </div>
         <TaskKanbanBoard
           columns={kanbanColumns}
           onDragEnd={handleDragEnd}

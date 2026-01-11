@@ -7,7 +7,6 @@ import { ProjectTasks } from '@/pages/ProjectTasks';
 import { FullAttemptLogsPage } from '@/pages/FullAttemptLogs';
 import { NormalLayout } from '@/components/layout/NormalLayout';
 import { NewDesignLayout } from '@/components/layout/NewDesignLayout';
-import { usePostHog } from 'posthog-js/react';
 import { useAuth } from '@/hooks';
 import { usePreviousPath } from '@/hooks/usePreviousPath';
 
@@ -27,7 +26,6 @@ import { HotkeysProvider } from 'react-hotkeys-hook';
 
 import { ProjectProvider } from '@/contexts/ProjectContext';
 import { ThemeMode } from 'shared/types';
-import * as Sentry from '@sentry/react';
 
 import { DisclaimerDialog } from '@/components/dialogs/global/DisclaimerDialog';
 import { OnboardingDialog } from '@/components/dialogs/global/OnboardingDialog';
@@ -41,29 +39,12 @@ import { NewDesignScope } from '@/components/ui-new/scope/NewDesignScope';
 import { Workspaces } from '@/pages/ui-new/Workspaces';
 import { WorkspacesLanding } from '@/pages/ui-new/WorkspacesLanding';
 
-const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
-
 function AppContent() {
-  const { config, analyticsUserId, updateAndSaveConfig } = useUserSystem();
-  const posthog = usePostHog();
+  const { config, updateAndSaveConfig } = useUserSystem();
   const { isSignedIn } = useAuth();
 
   // Track previous path for back navigation
   usePreviousPath();
-
-  // Handle opt-in/opt-out and user identification when config loads
-  useEffect(() => {
-    if (!posthog || !analyticsUserId) return;
-
-    if (config?.analytics_enabled) {
-      posthog.opt_in_capturing();
-      posthog.identify(analyticsUserId);
-      console.log('[Analytics] Analytics enabled and user identified');
-    } else {
-      posthog.opt_out_capturing();
-      console.log('[Analytics] Analytics disabled by user preference');
-    }
-  }, [config?.analytics_enabled, analyticsUserId, posthog]);
 
   useEffect(() => {
     if (!config) return;
@@ -120,7 +101,7 @@ function AppContent() {
         initialUseNerdFonts={config?.use_nerd_fonts ?? true}
       >
         <SearchProvider>
-          <SentryRoutes>
+          <Routes>
             {/* ========== LEGACY DESIGN ROUTES ========== */}
             {/* VS Code full-page logs route (outside NormalLayout for minimal UI) */}
             <Route
@@ -184,7 +165,7 @@ function AppContent() {
               <Route path="create" element={<Workspaces />} />
               <Route path=":workspaceId" element={<Workspaces />} />
             </Route>
-          </SentryRoutes>
+          </Routes>
         </SearchProvider>
       </ThemeProvider>
     </I18nextProvider>
@@ -193,7 +174,12 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <UserSystemProvider>
         <ClickedElementsProvider>
           <ProjectProvider>
