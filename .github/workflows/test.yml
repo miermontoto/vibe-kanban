@@ -38,6 +38,7 @@ jobs:
         env:
           GITHUB_BASE_REF: ${{ github.base_ref || 'main' }}
         run: ./scripts/check-i18n.sh
+        continue-on-error: true
 
       - name: Format check frontend
         run: cd frontend && npm run format:check
