@@ -264,9 +264,8 @@ fn validate_command_path(path: &Path) -> Result<(), std::io::Error> {
     let home_dir = dirs::home_dir().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "Home directory not found")
     })?;
-    let current_dir = std::env::current_dir().map_err(|e| {
-        std::io::Error::other(format!("Failed to get current directory: {}", e))
-    })?;
+    let current_dir = std::env::current_dir()
+        .map_err(|e| std::io::Error::other(format!("Failed to get current directory: {}", e)))?;
 
     let allowed_paths = [
         home_dir.join(".claude/commands"),
