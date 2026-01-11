@@ -1,0 +1,465 @@
+name: Release
+
+# Trigger on version tags (v1.2.3, v1.0.0-beta.1, etc.)
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  NODE_VERSION: 22
+  PNPM_VERSION: 10.13.1
+  RUST_TOOLCHAIN: nightly-2025-12-04
+  CARGO_XWIN_VERSION: 0.20.2
+
+jobs:
+  # Step 1: Run tests first - fail fast if tests don't pass
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Lint frontend
+        run: cd frontend && npm run lint
+
+      - name: Format check frontend
+        run: cd frontend && npm run format:check
+
+      - name: Type check frontend
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+          cache-provider: "github"
+          shared-key: "shared"
+
+      - name: Install sqlx-cli
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: sqlx-cli
+          no-default-features: true
+          features: sqlite,postgres
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Run checks
+        run: |
+          cargo fmt --all -- --check
+          npm run generate-types:check
+          npm run prepare-db:check
+          npm run remote:prepare-db:check
+          cargo test --workspace
+          cargo clippy --all --all-targets -- -D warnings
+
+  # Step 2: Build frontend (needed by all backend builds)
+  build-frontend:
+    needs: test
+    runs-on: ubuntu-latest-x64-l
+    env:
+      VITE_PUBLIC_REACT_VIRTUOSO_LICENSE_KEY: ${{ secrets.PUBLIC_REACT_VIRTUOSO_LICENSE_KEY }}
+      VITE_VK_SHARED_API_BASE: ${{ secrets.VK_SHARED_API_BASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          VITE_POSTHOG_API_ENDPOINT: ${{ secrets.POSTHOG_API_ENDPOINT }}
+
+      - name: Extract version from tag
+        id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v3
+        continue-on-error: true
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        with:
+          release: ${{ steps.version.outputs.version }}
+          environment: production
+          sourcemaps: "./frontend/dist"
+          ignore_missing: true
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
+
+  # Step 3: Build backend binaries for all platforms in parallel
+  build-backend:
+    needs: [test, build-frontend]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest-x64-l
+            name: linux-x64
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest-arm64-l
+            name: linux-arm64
+          - target: x86_64-pc-windows-msvc
+            os: ubuntu-latest-x64-l
+            name: windows-x64
+          - target: x86_64-apple-darwin
+            os: macos-15-xlarge
+            name: macos-x64
+          - target: aarch64-apple-darwin
+            os: macos-15-xlarge
+            name: macos-arm64
+          - target: aarch64-pc-windows-msvc
+            os: ubuntu-latest-x64-l
+            name: windows-arm64
+    env:
+      CARGO_INCREMENTAL: "0"
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+      SCCACHE_CACHE_SIZE: "10G"
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      RUSTUP_HOME: ${{ github.workspace }}/.rustup
+      XWIN_CACHE_DIR: ${{ github.workspace }}/.xwin-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup sccache
+        uses: BloopAI/sccache-action@main
+
+      - name: Cache Rust toolchain
+        uses: actions/cache@v4
+        with:
+          path: .rustup/toolchains
+          key: rust-toolchain-${{ runner.os }}-${{ matrix.target }}-${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y clang libclang-dev lld llvm nasm cmake ninja-build
+
+          if [[ "$TARGET" == *"windows"* ]]; then
+            DEBIAN_FRONTEND=noninteractive sudo apt-get install -y clang-19 clang-tools-19 llvm-19 lld-19
+            echo "/usr/lib/llvm-19/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            .cargo/registry/cache
+            .cargo/registry/index
+            .cargo/git/db
+            .cargo/bin
+            .cargo/.crates.toml
+            .cargo/.crates2.json
+          key: cargo-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ matrix.target }}-
+
+      - name: Install Zig (Linux musl targets)
+        if: runner.os == 'Linux' && contains(matrix.target, 'musl')
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Install cargo-zigbuild (Linux musl targets)
+        if: runner.os == 'Linux' && contains(matrix.target, 'musl')
+        run: |
+          if ! command -v cargo-zigbuild &> /dev/null; then
+            cargo install cargo-zigbuild
+          fi
+
+      - name: Install cargo-xwin (Windows targets on Linux)
+        if: runner.os == 'Linux' && contains(matrix.target, 'windows')
+        run: |
+          if ! command -v cargo-xwin &> /dev/null; then
+            cargo install cargo-xwin@${{ env.CARGO_XWIN_VERSION }}
+          fi
+
+      - name: Cache xwin
+        if: runner.os == 'Linux' && contains(matrix.target, 'windows')
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.XWIN_CACHE_DIR }}
+          key: xwin-${{ matrix.target }}
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Build binaries (Linux musl)
+        if: runner.os == 'Linux' && contains(matrix.target, 'musl')
+        env:
+          TARGET: ${{ matrix.target }}
+        run: cargo zigbuild --release --target "$TARGET"
+
+      - name: Build binaries (Windows on Linux)
+        if: runner.os == 'Linux' && contains(matrix.target, 'windows')
+        env:
+          TARGET: ${{ matrix.target }}
+        run: cargo xwin build --release --target "$TARGET"
+
+      - name: Build binaries (macOS)
+        if: runner.os == 'macOS'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --target "$TARGET"
+
+      - name: Prepare binaries for upload
+        env:
+          TARGET: ${{ matrix.target }}
+          PLATFORM_NAME: ${{ matrix.name }}
+        run: |
+          mkdir -p "dist/$PLATFORM_NAME"
+
+          # Determine binary extension
+          if [[ "$TARGET" == *"windows"* ]]; then
+            EXT=".exe"
+          else
+            EXT=""
+          fi
+
+          # Copy and zip each binary
+          for binary in vkm vkm-mcp vkm-review; do
+            cp "target/$TARGET/release/${binary}${EXT}" "dist/$PLATFORM_NAME/${binary}${EXT}"
+            cd "dist/$PLATFORM_NAME"
+            zip "${binary}.zip" "${binary}${EXT}"
+            rm "${binary}${EXT}"
+            cd ../..
+          done
+
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.name }}
+          path: dist/${{ matrix.name }}/*.zip
+          retention-days: 1
+
+  # Step 4: Package NPM tarball
+  package-npm:
+    needs: [test, build-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: ./.github/actions/setup-node
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Organize binaries for NPM package
+        run: |
+          mkdir -p npx-cli/dist
+
+          # Move binaries to expected locations
+          for platform in linux-x64 linux-arm64 windows-x64 windows-arm64 macos-x64 macos-arm64; do
+            mkdir -p "npx-cli/dist/$platform"
+            if [ -d "artifacts/binaries-$platform" ]; then
+              cp "artifacts/binaries-$platform"/*.zip "npx-cli/dist/$platform/"
+            fi
+          done
+
+          # List what we have
+          echo "NPM package contents:"
+          find npx-cli/dist -type f
+
+      - name: Extract version from tag
+        id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update download.js with release info
+        env:
+          REPO_FULL: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          cd npx-cli/bin
+
+          # Replace placeholder values
+          sed -i "s|__R2_PUBLIC_URL__|https://github.com/$REPO_FULL/releases/download|g" download.js
+          sed -i "s|__BINARY_TAG__|$TAG_NAME|g" download.js
+
+      - name: Create NPM package
+        run: |
+          cd npx-cli
+          npm pack
+
+          # Move to root for easy access
+          mv *.tgz ..
+
+      - name: Upload NPM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: "*.tgz"
+          retention-days: 1
+
+  # Step 5: Create GitHub Release
+  create-release:
+    needs: [package-npm]
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version info
+        id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Check if this is a prerelease
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]] || [[ "$VERSION" =~ - ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "changelog=Initial release" >> $GITHUB_OUTPUT
+          else
+            # Generate changelog from git commits
+            CHANGELOG=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges)
+            {
+              echo "changelog<<EOF"
+              echo "$CHANGELOG"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## vkm ${{ steps.version.outputs.version }}
+
+            ### Installation
+            ```bash
+            npx @miermontoto/vkm@${{ steps.version.outputs.version }}
+            ```
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Assets
+            - **NPM Package**: `miermontoto-vkm-${{ steps.version.outputs.version }}.tgz`
+            - **Binaries**: Platform-specific binaries available below
+          draft: false
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tgz
+
+  # Step 6: Publish to NPM (only for non-prerelease versions)
+  publish-npm:
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref_name, '-') && !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
+    steps:
+      - name: Download NPM package
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: .
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish to NPM
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          PACKAGE_FILE=$(ls *.tgz | head -n1)
+          echo "Publishing $PACKAGE_FILE to npm..."
+          npm publish "$PACKAGE_FILE" --access public
+
+      - name: Confirm publication
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${REF_NAME#v}"
+          echo "✅ Successfully published @miermontoto/vkm@$VERSION to npm!"
