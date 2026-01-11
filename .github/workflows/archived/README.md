@@ -11,8 +11,8 @@ The complex multi-stage release system has been replaced by a single, streamline
 - `publish.yml` - Published to NPM when converting pre-release to release
 - `remote-deploy-dev.yml` - Remote deployment workflows
 - `remote-deploy-prod.yml` - Remote deployment workflows
-- `claude.yml` - Claude-specific CI checks
-- `claude-code-review.yml` - Code review automation
+
+**Note:** `claude.yml` and `claude-code-review.yml` were restored as they provide ongoing developer productivity value through automated PR reviews.
 
 ### New System (Active)
 - `release.yml` - Single workflow that handles everything:
