@@ -42,6 +42,10 @@
           "label": "使用 Google Fonts",
           "helper": "從 Google Fonts 載入字體（Chivo Mono）。停用時將使用系統字體。"
         },
+        "useNerdFonts": {
+          "label": "使用 Nerd Fonts",
+          "helper": "載入 Nerd Fonts 符號以支援介面中的圖示。停用時將使用標準系統字體。"
+        },
         "fontFamily": {
           "label": "自訂字體覆蓋",
           "placeholder": "例如：'Fira Code'，'JetBrains Mono'，monospace",
@@ -164,6 +168,15 @@
             "helper": "自訂用於產生提交標題的提示。AI 將使用此提示建立常規提交訊息。"
           },
           "notImplemented": "尚未實作"
+        },
+        "autoPush": {
+          "label": "自動推送模式",
+          "helper": "提交後自動推送到遠端儲存庫。",
+          "options": {
+            "never": "永不自動推送",
+            "always": "提交後總是自動推送",
+            "ifPrExists": "僅在分支存在 PR 時自動推送"
+          }
         }
       },
       "pullRequests": {

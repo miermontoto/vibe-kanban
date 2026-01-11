@@ -42,6 +42,10 @@
           "label": "Google Fontsを使用",
           "helper": "Google Fonts（Chivo Mono）からフォントを読み込みます。無効にすると、システムフォントが使用されます。"
         },
+        "useNerdFonts": {
+          "label": "Nerd Fontsを使用",
+          "helper": "インターフェースのアイコンサポート用にNerd Fontsシンボルを読み込みます。無効にすると、標準システムフォントが使用されます。"
+        },
         "fontFamily": {
           "label": "カスタムフォントオーバーライド",
           "placeholder": "例: 'Fira Code', 'JetBrains Mono', monospace",
@@ -49,7 +53,7 @@
         },
         "discordCounter": {
           "label": "Discordカウンターを表示",
-          "helper": "ナビゲーションバーにDiscordのオンラインユーザー数を表示します。無効にするとDiscordへのリクエストは行われません。"
+          "helper": "ナビゲーションバーにDiscordのオンラインユーザー数��表示します。無効にするとDiscordへのリクエストは行われません。"
         }
       },
       "taskExecution": {
@@ -150,11 +154,50 @@
         "autoCommit": {
           "label": "変更を自動コミット",
           "helper": "有効にすると、タスク実行が成功した後、エージェントが自動的に変更をコミットします。"
+        },
+        "commitTitleMode": {
+          "label": "コミットタイトルモード",
+          "helper": "自動コミットのコミットタイトルの生成方法を選択します。",
+          "options": {
+            "agentSummary": "エージェントの要約を使用（デフォルト）",
+            "aiGenerated": "AI生成（カスタムプロンプトを使用）",
+            "manual": "手動（レビュー用にキュー）"
+          },
+          "customPrompt": {
+            "useCustom": "コミットタイトルにカスタムプロンプトを使用",
+            "helper": "コミットタイトルの生成に使用するプロンプトをカスタマイズします。AIはこのプロンプトを使用して従来型のコミットメッセージを作成します。"
+          },
+          "notImplemented": "未実装"
+        },
+        "autoPush": {
+          "label": "自動プッシュモード",
+          "helper": "コミット後、自動的にリモートリポジトリにプッシュします。",
+          "options": {
+            "never": "自動プッシュしない",
+            "always": "コミット後に常に自動プッシュ",
+            "ifPrExists": "ブランチにPRが存在する場合のみ自動プッシュ"
+          }
+        }
+      },
+      "tasks": {
+        "title": "タスク",
+        "description": "タスクの作成とナビゲーション動作を設定します。",
+        "redirectToAttempt": {
+          "label": "タスク作成時に試行にリダイレクト",
+          "helper": "有効にすると、タスクを作成して開始した後、タスク試行の詳細ビューに自動的に移動します。"
         }
       },
       "pullRequests": {
         "title": "プルリクエスト",
         "description": "PR作成の動作を設定",
+        "autoPr": {
+          "label": "レビュー中に移動したときにPRを作成",
+          "helper": "タスクがレビュー中ステータスに移動したときに自動的にプルリクエストを作成します。"
+        },
+        "autoPrDraft": {
+          "label": "ドラフトPRとして作成",
+          "helper": "PRを自動作成する際、レビュー準備完了ではなくドラフトとして作成します。"
+        },
         "autoDescription": {
           "label": "デフォルトでPR説明を自動生成",
           "helper": "有効にすると、AIエージェントがPR作成後に自動的にタイトルと説明を更新します。"
@@ -401,6 +444,37 @@
           "useGlobal": "グローバル設定を使用",
           "enabled": "常に自動コミット",
           "disabled": "自動コミットしない"
+        },
+        "commitTitleMode": {
+          "label": "コミットタイトルモード",
+          "helper": "このプロジェクトのグローバルコミットタイトルモードを上書きします。",
+          "useGlobal": "グローバル設定を使用",
+          "agentSummary": "エージェントの要約を使用",
+          "aiGenerated": "AI生成",
+          "manual": "手動（レビュー用にキュー）"
+        }
+      },
+      "autoPr": {
+        "label": "レビュー中への移動時に自動的にPRを作成",
+        "helper": "タスクがレビュー中ステータスに移動したときにPRを自動的に作成するかどうかを制御します。",
+        "useGlobal": "グローバル設定を使用",
+        "enabled": "常にPRを作成",
+        "disabled": "自動的にPRを作成しない"
+      },
+      "autoPrDraft": {
+        "label": "ドラフトPRとして作成",
+        "helper": "自動作成されたPRをドラフトとして作成するかどうかを制御します。",
+        "useGlobal": "グローバル設定を使用",
+        "enabled": "常にドラフトとして作成",
+        "disabled": "レビュー準備完了として作成"
+      },
+      "tasks": {
+        "redirectToAttempt": {
+          "label": "タスク作成時に試行にリダイレクト",
+          "helper": "タスク作成後にタスク試行詳細ビューに移動するかどうかを制御します。",
+          "useGlobal": "グローバル設定を使用",
+          "enabled": "常にリダイレクト",
+          "disabled": "リダイレクトしない"
         }
       },
       "save": {
