@@ -128,8 +128,6 @@ export type UpdateTag = { tag_name: string | null, content: string | null, };
 
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";
 
-export type TaskType = "epic" | "story" | "subtask";
-
 export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
 
 export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
@@ -335,11 +333,7 @@ export type AssignSharedTaskRequest = { new_assignee_user_id: string | null, };
 
 export type ShareTaskResponse = { shared_task_id: string, };
 
-export type CreateAndStartTaskRequest = { task: CreateTask, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, 
-/**
- * Optional custom branch name. If not provided, auto-generated from task title.
- */
-custom_branch_name: string | null, };
+export type CreateTaskAndStartRequest = { task: CreateTask, repos: Array<WorkspaceRepoInput>, custom_branch_name: string | null, executor_profile_id: ExecutorProfileId, };
 
 export type CreateGitHubPrRequest = { title: string, body: string | null, target_branch: string | null, draft: boolean | null, repo_id: string, auto_generate_description: boolean, };
 
@@ -469,7 +463,7 @@ export type DirectoryEntry = { name: string, path: string, is_directory: boolean
 
 export type DirectoryListResponse = { entries: Array<DirectoryEntry>, current_path: string, };
 
-export type Config = { config_version: string, theme: ThemeMode, executor_profile: ExecutorProfileId, disclaimer_acknowledged: boolean, onboarding_acknowledged: boolean, notifications: NotificationConfig, editor: EditorConfig, github: GitHubConfig, analytics_enabled: boolean, workspace_dir: string | null, language: UiLanguage, git_branch_prefix: string, showcases: ShowcaseState, pr_auto_description_enabled: boolean, pr_auto_description_prompt: string | null, 
+export type Config = { config_version: string, theme: ThemeMode, executor_profile: ExecutorProfileId, disclaimer_acknowledged: boolean, onboarding_acknowledged: boolean, notifications: NotificationConfig, editor: EditorConfig, github: GitHubConfig, workspace_dir: string | null, language: UiLanguage, git_branch_prefix: string, showcases: ShowcaseState, pr_auto_description_enabled: boolean, pr_auto_description_prompt: string | null, 
 /**
  * cuando está habilitado, el agente hará commit automático después de cambios exitosos
  */
