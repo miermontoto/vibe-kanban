@@ -1,15 +1,15 @@
 # Repository Guidelines
 
+## Project Identity
+**vkm** - An independent fork of BloopAI/vibe-kanban with additional features and customizations.
+
 ## Git Workflow & Repository Management
-**CRITICAL: This is a FORK of BloopAI/vibe-kanban**
-- **NEVER** push commits directly to `upstream` (BloopAI/vibe-kanban)
-- **NEVER** create PRs against `upstream` without explicit user approval
-- **ALWAYS** push commits to `origin` (miermontoto/vibe-kanban fork)
-- **ALWAYS** create PRs from fork to upstream only when user explicitly requests
-- Default workflow: work on fork, push to fork, user will handle upstream PRs manually
+- **Primary repository**: https://github.com/miermontoto/vibe-kanban
+- This is a fork that has diverged significantly from upstream
+- Maintain independence from upstream - do not automatically sync or create PRs to upstream
 - Remote setup:
-  - `origin`: https://github.com/miermontoto/vibe-kanban (PUSH HERE)
-  - `upstream`: https://github.com/BloopAI/vibe-kanban.git (READ ONLY)
+  - `origin`: https://github.com/miermontoto/vibe-kanban (PRIMARY)
+  - `upstream`: https://github.com/BloopAI/vibe-kanban.git (reference only)
 
 ## Project Structure & Module Organization
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.
@@ -30,7 +30,7 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 
 ## Build, Test, and Development Commands
 - Install: `pnpm i`
-- Run dev (frontend + backend with ports auto-assigned): `pnpm run dev`
+- Run dev (frontend + backend with ports auto-assigned): `pnpm run dev` or `./dev.sh`
 - Backend (watch): `pnpm run backend:dev:watch`
 - Frontend (dev): `pnpm run frontend:dev`
 - Type checks: `pnpm run check` (frontend) and `pnpm run backend:check` (Rust cargo check)
@@ -38,7 +38,15 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 - Generate TS types from Rust: `pnpm run generate-types` (or `generate-types:check` in CI)
 - Prepare SQLx (offline): `pnpm run prepare-db`
 - Prepare SQLx (remote package, postgres): `pnpm run remote:prepare-db`
-- Local NPX build: `pnpm run build:npx` then `pnpm pack` in `npx-cli/`
+- Local NPX build: `./local-build.sh` (builds binaries: vkm, vkm-mcp, vkm-review)
+
+## Package and Binary Names
+- NPM package: `@miermontoto/vkm`
+- Main binary: `vkm` (formerly `server`)
+- MCP server binary: `vkm-mcp` (formerly `mcp_task_server`)
+- Review CLI binary: `vkm-review` (formerly `review`)
+- Data directory: `~/.local/share/vkm` (XDG standard)
+- Cache directory: `~/.vkm/bin`
 
 ## Coding Style & Naming Conventions
 - Rust: `rustfmt` enforced (`rustfmt.toml`); group imports by crate; snake_case modules, PascalCase types.
