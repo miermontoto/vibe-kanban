@@ -23,7 +23,7 @@ impl Default for SlashCommandService {
 
 impl SlashCommandService {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 
     /// Generate a unique, collision-resistant command ID based on the file path
