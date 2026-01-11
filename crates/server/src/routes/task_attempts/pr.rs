@@ -657,19 +657,18 @@ async fn auto_create_pr_for_repo(
     // verificar si ya existe un PR para este repo
     if let Ok(merges) =
         Merge::find_by_workspace_and_repo_id(pool, workspace.id, workspace_repo.repo_id).await
+        && let Some(Merge::Pr(pr_merge)) = merges.into_iter().next()
     {
-        if let Some(Merge::Pr(pr_merge)) = merges.into_iter().next() {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: true,
-                pr_url: Some(pr_merge.pr_info.url.clone()),
-                pr_number: Some(pr_merge.pr_info.number),
-                error: Some(AutoPrError::PrAlreadyExists {
-                    url: pr_merge.pr_info.url.clone(),
-                }),
-            };
-        }
+        return AutoPrResult {
+            repo_id: workspace_repo.repo_id,
+            repo_name,
+            success: true,
+            pr_url: Some(pr_merge.pr_info.url.clone()),
+            pr_number: Some(pr_merge.pr_info.number),
+            error: Some(AutoPrError::PrAlreadyExists {
+                url: pr_merge.pr_info.url.clone(),
+            }),
+        };
     }
 
     // obtener container ref para el workspace
@@ -857,8 +856,8 @@ async fn auto_create_pr_for_repo(
             }
 
             // trigger auto-description si está habilitado
-            if auto_generate_description {
-                if let Err(e) = trigger_pr_description_follow_up(
+            if auto_generate_description
+                && let Err(e) = trigger_pr_description_follow_up(
                     deployment,
                     workspace,
                     pr_info.number,
@@ -866,9 +865,8 @@ async fn auto_create_pr_for_repo(
                     &repo_info,
                 )
                 .await
-                {
-                    tracing::warn!("Failed to trigger PR description follow-up: {}", e);
-                }
+            {
+                tracing::warn!("Failed to trigger PR description follow-up: {}", e);
             }
             AutoPrResult {
                 repo_id: workspace_repo.repo_id,
