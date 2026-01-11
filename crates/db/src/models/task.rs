@@ -10,6 +10,7 @@ use super::{project::Project, workspace::Workspace};
 #[derive(
     Debug, Clone, Type, Serialize, Deserialize, PartialEq, TS, EnumString, Display, Default,
 )]
+#[ts(export)]
 #[sqlx(type_name = "task_status", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
@@ -25,6 +26,7 @@ pub enum TaskStatus {
 #[derive(
     Debug, Clone, Type, Serialize, Deserialize, PartialEq, TS, EnumString, Display, Default,
 )]
+#[ts(export)]
 #[sqlx(type_name = "task_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]

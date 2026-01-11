@@ -6,7 +6,7 @@ import { taskRelationshipsKeys } from '@/hooks/useTaskRelationships';
 import { workspaceSummaryKeys } from '@/components/ui-new/hooks/useWorkspaces';
 import type {
   CreateTask,
-  CreateAndStartTaskRequest,
+  CreateTaskAndStartRequest,
   Task,
   TaskWithAttemptStatus,
   TaskUpdateResponse,
@@ -57,7 +57,7 @@ export function useTaskMutations(
   });
 
   const createAndStart = useMutation({
-    mutationFn: (data: CreateAndStartTaskRequest) =>
+    mutationFn: (data: CreateTaskAndStartRequest) =>
       tasksApi.createAndStart(data),
     onSuccess: (createdTask: TaskWithAttemptStatus) => {
       invalidateQueries();

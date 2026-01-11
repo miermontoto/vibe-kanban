@@ -4,14 +4,14 @@ import { tasksApi, attemptsApi } from '@/lib/api';
 import { taskKeys } from './useTask';
 import { taskRelationshipsKeys } from './useTaskRelationships';
 import { workspaceSummaryKeys } from '@/components/ui-new/hooks/useWorkspaces';
-import type { CreateAndStartTaskRequest } from 'shared/types';
+import type { CreateTaskAndStartRequest } from 'shared/types';
 
 export function useCreateWorkspace() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const createWorkspace = useMutation({
-    mutationFn: async (data: CreateAndStartTaskRequest) => {
+    mutationFn: async (data: CreateTaskAndStartRequest) => {
       const task = await tasksApi.createAndStart(data);
       const workspaces = await attemptsApi.getAll(task.id);
       return { task, workspaceId: workspaces[0]?.id };

@@ -128,6 +128,8 @@ export type UpdateTag = { tag_name: string | null, content: string | null, };
 
 export type TaskStatus = "todo" | "inprogress" | "inreview" | "done" | "cancelled";
 
+export type TaskType = "epic" | "story" | "subtask";
+
 export type Task = { id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
 
 export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, task_type: TaskType, parent_task_id: string | null, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };

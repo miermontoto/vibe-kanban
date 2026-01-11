@@ -8,7 +8,7 @@ import {
   EditorType,
   CreateGitHubPrRequest,
   CreateTask,
-  CreateAndStartTaskRequest,
+  CreateTaskAndStartRequest,
   CreateTaskAttemptBody,
   CreateTag,
   DirectoryListResponse,
@@ -446,7 +446,7 @@ export const tasksApi = {
   },
 
   createAndStart: async (
-    data: CreateAndStartTaskRequest
+    data: CreateTaskAndStartRequest
   ): Promise<TaskWithAttemptStatus> => {
     const response = await makeRequest(`/api/tasks/create-and-start`, {
       method: 'POST',
