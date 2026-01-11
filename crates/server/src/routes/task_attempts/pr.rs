@@ -24,7 +24,9 @@ use serde::{Deserialize, Serialize};
 use services::services::{
     container::ContainerService,
     git::{GitCliError, GitServiceError},
-    github::{CreatePrRequest, GitHubRepoInfo, GitHubService, GitHubServiceError, UnifiedPrComment},
+    github::{
+        CreatePrRequest, GitHubRepoInfo, GitHubService, GitHubServiceError, UnifiedPrComment,
+    },
 };
 use ts_rs::TS;
 use utils::response::ApiResponse;
@@ -351,7 +353,7 @@ pub async fn create_github_pr(
             // Auto-open PR in browser
             if let Err(e) = utils::browser::open_browser(&pr_info.url).await {
                 tracing::warn!("Failed to open PR in browser: {}", e);
-            }            // Trigger auto-description follow-up if enabled
+            } // Trigger auto-description follow-up if enabled
             if request.auto_generate_description
                 && let Err(e) = trigger_pr_description_follow_up(
                     &deployment,
@@ -867,7 +869,8 @@ async fn auto_create_pr_for_repo(
                 {
                     tracing::warn!("Failed to trigger PR description follow-up: {}", e);
                 }
-            }            AutoPrResult {
+            }
+            AutoPrResult {
                 repo_id: workspace_repo.repo_id,
                 repo_name,
                 success: true,

@@ -20,7 +20,10 @@ use services::services::container::ContainerService;
 use utils::{log_msg::LogMsg, response::ApiResponse};
 use uuid::Uuid;
 
-use crate::{DeploymentImpl, error::ApiError, middleware::load_execution_process_middleware, ws_utils::stream_with_heartbeat};
+use crate::{
+    DeploymentImpl, error::ApiError, middleware::load_execution_process_middleware,
+    ws_utils::stream_with_heartbeat,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct SessionExecutionProcessQuery {
@@ -79,23 +82,25 @@ async fn handle_raw_logs_ws(
         .ok_or_else(|| anyhow::anyhow!("Execution process not found"))?;
 
     let counter = Arc::new(AtomicUsize::new(0));
-    let stream = raw_stream.map_ok({
-        let counter = counter.clone();
-        move |m| match m {
-            LogMsg::Stdout(content) => {
-                let index = counter.fetch_add(1, Ordering::SeqCst);
-                let patch = ConversationPatch::add_stdout(index, content);
-                LogMsg::JsonPatch(patch).to_ws_message_unchecked()
+    let stream = raw_stream
+        .map_ok({
+            let counter = counter.clone();
+            move |m| match m {
+                LogMsg::Stdout(content) => {
+                    let index = counter.fetch_add(1, Ordering::SeqCst);
+                    let patch = ConversationPatch::add_stdout(index, content);
+                    LogMsg::JsonPatch(patch).to_ws_message_unchecked()
+                }
+                LogMsg::Stderr(content) => {
+                    let index = counter.fetch_add(1, Ordering::SeqCst);
+                    let patch = ConversationPatch::add_stderr(index, content);
+                    LogMsg::JsonPatch(patch).to_ws_message_unchecked()
+                }
+                LogMsg::Finished => LogMsg::Finished.to_ws_message_unchecked(),
+                _ => unreachable!("Raw stream should only have Stdout/Stderr/Finished"),
             }
-            LogMsg::Stderr(content) => {
-                let index = counter.fetch_add(1, Ordering::SeqCst);
-                let patch = ConversationPatch::add_stderr(index, content);
-                LogMsg::JsonPatch(patch).to_ws_message_unchecked()
-            }
-            LogMsg::Finished => LogMsg::Finished.to_ws_message_unchecked(),
-            _ => unreachable!("Raw stream should only have Stdout/Stderr/Finished"),
-        }
-    }).err_into::<anyhow::Error>();
+        })
+        .err_into::<anyhow::Error>();
 
     stream_with_heartbeat(socket, stream).await
 }

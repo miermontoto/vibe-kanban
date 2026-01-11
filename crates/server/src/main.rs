@@ -6,11 +6,7 @@ use sqlx::Error as SqlxError;
 use strip_ansi_escapes::strip;
 use thiserror::Error;
 use tracing_subscriber::EnvFilter;
-use utils::{
-    assets::asset_dir,
-    browser::open_browser,
-    port_file::write_port_file,
-};
+use utils::{assets::asset_dir, browser::open_browser, port_file::write_port_file};
 
 #[derive(Debug, Error)]
 pub enum VibeKanbanError {
@@ -37,9 +33,7 @@ async fn main() -> Result<(), VibeKanbanError> {
         level = log_level
     );
     let env_filter = EnvFilter::try_new(filter_string).expect("Failed to create tracing filter");
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
     // Create asset directory if it doesn't exist
     if !asset_dir().exists() {

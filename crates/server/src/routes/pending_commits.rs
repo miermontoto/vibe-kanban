@@ -217,13 +217,18 @@ async fn should_auto_push_after_commit(
         "Always" => Ok(true),
         "IfPrExists" => {
             // verificar si existe un PR abierto para esta rama
-            let branch_name = deployment.git()
+            let branch_name = deployment
+                .git()
                 .get_current_branch(worktree_path)
                 .map_err(|e| ApiError::BadRequest(format!("Failed to get current branch: {e}")))?;
 
-            let has_pr =
-                Merge::has_open_pr_for_branch(&deployment.db().pool, workspace_id, repo_id, &branch_name)
-                    .await?;
+            let has_pr = Merge::has_open_pr_for_branch(
+                &deployment.db().pool,
+                workspace_id,
+                repo_id,
+                &branch_name,
+            )
+            .await?;
 
             Ok(has_pr)
         }

@@ -1,6 +1,5 @@
 use axum::{
-    Json,
-    Router,
+    Json, Router,
     extract::State,
     response::Json as ResponseJson,
     routing::{delete, get, post, put},
@@ -12,13 +11,16 @@ use ts_rs::TS;
 use utils::response::ApiResponse;
 use uuid::Uuid;
 
-use crate::{error::ApiError, DeploymentImpl};
+use crate::{DeploymentImpl, error::ApiError};
 
 pub fn routes() -> Router<DeploymentImpl> {
     Router::new()
         .route("/projects/{project_id}/labels", get(get_labels))
         .route("/projects/{project_id}/labels", post(create_label))
-        .route("/projects/{project_id}/labels/{label_id}", put(update_label))
+        .route(
+            "/projects/{project_id}/labels/{label_id}",
+            put(update_label),
+        )
         .route(
             "/projects/{project_id}/labels/{label_id}",
             delete(delete_label),

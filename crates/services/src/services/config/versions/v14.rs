@@ -3,8 +3,8 @@ use executors::{executors::BaseCodingAgent, profile::ExecutorProfileId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 pub use v13::{
-    EditorConfig, EditorType, GitCommitTitleMode, GitHubConfig, NotificationConfig, ShowcaseState,
-    SoundFile, ThemeMode, UiLanguage, DEFAULT_COMMIT_TITLE_PROMPT,
+    DEFAULT_COMMIT_TITLE_PROMPT, EditorConfig, EditorType, GitCommitTitleMode, GitHubConfig,
+    NotificationConfig, ShowcaseState, SoundFile, ThemeMode, UiLanguage,
 };
 
 use crate::services::config::versions::v13;

@@ -10,7 +10,7 @@ use axum::{
     http::StatusCode,
     middleware::from_fn_with_state,
     response::{IntoResponse, Json as ResponseJson},
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
 };
 use db::models::{
     image::TaskImage,
@@ -270,17 +270,19 @@ pub async fn update_task(
     let parent_workspace_id = payload
         .parent_workspace_id
         .or(existing_task.parent_workspace_id);
-    let use_ralph_wiggum = payload.use_ralph_wiggum.unwrap_or(existing_task.use_ralph_wiggum);
-    let ralph_max_iterations = payload.ralph_max_iterations.or(existing_task.ralph_max_iterations);
-    let ralph_completion_promise = payload.ralph_completion_promise.or(existing_task.ralph_completion_promise);
+    let use_ralph_wiggum = payload
+        .use_ralph_wiggum
+        .unwrap_or(existing_task.use_ralph_wiggum);
+    let ralph_max_iterations = payload
+        .ralph_max_iterations
+        .or(existing_task.ralph_max_iterations);
+    let ralph_completion_promise = payload
+        .ralph_completion_promise
+        .or(existing_task.ralph_completion_promise);
 
     // validar parent_task_id si cambió
-    Task::validate_parent_task_relationship(
-        &deployment.db().pool,
-        &task_type,
-        parent_task_id,
-    )
-    .await?;
+    Task::validate_parent_task_relationship(&deployment.db().pool, &task_type, parent_task_id)
+        .await?;
 
     let task = Task::update(
         &deployment.db().pool,

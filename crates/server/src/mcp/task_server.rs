@@ -525,11 +525,8 @@ impl TaskServer {
 
         let url = self.url("/api/tasks");
 
-        let mut create_task = CreateTask::from_title_description(
-            project_id,
-            title,
-            expanded_description,
-        );
+        let mut create_task =
+            CreateTask::from_title_description(project_id, title, expanded_description);
 
         // Apply Ralph Wiggum settings if provided
         create_task.use_ralph_wiggum = use_ralph_wiggum;
@@ -537,11 +534,7 @@ impl TaskServer {
         create_task.ralph_completion_promise = ralph_completion_promise;
 
         let task: Task = match self
-            .send_json(
-                self.client
-                    .post(&url)
-                    .json(&create_task),
-            )
+            .send_json(self.client.post(&url).json(&create_task))
             .await
         {
             Ok(t) => t,
@@ -779,7 +772,7 @@ impl TaskServer {
             title,
             description: expanded_description,
             status,
-            task_type: None, // mantener tipo actual
+            task_type: None,      // mantener tipo actual
             parent_task_id: None, // mantener parent actual
             parent_workspace_id: None,
             image_ids: None,

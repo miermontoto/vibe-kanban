@@ -175,9 +175,12 @@ impl TaskLabel {
         label_ids: &[Uuid],
     ) -> Result<(), sqlx::Error> {
         // eliminar asociaciones existentes
-        sqlx::query!("DELETE FROM task_label_associations WHERE task_id = $1", task_id)
-            .execute(pool)
-            .await?;
+        sqlx::query!(
+            "DELETE FROM task_label_associations WHERE task_id = $1",
+            task_id
+        )
+        .execute(pool)
+        .await?;
 
         // agregar nuevas asociaciones
         for label_id in label_ids {

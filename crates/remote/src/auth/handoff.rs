@@ -16,18 +16,16 @@ use super::{
     jwt::{JwtError, JwtService},
     provider::{AuthorizationGrant, AuthorizationProvider, ProviderUser},
 };
-use crate::{
-    db::{
-        auth::{AuthSessionError, AuthSessionRepository, MAX_SESSION_INACTIVITY_DURATION},
-        identity_errors::IdentityError,
-        oauth::{
-            AuthorizationStatus, CreateOAuthHandoff, OAuthHandoff, OAuthHandoffError,
-            OAuthHandoffRepository,
-        },
-        oauth_accounts::{OAuthAccountError, OAuthAccountInsert, OAuthAccountRepository},
-        organizations::OrganizationRepository,
-        users::{UpsertUser, UserRepository},
+use crate::db::{
+    auth::{AuthSessionError, AuthSessionRepository, MAX_SESSION_INACTIVITY_DURATION},
+    identity_errors::IdentityError,
+    oauth::{
+        AuthorizationStatus, CreateOAuthHandoff, OAuthHandoff, OAuthHandoffError,
+        OAuthHandoffRepository,
     },
+    oauth_accounts::{OAuthAccountError, OAuthAccountInsert, OAuthAccountRepository},
+    organizations::OrganizationRepository,
+    users::{UpsertUser, UserRepository},
 };
 
 const STATE_LENGTH: usize = 48;

@@ -115,7 +115,8 @@ pub async fn open_repo_in_editor(
                 repo_id,
                 repo.path.to_string_lossy(),
                 if url.is_some() { " (remote mode)" } else { "" }
-            );            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
+            );
+            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
                 url,
             })))
         }

@@ -42,8 +42,8 @@ pub struct Task {
     pub title: String,
     pub description: Option<String>,
     pub status: TaskStatus,
-    pub task_type: TaskType, // epic, story, or subtask
-    pub parent_task_id: Option<Uuid>, // Foreign key to parent Task (logical hierarchy)
+    pub task_type: TaskType,               // epic, story, or subtask
+    pub parent_task_id: Option<Uuid>,      // Foreign key to parent Task (logical hierarchy)
     pub parent_workspace_id: Option<Uuid>, // Foreign key to parent Workspace (execution hierarchy)
     pub shared_task_id: Option<Uuid>,
     pub use_ralph_wiggum: bool,
@@ -167,11 +167,12 @@ pub struct UpdateTask {
 
 impl Task {
     pub fn to_prompt(&self) -> String {
-        let base_prompt = if let Some(description) = self.description.as_ref().filter(|d| !d.trim().is_empty()) {
-            format!("{}\n\n{}", &self.title, description)
-        } else {
-            self.title.clone()
-        };
+        let base_prompt =
+            if let Some(description) = self.description.as_ref().filter(|d| !d.trim().is_empty()) {
+                format!("{}\n\n{}", &self.title, description)
+            } else {
+                self.title.clone()
+            };
 
         // si ralph wiggum está habilitado, envolver el prompt con instrucciones de completado
         if self.use_ralph_wiggum {
@@ -183,7 +184,8 @@ impl Task {
 
     fn wrap_with_ralph_wiggum(&self, base_prompt: &str) -> String {
         let max_iterations = self.ralph_max_iterations.unwrap_or(10);
-        let completion_promise = self.ralph_completion_promise
+        let completion_promise = self
+            .ralph_completion_promise
             .as_deref()
             .unwrap_or("COMPLETE");
 
@@ -621,16 +623,12 @@ ORDER BY t.created_at DESC"#,
         parent_task_id: Option<Uuid>,
     ) -> Result<(), sqlx::Error> {
         match (task_type, parent_task_id) {
-            (TaskType::Epic, Some(_)) => {
-                Err(sqlx::Error::Protocol(
-                    "EPICs cannot have parent tasks".to_string(),
-                ))
-            }
-            (TaskType::Subtask, None) => {
-                Err(sqlx::Error::Protocol(
-                    "SUBTASKs must have a parent task".to_string(),
-                ))
-            }
+            (TaskType::Epic, Some(_)) => Err(sqlx::Error::Protocol(
+                "EPICs cannot have parent tasks".to_string(),
+            )),
+            (TaskType::Subtask, None) => Err(sqlx::Error::Protocol(
+                "SUBTASKs must have a parent task".to_string(),
+            )),
             (_, Some(parent_id)) => {
                 // verificar que parent existe y tipo es válido
                 let parent = Self::find_by_id(pool, parent_id)

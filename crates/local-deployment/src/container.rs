@@ -984,7 +984,11 @@ impl LocalContainerService {
             let branch_name = match self.git().get_current_branch(&worktree_path) {
                 Ok(name) => name,
                 Err(e) => {
-                    tracing::warn!("Failed to get current branch for repo '{}': {}", repo.name, e);
+                    tracing::warn!(
+                        "Failed to get current branch for repo '{}': {}",
+                        repo.name,
+                        e
+                    );
                     continue;
                 }
             };
@@ -1546,7 +1550,8 @@ impl ContainerService for LocalContainerService {
         match title_mode {
             GitCommitTitleMode::AgentSummary => {
                 let message = self.get_commit_message_from_agent(ctx).await;
-                let (any_committed, committed_repos) = self.commit_repos(repos_with_changes, &message);
+                let (any_committed, committed_repos) =
+                    self.commit_repos(repos_with_changes, &message);
 
                 // intentar hacer auto-push después del commit si está habilitado
                 if any_committed {
@@ -1562,7 +1567,8 @@ impl ContainerService for LocalContainerService {
                     "AiGenerated mode not yet implemented, using AgentSummary fallback"
                 );
                 let message = self.get_commit_message_from_agent(ctx).await;
-                let (any_committed, committed_repos) = self.commit_repos(repos_with_changes, &message);
+                let (any_committed, committed_repos) =
+                    self.commit_repos(repos_with_changes, &message);
 
                 // intentar hacer auto-push después del commit si está habilitado
                 if any_committed {

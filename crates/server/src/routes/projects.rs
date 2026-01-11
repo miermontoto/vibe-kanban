@@ -201,7 +201,8 @@ async fn apply_remote_project_link(
     let updated_project = deployment
         .project()
         .link_to_remote(&deployment.db().pool, project.id, remote_project)
-        .await?;    Ok(updated_project)
+        .await?;
+    Ok(updated_project)
 }
 
 pub async fn get_project_remotes(
@@ -231,9 +232,7 @@ pub async fn create_project(
         .create_project(&deployment.db().pool, deployment.repo(), payload)
         .await
     {
-        Ok(project) => {
-            Ok(ResponseJson(ApiResponse::success(project)))
-        }
+        Ok(project) => Ok(ResponseJson(ApiResponse::success(project))),
         Err(ProjectServiceError::DuplicateGitRepoPath) => Ok(ResponseJson(ApiResponse::error(
             "Duplicate repository path provided",
         ))),
@@ -283,7 +282,8 @@ pub async fn delete_project(
         Ok(rows_affected) => {
             if rows_affected == 0 {
                 Err(StatusCode::NOT_FOUND)
-            } else {                Ok(ResponseJson(ApiResponse::success(())))
+            } else {
+                Ok(ResponseJson(ApiResponse::success(())))
             }
         }
         Err(e) => {
@@ -338,7 +338,8 @@ pub async fn open_project_in_editor(
                 project.id,
                 path.to_string_lossy(),
                 if url.is_some() { " (remote mode)" } else { "" }
-            );            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
+            );
+            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
                 url,
             })))
         }
@@ -369,7 +370,8 @@ pub async fn open_project_in_terminal(
                 "Opened terminal for project {} at path: {}",
                 project.id,
                 path.to_string_lossy()
-            );            Ok(ResponseJson(ApiResponse::success(())))
+            );
+            Ok(ResponseJson(ApiResponse::success(())))
         }
         Err(e) => {
             tracing::error!("Failed to open terminal for project {}: {}", project.id, e);
@@ -454,8 +456,7 @@ pub async fn add_project_repository(
         )
         .await
     {
-        Ok(repository) => {            Ok(ResponseJson(ApiResponse::success(repository)))
-        }
+        Ok(repository) => Ok(ResponseJson(ApiResponse::success(repository))),
         Err(ProjectServiceError::PathNotFound(_)) => {
             tracing::warn!(
                 "Failed to add repository to project {}: path does not exist",
@@ -520,8 +521,7 @@ pub async fn delete_project_repository(
         .delete_repository(&deployment.db().pool, project_id, repo_id)
         .await
     {
-        Ok(()) => {            Ok(ResponseJson(ApiResponse::success(())))
-        }
+        Ok(()) => Ok(ResponseJson(ApiResponse::success(()))),
         Err(ProjectServiceError::RepositoryNotFound) => {
             tracing::warn!(
                 "Failed to remove repository {} from project {}: not found",

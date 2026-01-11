@@ -1,15 +1,19 @@
+use std::time::Duration;
+
 use anyhow;
 use axum::extract::ws::{Message as WsMessage, WebSocket};
 use futures_util::{SinkExt, StreamExt};
-use std::time::Duration;
 
 /// helper para manejar streams de websocket con heartbeat automático
 /// envia ping cada 30s para mantener la conexión viva
 pub async fn stream_with_heartbeat(
     socket: WebSocket,
-    mut data_stream: impl futures_util::Stream<Item = Result<WsMessage, anyhow::Error>> + Unpin + Send + 'static,
+    mut data_stream: impl futures_util::Stream<Item = Result<WsMessage, anyhow::Error>>
+    + Unpin
+    + Send
+    + 'static,
 ) -> anyhow::Result<()> {
-    use tokio::time::{interval, MissedTickBehavior};
+    use tokio::time::{MissedTickBehavior, interval};
 
     let (mut sender, mut receiver) = socket.split();
 

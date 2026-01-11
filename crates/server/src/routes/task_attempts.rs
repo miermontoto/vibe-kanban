@@ -222,7 +222,8 @@ pub async fn create_task_attempt(
         .await
     {
         tracing::error!("Failed to start task attempt: {}", err);
-    }    tracing::info!("Created attempt for task {}", task.id);
+    }
+    tracing::info!("Created attempt for task {}", task.id);
 
     Ok(ResponseJson(ApiResponse::success(workspace)))
 }
@@ -244,7 +245,8 @@ pub async fn run_agent_setup(
             codex_setup::run_codex_setup(&deployment, &workspace, &codex).await?;
         }
         _ => return Err(ApiError::Executor(ExecutorError::SetupHelperNotSupported)),
-    }    Ok(ResponseJson(ApiResponse::success(RunAgentSetupResponse {})))
+    }
+    Ok(ResponseJson(ApiResponse::success(RunAgentSetupResponse {})))
 }
 
 #[axum::debug_handler]
@@ -477,7 +479,8 @@ pub async fn merge_task_attempt(
             "Share publisher unavailable; skipping remote update for {}",
             task.id
         );
-    }    Ok(ResponseJson(ApiResponse::success(())))
+    }
+    Ok(ResponseJson(ApiResponse::success(())))
 }
 
 pub async fn push_task_attempt_branch(
@@ -611,7 +614,8 @@ pub async fn open_task_attempt_in_editor(
                 workspace.id,
                 path.display(),
                 if url.is_some() { " (remote mode)" } else { "" }
-            );            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
+            );
+            Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
                 url,
             })))
         }
@@ -651,7 +655,8 @@ pub async fn open_task_attempt_in_terminal(
                 "Opened terminal for task attempt {} at path: {}",
                 workspace.id,
                 base_path.display()
-            );            Ok(ResponseJson(ApiResponse::success(())))
+            );
+            Ok(ResponseJson(ApiResponse::success(())))
         }
         Err(e) => {
             tracing::error!(
@@ -893,7 +898,8 @@ pub async fn change_target_branch(
     let status =
         deployment
             .git()
-            .get_branch_status(&repo.path, &workspace.branch, &new_target_branch)?;    Ok(ResponseJson(ApiResponse::success(
+            .get_branch_status(&repo.path, &workspace.branch, &new_target_branch)?;
+    Ok(ResponseJson(ApiResponse::success(
         ChangeTargetBranchResponse {
             repo_id,
             new_target_branch,
@@ -1026,7 +1032,8 @@ pub async fn rename_branch(
             updated_children_count,
             new_branch_name
         );
-    }    Ok(ResponseJson(ApiResponse::success(RenameBranchResponse {
+    }
+    Ok(ResponseJson(ApiResponse::success(RenameBranchResponse {
         branch: new_branch_name.to_string(),
     })))
 }
@@ -1113,7 +1120,8 @@ pub async fn rebase_task_attempt(
             ))),
             other => Err(ApiError::GitService(other)),
         };
-    }    Ok(ResponseJson(ApiResponse::success(())))
+    }
+    Ok(ResponseJson(ApiResponse::success(())))
 }
 
 #[axum::debug_handler]
@@ -1241,7 +1249,8 @@ pub async fn start_dev_server(
             &executor_action,
             &ExecutionProcessRunReason::DevServer,
         )
-        .await?;    Ok(ResponseJson(ApiResponse::success(())))
+        .await?;
+    Ok(ResponseJson(ApiResponse::success(())))
 }
 
 pub async fn get_task_attempt_children(
@@ -1249,8 +1258,7 @@ pub async fn get_task_attempt_children(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<TaskRelationships>>, StatusCode> {
     match Task::find_relationships_for_workspace(&deployment.db().pool, &workspace).await {
-        Ok(relationships) => {            Ok(ResponseJson(ApiResponse::success(relationships)))
-        }
+        Ok(relationships) => Ok(ResponseJson(ApiResponse::success(relationships))),
         Err(e) => {
             tracing::error!(
                 "Failed to fetch relationships for task attempt {}: {}",
@@ -1266,7 +1274,8 @@ pub async fn stop_task_attempt_execution(
     Extension(workspace): Extension<Workspace>,
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
-    deployment.container().try_stop(&workspace, false).await;    Ok(ResponseJson(ApiResponse::success(())))
+    deployment.container().try_stop(&workspace, false).await;
+    Ok(ResponseJson(ApiResponse::success(())))
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
@@ -1345,7 +1354,8 @@ pub async fn run_setup_script(
             &executor_action,
             &ExecutionProcessRunReason::SetupScript,
         )
-        .await?;    Ok(ResponseJson(ApiResponse::success(execution_process)))
+        .await?;
+    Ok(ResponseJson(ApiResponse::success(execution_process)))
 }
 
 #[axum::debug_handler]
@@ -1416,7 +1426,8 @@ pub async fn run_cleanup_script(
             &executor_action,
             &ExecutionProcessRunReason::CleanupScript,
         )
-        .await?;    Ok(ResponseJson(ApiResponse::success(execution_process)))
+        .await?;
+    Ok(ResponseJson(ApiResponse::success(execution_process)))
 }
 
 #[axum::debug_handler]
@@ -1425,8 +1436,7 @@ pub async fn gh_cli_setup_handler(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<ExecutionProcess, GhCliSetupError>>, ApiError> {
     match gh_cli_setup::run_gh_cli_setup(&deployment, &workspace).await {
-        Ok(execution_process) => {            Ok(ResponseJson(ApiResponse::success(execution_process)))
-        }
+        Ok(execution_process) => Ok(ResponseJson(ApiResponse::success(execution_process))),
         Err(ApiError::Executor(ExecutorError::ExecutableNotFound { program }))
             if program == "brew" =>
         {
@@ -1544,7 +1554,7 @@ pub async fn delete_workspace(
 
     if rows_affected == 0 {
         return Err(ApiError::Database(SqlxError::RowNotFound));
-    }    // Spawn background cleanup task for filesystem resources
+    } // Spawn background cleanup task for filesystem resources
     if let Some(workspace_dir) = workspace_dir {
         let workspace_id = workspace.id;
         tokio::spawn(async move {

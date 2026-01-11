@@ -31,7 +31,8 @@ pub async fn queue_message(
 
     let queued = deployment
         .queued_message_service()
-        .queue_message(session.id, data);    Ok(ResponseJson(ApiResponse::success(QueueStatus::Queued {
+        .queue_message(session.id, data);
+    Ok(ResponseJson(ApiResponse::success(QueueStatus::Queued {
         message: queued,
     })))
 }
@@ -43,7 +44,8 @@ pub async fn cancel_queued_message(
 ) -> Result<ResponseJson<ApiResponse<QueueStatus>>, ApiError> {
     deployment
         .queued_message_service()
-        .cancel_queued(session.id);    Ok(ResponseJson(ApiResponse::success(QueueStatus::Empty)))
+        .cancel_queued(session.id);
+    Ok(ResponseJson(ApiResponse::success(QueueStatus::Empty)))
 }
 
 /// Get the current queue status for a session's workspace
