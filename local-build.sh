@@ -11,33 +11,33 @@ echo "🔨 Building frontend..."
 
 echo "🔨 Building Rust binaries..."
 cargo build --release --manifest-path Cargo.toml
-cargo build --release --bin mcp_task_server --manifest-path Cargo.toml
+cargo build --release --bin vkm-mcp --manifest-path Cargo.toml
 
 echo "📦 Creating distribution package..."
 
 # Copy the main binary
-cp target/release/server vibe-kanban
-zip -q vibe-kanban.zip vibe-kanban
-rm -f vibe-kanban 
-mv vibe-kanban.zip npx-cli/dist/macos-arm64/vibe-kanban.zip
+cp target/release/vkm vkm
+zip -q vkm.zip vkm
+rm -f vkm
+mv vkm.zip npx-cli/dist/macos-arm64/vkm.zip
 
 # Copy the MCP binary
-cp target/release/mcp_task_server vibe-kanban-mcp
-zip -q vibe-kanban-mcp.zip vibe-kanban-mcp
-rm -f vibe-kanban-mcp
-mv vibe-kanban-mcp.zip npx-cli/dist/macos-arm64/vibe-kanban-mcp.zip
+cp target/release/vkm-mcp vkm-mcp
+zip -q vkm-mcp.zip vkm-mcp
+rm -f vkm-mcp
+mv vkm-mcp.zip npx-cli/dist/macos-arm64/vkm-mcp.zip
 
 # Copy the Review CLI binary
-cp target/release/review vibe-kanban-review
-zip -q vibe-kanban-review.zip vibe-kanban-review
-rm -f vibe-kanban-review
-mv vibe-kanban-review.zip npx-cli/dist/macos-arm64/vibe-kanban-review.zip
+cp target/release/vkm-review vkm-review
+zip -q vkm-review.zip vkm-review
+rm -f vkm-review
+mv vkm-review.zip npx-cli/dist/macos-arm64/vkm-review.zip
 
 echo "✅ Build complete!"
 echo "📁 Files created:"
-echo "   - npx-cli/dist/macos-arm64/vibe-kanban.zip"
-echo "   - npx-cli/dist/macos-arm64/vibe-kanban-mcp.zip"
-echo "   - npx-cli/dist/macos-arm64/vibe-kanban-review.zip"
+echo "   - npx-cli/dist/macos-arm64/vkm.zip"
+echo "   - npx-cli/dist/macos-arm64/vkm-mcp.zip"
+echo "   - npx-cli/dist/macos-arm64/vkm-review.zip"
 echo ""
 echo "🚀 To test locally, run:"
 echo "   cd npx-cli && node bin/cli.js"
