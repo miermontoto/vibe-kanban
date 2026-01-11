@@ -207,7 +207,10 @@ export const useJsonPatchWsStream = <T extends object>(
         // suprime errores esperados de conexión en desarrollo
         // el backend puede no estar disponible al iniciar
         if (import.meta.env.MODE === 'development') {
-          console.debug('[WebSocket] Connection error (expected in dev):', endpoint);
+          console.debug(
+            '[WebSocket] Connection error (expected in dev):',
+            endpoint
+          );
         } else {
           setError('Connection failed');
         }

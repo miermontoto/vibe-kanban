@@ -48,9 +48,8 @@ export function ThemeProvider({
   const [useGoogleFonts, setUseGoogleFontsState] = useState<boolean>(
     initialUseGoogleFonts
   );
-  const [useNerdFonts, setUseNerdFontsState] = useState<boolean>(
-    initialUseNerdFonts
-  );
+  const [useNerdFonts, setUseNerdFontsState] =
+    useState<boolean>(initialUseNerdFonts);
 
   // Update theme when initialTheme changes
   useEffect(() => {
@@ -93,7 +92,9 @@ export function ThemeProvider({
   // aplicar la fuente personalizada al body y a .legacy-design
   useEffect(() => {
     const body = window.document.body;
-    const legacyDesign = document.querySelector('.legacy-design') as HTMLElement;
+    const legacyDesign = document.querySelector(
+      '.legacy-design'
+    ) as HTMLElement;
 
     if (fontFamily) {
       body.style.setProperty('font-family', fontFamily, 'important');

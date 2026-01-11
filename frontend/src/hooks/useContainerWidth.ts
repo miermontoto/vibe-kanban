@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, RefObject } from 'react';
  */
 export function useContainerWidth<T extends HTMLElement = HTMLDivElement>(): [
   number,
-  RefObject<T>
+  RefObject<T>,
 ] {
   const [width, setWidth] = useState(0);
   const containerRef = useRef<T>(null);
@@ -39,4 +39,3 @@ export function useContainerWidth<T extends HTMLElement = HTMLDivElement>(): [
 
   return [width, containerRef];
 }
-

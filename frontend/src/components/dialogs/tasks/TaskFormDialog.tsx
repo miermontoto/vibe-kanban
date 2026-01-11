@@ -197,8 +197,11 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           autoStart: false,
           customBranchName: '',
           useRalphWiggum: props.task.use_ralph_wiggum,
-          ralphMaxIterations: props.task.ralph_max_iterations ? Number(props.task.ralph_max_iterations) : 10,
-          ralphCompletionPromise: props.task.ralph_completion_promise || 'COMPLETE',
+          ralphMaxIterations: props.task.ralph_max_iterations
+            ? Number(props.task.ralph_max_iterations)
+            : 10,
+          ralphCompletionPromise:
+            props.task.ralph_completion_promise || 'COMPLETE',
         };
 
       case 'duplicate':
@@ -213,8 +216,11 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           autoStart: true,
           customBranchName: '',
           useRalphWiggum: props.initialTask.use_ralph_wiggum,
-          ralphMaxIterations: props.initialTask.ralph_max_iterations ? Number(props.initialTask.ralph_max_iterations) : 10,
-          ralphCompletionPromise: props.initialTask.ralph_completion_promise || 'COMPLETE',
+          ralphMaxIterations: props.initialTask.ralph_max_iterations
+            ? Number(props.initialTask.ralph_max_iterations)
+            : 10,
+          ralphCompletionPromise:
+            props.initialTask.ralph_completion_promise || 'COMPLETE',
         };
 
       case 'subtask':
@@ -224,7 +230,10 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           title: '',
           description: '',
           status: 'todo',
-          taskType: mode === 'subtask' ? ('subtask' as TaskType) : ('story' as TaskType),
+          taskType:
+            mode === 'subtask'
+              ? ('subtask' as TaskType)
+              : ('story' as TaskType),
           parentTaskId: null,
           executorProfileId: baseProfile,
           repoBranches: defaultRepoBranches,
@@ -238,22 +247,25 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   }, [mode, props, system.config?.executor_profile, defaultRepoBranches]);
 
   // Compute available parent tasks based on current task type
-  const getAvailableParentTasks = useCallback((taskType: TaskType) => {
-    return tasks.filter((t) => {
-      // Can't be own parent
-      if (editMode && 'task' in props && t.id === props.task.id) return false;
+  const getAvailableParentTasks = useCallback(
+    (taskType: TaskType) => {
+      return tasks.filter((t) => {
+        // Can't be own parent
+        if (editMode && 'task' in props && t.id === props.task.id) return false;
 
-      // Filter based on task type rules
-      if (taskType === 'epic') {
-        return false; // EPICs cannot have parents
-      } else if (taskType === 'story') {
-        return t.task_type === 'epic'; // Stories can only have EPICs as parents
-      } else if (taskType === 'subtask') {
-        return t.task_type === 'epic' || t.task_type === 'story'; // Subtasks can have EPICs or Stories
-      }
-      return false;
-    });
-  }, [tasks, editMode, props]);
+        // Filter based on task type rules
+        if (taskType === 'epic') {
+          return false; // EPICs cannot have parents
+        } else if (taskType === 'story') {
+          return t.task_type === 'epic'; // Stories can only have EPICs as parents
+        } else if (taskType === 'subtask') {
+          return t.task_type === 'epic' || t.task_type === 'story'; // Subtasks can have EPICs or Stories
+        }
+        return false;
+      });
+    },
+    [tasks, editMode, props]
+  );
 
   // Form submission handler
   const handleSubmit = async ({ value }: { value: TaskFormValues }) => {
@@ -270,8 +282,13 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
             parent_workspace_id: null,
             image_ids: images.length > 0 ? images.map((img) => img.id) : null,
             use_ralph_wiggum: value.useRalphWiggum,
-            ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
-            ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
+            ralph_max_iterations: value.useRalphWiggum
+              ? BigInt(value.ralphMaxIterations)
+              : null,
+            ralph_completion_promise:
+              value.useRalphWiggum && value.ralphCompletionPromise.trim()
+                ? value.ralphCompletionPromise.trim()
+                : null,
             label_ids: null,
           } satisfies CreateTask,
         },
@@ -292,8 +309,13 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         image_ids: imageIds,
         shared_task_id: null,
         use_ralph_wiggum: value.useRalphWiggum,
-        ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
-        ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
+        ralph_max_iterations: value.useRalphWiggum
+          ? BigInt(value.ralphMaxIterations)
+          : null,
+        ralph_completion_promise:
+          value.useRalphWiggum && value.ralphCompletionPromise.trim()
+            ? value.ralphCompletionPromise.trim()
+            : null,
         label_ids: null,
       } satisfies CreateTask;
       const shouldAutoStart = value.autoStart && !forceCreateOnlyRef.current;
@@ -607,12 +629,16 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
               const taskTypeField = form.getFieldValue('taskType');
               const availableParents = getAvailableParentTasks(taskTypeField);
               const isParentRequired = taskTypeField === 'subtask';
-              const isParentDisabled = taskTypeField === 'epic' || availableParents.length === 0;
+              const isParentDisabled =
+                taskTypeField === 'epic' || availableParents.length === 0;
 
               return (
                 <div className="space-y-2">
                   <Label htmlFor="parent-task-id">
-                    Parent Task {isParentRequired && <span className="text-destructive">*</span>}
+                    Parent Task{' '}
+                    {isParentRequired && (
+                      <span className="text-destructive">*</span>
+                    )}
                   </Label>
                   <Select
                     value={field.state.value || 'none'}
@@ -622,11 +648,15 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                     disabled={isSubmitting || isParentDisabled}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={
-                        isParentDisabled
-                          ? (taskTypeField === 'epic' ? 'EPICs cannot have parents' : 'No available parents')
-                          : 'Select parent task (optional)'
-                      } />
+                      <SelectValue
+                        placeholder={
+                          isParentDisabled
+                            ? taskTypeField === 'epic'
+                              ? 'EPICs cannot have parents'
+                              : 'No available parents'
+                            : 'Select parent task (optional)'
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {!isParentRequired && (
@@ -635,7 +665,8 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                       {availableParents.map((task: TaskType_Full) => (
                         <SelectItem key={task.id} value={task.id}>
                           <span className="flex items-center gap-2">
-                            {task.task_type === 'epic' ? '📚' : '📄'} {task.title}
+                            {task.task_type === 'epic' ? '📚' : '📄'}{' '}
+                            {task.title}
                           </span>
                         </SelectItem>
                       ))}

@@ -768,7 +768,9 @@ export function ProjectSettings() {
                   },
                   {
                     value: true,
-                    label: t('settings.projects.tasks.redirectToAttempt.enabled'),
+                    label: t(
+                      'settings.projects.tasks.redirectToAttempt.enabled'
+                    ),
                   },
                   {
                     value: false,

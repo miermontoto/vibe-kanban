@@ -206,9 +206,7 @@ export function SlashCommandTypeaheadPlugin() {
                 Loading commands...
               </div>
             ) : error ? (
-              <div className="p-3 text-sm text-destructive">
-                Error: {error}
-              </div>
+              <div className="p-3 text-sm text-destructive">Error: {error}</div>
             ) : options.length === 0 ? (
               <div className="p-3 text-sm text-muted-foreground">
                 No commands found
@@ -232,9 +230,12 @@ export function SlashCommandTypeaheadPlugin() {
                             if (el) itemRefs.current.set(index, el);
                             else itemRefs.current.delete(index);
                           }}
-                          className={'px-3 py-2.5 cursor-pointer ' + (index === selectedIndex
+                          className={
+                            'px-3 py-2.5 cursor-pointer ' +
+                            (index === selectedIndex
                               ? 'bg-accent text-accent-foreground'
-                              : 'hover:bg-accent/50')}
+                              : 'hover:bg-accent/50')
+                          }
                           onMouseEnter={() => setHighlightedIndex(index)}
                           onClick={() => selectOptionAndCleanUp(option)}
                         >
@@ -278,9 +279,12 @@ export function SlashCommandTypeaheadPlugin() {
                             if (el) itemRefs.current.set(index, el);
                             else itemRefs.current.delete(index);
                           }}
-                          className={'px-3 py-2.5 cursor-pointer ' + (index === selectedIndex
+                          className={
+                            'px-3 py-2.5 cursor-pointer ' +
+                            (index === selectedIndex
                               ? 'bg-accent text-accent-foreground'
-                              : 'hover:bg-accent/50')}
+                              : 'hover:bg-accent/50')
+                          }
                           onMouseEnter={() => setHighlightedIndex(index)}
                           onClick={() => selectOptionAndCleanUp(option)}
                         >

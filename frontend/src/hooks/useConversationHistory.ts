@@ -452,11 +452,7 @@ export const useConversationHistory = ({
       // actualizar cache cuando se emiten entradas
       // solo cachear si no está cargando (estado final o intermedio estable)
       if (!loading && entries.length > 0) {
-        setCachedEntries(
-          attempt.id,
-          entries,
-          loadedInitialEntries.current
-        );
+        setCachedEntries(attempt.id, entries, loadedInitialEntries.current);
       }
     },
     [flattenEntriesForEmit, attempt.id, setCachedEntries]
@@ -489,10 +485,18 @@ export const useConversationHistory = ({
                 entries: patchesWithKey,
               };
             });
-            emitEntriesRef.current(displayedExecutionProcesses.current, 'running', false);
+            emitEntriesRef.current(
+              displayedExecutionProcesses.current,
+              'running',
+              false
+            );
           },
           onFinished: () => {
-            emitEntriesRef.current(displayedExecutionProcesses.current, 'running', false);
+            emitEntriesRef.current(
+              displayedExecutionProcesses.current,
+              'running',
+              false
+            );
             controller.close();
             resolve();
           },
@@ -652,7 +656,11 @@ export const useConversationHistory = ({
       mergeIntoDisplayed((state) => {
         Object.assign(state, allInitialEntries);
       });
-      emitEntriesRef.current(displayedExecutionProcesses.current, 'initial', false);
+      emitEntriesRef.current(
+        displayedExecutionProcesses.current,
+        'initial',
+        false
+      );
       loadedInitialEntries.current = true;
 
       // Then load the remaining in batches
@@ -665,7 +673,11 @@ export const useConversationHistory = ({
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
       if (currentAttemptId.current === attemptIdSnapshot) {
-        emitEntriesRef.current(displayedExecutionProcesses.current, 'historic', false);
+        emitEntriesRef.current(
+          displayedExecutionProcesses.current,
+          'historic',
+          false
+        );
       }
     })();
     return () => {
@@ -770,7 +782,11 @@ export const useConversationHistory = ({
       displayedExecutionProcesses.current = {};
       loadedInitialEntries.current = false;
       streamingProcessIdsRef.current.clear();
-      emitEntriesRef.current(displayedExecutionProcesses.current, 'initial', true);
+      emitEntriesRef.current(
+        displayedExecutionProcesses.current,
+        'initial',
+        true
+      );
     }
   }, [attempt.id, getCachedEntries, getCachedLoadedInitial]);
 

@@ -1,9 +1,5 @@
 import { ReactNode, useState } from 'react';
-import {
-  Group,
-  Panel,
-  Separator,
-} from 'react-resizable-panels';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -61,7 +57,10 @@ function RightWorkArea({
 }) {
   const [isAttemptCollapsed, setIsAttemptCollapsed] = useState(false);
 
-  const handleAttemptResize = (panelSize: { asPercentage: number; inPixels: number }, id: string | number | undefined) => {
+  const handleAttemptResize = (
+    panelSize: { asPercentage: number; inPixels: number },
+    id: string | number | undefined
+  ) => {
     if (id === 'attempt') {
       setIsAttemptCollapsed(panelSize.asPercentage === COLLAPSED_SIZE);
     }
@@ -78,10 +77,7 @@ function RightWorkArea({
         {mode === null ? (
           attempt
         ) : (
-          <Group
-            orientation="horizontal"
-            className="h-full min-h-0"
-          >
+          <Group orientation="horizontal" className="h-full min-h-0">
             <Panel
               id="attempt"
               defaultSize={34}
@@ -152,7 +148,10 @@ function DesktopSimple({
 }) {
   const [isKanbanCollapsed, setIsKanbanCollapsed] = useState(false);
 
-  const handleKanbanResize = (panelSize: { asPercentage: number; inPixels: number }, id: string | number | undefined) => {
+  const handleKanbanResize = (
+    panelSize: { asPercentage: number; inPixels: number },
+    id: string | number | undefined
+  ) => {
     if (id === 'kanban') {
       setIsKanbanCollapsed(panelSize.asPercentage === COLLAPSED_SIZE);
     }
@@ -172,10 +171,7 @@ function DesktopSimple({
 
   // When only viewing attempt logs, show Kanban | Attempt (no aux)
   return (
-    <Group
-      orientation="horizontal"
-      className="h-full min-h-0"
-    >
+    <Group orientation="horizontal" className="h-full min-h-0">
       <Panel
         id="kanban"
         defaultSize={66}

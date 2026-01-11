@@ -33,7 +33,11 @@ interface EntriesContextType {
   reset: () => void;
   // cache methods
   getCachedEntries: (attemptId: string) => PatchTypeWithKey[] | null;
-  setCachedEntries: (attemptId: string, entries: PatchTypeWithKey[], loadedInitial: boolean) => void;
+  setCachedEntries: (
+    attemptId: string,
+    entries: PatchTypeWithKey[],
+    loadedInitial: boolean
+  ) => void;
   hasCachedEntries: (attemptId: string) => boolean;
   getCachedLoadedInitial: (attemptId: string) => boolean;
   invalidateCache: (attemptId?: string) => void;

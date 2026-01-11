@@ -108,9 +108,10 @@ export const useExecutionProcesses = (
     // y es del mismo tipo (codingagent), asumimos que es la versión real del optimista
     //
     // ordenar optimistas por timestamp (más antiguos primero) para emparejar en orden FIFO
-    const sortedOptimistic: Array<[string, OptimisticProcessEntry]> = Array.from(
-      optimisticProcessesRef.current.entries()
-    ).sort(([, a], [, b]) => a.timestamp - b.timestamp);
+    const sortedOptimistic: Array<[string, OptimisticProcessEntry]> =
+      Array.from(optimisticProcessesRef.current.entries()).sort(
+        ([, a], [, b]) => a.timestamp - b.timestamp
+      );
 
     sortedOptimistic.forEach(([optimisticId, entry]) => {
       const optimisticTimestamp = entry.timestamp;

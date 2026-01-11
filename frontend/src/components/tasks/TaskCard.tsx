@@ -45,14 +45,16 @@ function getTaskTypeConfig(taskType: TaskType) {
       return {
         icon: Layers,
         label: 'Epic',
-        className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+        className:
+          'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
         borderClass: 'border-l-4 border-l-purple-500',
       };
     case 'subtask':
       return {
         icon: CheckSquare,
         label: 'Subtask',
-        className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        className:
+          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
         borderClass: 'border-l-2 border-l-blue-400',
       };
     case 'story':
@@ -60,7 +62,8 @@ function getTaskTypeConfig(taskType: TaskType) {
       return {
         icon: FileText,
         label: 'Story',
-        className: 'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300',
+        className:
+          'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300',
         borderClass: '',
       };
   }
@@ -182,10 +185,12 @@ export function TaskCard({
                   )}
                 </Button>
               )}
-              <span className={cn(
-                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium shrink-0',
-                taskTypeConfig.className
-              )}>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium shrink-0',
+                  taskTypeConfig.className
+                )}
+              >
                 <TaskTypeIcon className="h-3 w-3" />
                 {task.task_type === 'epic' && 'Epic'}
                 {task.task_type === 'subtask' && 'Sub'}

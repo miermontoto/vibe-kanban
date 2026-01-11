@@ -44,7 +44,8 @@ function GitOperations({
   const { t } = useTranslation('tasks');
 
   // medir el ancho del contenedor outer (estable, no afectado por label visibility)
-  const [containerWidth, outerContainerRef] = useContainerWidth<HTMLDivElement>();
+  const [containerWidth, outerContainerRef] =
+    useContainerWidth<HTMLDivElement>();
 
   // use custom hook for repo status operations
   const {
@@ -247,7 +248,8 @@ function GitOperations({
 
   // simple threshold: mostrar labels si el container es >= 700px de ancho
   // debajo de este threshold, ocultar labels para dar espacio a BranchStatusInfo
-  const showLabels = isVertical || containerWidth === 0 || containerWidth >= 700;
+  const showLabels =
+    isVertical || containerWidth === 0 || containerWidth >= 700;
 
   const actionsClasses = isVertical
     ? 'flex flex-wrap items-center gap-2'
@@ -324,7 +326,9 @@ function GitOperations({
             >
               <GitBranchIcon className="h-3.5 w-3.5" />
               {showLabels && (
-                <span className="truncate max-w-[10ch]">{mergeButtonLabel}</span>
+                <span className="truncate max-w-[10ch]">
+                  {mergeButtonLabel}
+                </span>
               )}
             </Button>
 
@@ -367,7 +371,9 @@ function GitOperations({
                 className={`h-3.5 w-3.5 ${rebasing ? 'animate-spin' : ''}`}
               />
               {showLabels && (
-                <span className="truncate max-w-[10ch]">{rebaseButtonLabel}</span>
+                <span className="truncate max-w-[10ch]">
+                  {rebaseButtonLabel}
+                </span>
               )}
             </Button>
           </div>

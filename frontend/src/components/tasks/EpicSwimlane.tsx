@@ -122,7 +122,11 @@ function EpicSwimlane({
             const columnCollapsed = isColumnCollapsed(statusKey);
 
             return (
-              <KanbanBoard key={status} id={statusKey} collapsed={columnCollapsed}>
+              <KanbanBoard
+                key={status}
+                id={statusKey}
+                collapsed={columnCollapsed}
+              >
                 <KanbanHeader
                   name={statusLabels[statusKey]}
                   color={statusBoardColors[statusKey]}
@@ -130,7 +134,9 @@ function EpicSwimlane({
                   onCollapseAll={() => handleCollapseColumn(statusKey)}
                   onExpandAll={() => handleExpandColumn(statusKey)}
                   allCollapsed={allCollapsed}
-                  onToggleColumnCollapsed={() => toggleColumnCollapsed(statusKey)}
+                  onToggleColumnCollapsed={() =>
+                    toggleColumnCollapsed(statusKey)
+                  }
                   columnCollapsed={columnCollapsed}
                   taskCount={items.length}
                 />
