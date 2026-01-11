@@ -15,7 +15,6 @@
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.
 - `frontend/`: React + TypeScript app (Vite, Tailwind). Source in `frontend/src`.
 - `frontend/src/components/dialogs`: Dialog components for the frontend.
-- `remote-frontend/`: Remote deployment frontend.
 - `shared/`: Generated TypeScript types (`shared/types.ts`). Do not edit directly.
 - `assets/`, `dev_assets_seed/`, `dev_assets/`: Packaged and local dev assets.
 - `npx-cli/`: Files published to the npm CLI package.
@@ -37,7 +36,6 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 - Rust tests: `cargo test --workspace`
 - Generate TS types from Rust: `pnpm run generate-types` (or `generate-types:check` in CI)
 - Prepare SQLx (offline): `pnpm run prepare-db`
-- Prepare SQLx (remote package, postgres): `pnpm run remote:prepare-db`
 - Local NPX build: `./local-build.sh` (builds binaries: vkm, vkm-mcp, vkm-review)
 
 ## Package and Binary Names
