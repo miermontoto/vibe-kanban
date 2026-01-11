@@ -42,7 +42,6 @@ use executors::{
 };
 use futures::{FutureExt, TryStreamExt, stream::select};
 use services::services::{
-    analytics::AnalyticsContext,
     approvals::{Approvals, executor_approvals::ExecutorApprovalBridge},
     config::{Config, GitCommitTitleMode},
     container::{ContainerError, ContainerRef, ContainerService},
@@ -74,7 +73,6 @@ pub struct LocalContainerService {
     config: Arc<RwLock<Config>>,
     git: GitService,
     image_service: ImageService,
-    _analytics: Option<AnalyticsContext>,
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
     publisher: Result<SharePublisher, RemoteClientNotConfigured>,
@@ -89,7 +87,6 @@ impl LocalContainerService {
         config: Arc<RwLock<Config>>,
         git: GitService,
         image_service: ImageService,
-        _analytics: Option<AnalyticsContext>,
         approvals: Approvals,
         queued_message_service: QueuedMessageService,
         publisher: Result<SharePublisher, RemoteClientNotConfigured>,
@@ -106,7 +103,6 @@ impl LocalContainerService {
             config,
             git,
             image_service,
-            _analytics,
             approvals,
             queued_message_service,
             publisher,

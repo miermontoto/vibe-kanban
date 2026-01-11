@@ -144,14 +144,7 @@ async fn update_config(
     }
 }
 
-/// Track config events when fields transition from false → true
-async fn track_config_events(_deployment: &DeploymentImpl, _old: &Config, _new: &Config) {
-    // analytics tracking removed
-}
-
 async fn handle_config_events(deployment: &DeploymentImpl, old: &Config, new: &Config) {
-    track_config_events(deployment, old, new).await;
-
     if !old.disclaimer_acknowledged && new.disclaimer_acknowledged {
         // Spawn auto project setup as background task to avoid blocking config response
         let deployment_clone = deployment.clone();
