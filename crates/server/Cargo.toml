@@ -2,7 +2,19 @@
 name = "server"
 version = "0.0.147"
 edition = "2024"
-default-run = "server"
+default-run = "vkm"
+
+[[bin]]
+name = "vkm"
+path = "src/main.rs"
+
+[[bin]]
+name = "vkm-mcp"
+path = "src/bin/mcp_task_server.rs"
+
+[[bin]]
+name = "generate_types"
+path = "src/bin/generate_types.rs"
 
 [lints.clippy]
 uninlined-format-args = "allow"

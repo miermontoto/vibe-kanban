@@ -72,18 +72,18 @@ remote-frontend/dist
 build-npm-package-codesign.sh
 
 npx-cli/dist
-npx-cli/vibe-kanban-*
-vibe-kanban-*.tgz
+npx-cli/vkm-*
+vkm-*.tgz
 
 # Development ports file
 .dev-ports.json
-.vibe-kanban.port
+.vkm.port
 
 dev_assets
 /frontend/.env.sentry-build-plugin
 .ssh
 
-vibe-kanban-cloud/
+vkm-cloud/
 
 .jj
 

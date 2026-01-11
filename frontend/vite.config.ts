@@ -54,7 +54,7 @@ export default defineConfig({
     react(),
     sentryVitePlugin({
       org: "bloop-ai",
-      project: "vibe-kanban",
+      project: "vkm",
       telemetry: false
     }),
     executorSchemasPlugin(),

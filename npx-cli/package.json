@@ -1,15 +1,15 @@
 {
-  "name": "vibe-kanban",
+  "name": "@miermontoto/vkm",
   "private": false,
   "version": "0.0.147",
   "main": "index.js",
   "bin": {
-    "vibe-kanban": "bin/cli.js"
+    "vkm": "bin/cli.js"
   },
-  "keywords": [],
-  "author": "bloop",
+  "keywords": ["kanban", "project-management", "task-management", "developer-tools"],
+  "author": "Juan Mier",
   "license": "",
-  "description": "NPX wrapper around vibe-kanban and vibe-kanban-mcp",
+  "description": "NPX wrapper around vkm and vkm-mcp",
   "dependencies": {
     "adm-zip": "^0.5.16"
   },

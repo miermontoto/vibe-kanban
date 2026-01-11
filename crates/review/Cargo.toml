@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [[bin]]
-name = "review"
+name = "vkm-review"
 path = "src/main.rs"
 
 [dependencies]

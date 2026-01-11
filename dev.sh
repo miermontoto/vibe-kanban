@@ -4,7 +4,7 @@
 cd "$(dirname "$0")"
 
 # production data location (XDG standard)
-PROD_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/vibe-kanban"
+PROD_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/vkm"
 DEV_ASSETS_DIR="./dev_assets"
 
 # set up symlinks to share data between dev and production builds
@@ -43,14 +43,14 @@ export DISABLE_WORKTREE_ORPHAN_CLEANUP=1
 export RUST_LOG=debug
 
 # use worktree-local port file to avoid conflicts between worktrees
-PORT_FILE="$(pwd)/.vibe-kanban.port"
+PORT_FILE="$(pwd)/.vkm.port"
 export VK_PORT_FILE="$PORT_FILE"
 
 # remove stale port file
 rm -f "$PORT_FILE"
 
 # start backend
-cargo watch -w crates -x 'run --bin server' &
+cargo watch -w crates -x 'run --bin vkm' &
 BACKEND_PID=$!
 
 # wait for backend to write its port (max 60s)

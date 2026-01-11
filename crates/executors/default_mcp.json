@@ -1,9 +1,9 @@
 {
-  "vibe_kanban": {
+  "vkm": {
     "command": "npx",
     "args": [
       "-y",
-      "vibe-kanban@latest",
+      "@miermontoto/vkm@latest",
       "--mcp"
     ]
   },
@@ -38,10 +38,10 @@
     ]
   },
   "meta": {
-    "vibe_kanban": {
-      "name": "Vibe Kanban",
-      "description": "Create, update and delete Vibe Kanban tasks",
-      "url": "https://www.vibekanban.com/docs/integrations/vibe-kanban-mcp-server",
+    "vkm": {
+      "name": "vkm",
+      "description": "Create, update and delete vkm tasks",
+      "url": "https://github.com/miermontoto/vibe-kanban",
       "icon": "favicon-vk-light.svg"
     },
     "context7": {
