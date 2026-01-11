@@ -1,10 +1,7 @@
 use rmcp::{ServiceExt, transport::stdio};
 use server::mcp::task_server::TaskServer;
-use tracing_subscriber::{EnvFilter, prelude::*};
-use utils::{
-    port_file::read_port_file,
-    sentry::{self as sentry_utils, SentrySource, sentry_layer},
-};
+use tracing_subscriber::EnvFilter;
+use utils::port_file::read_port_file;
 
 fn main() -> anyhow::Result<()> {
     // Install rustls crypto provider before any TLS operations
@@ -12,19 +9,14 @@ fn main() -> anyhow::Result<()> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    sentry_utils::init_once(SentrySource::Mcp);
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap()
         .block_on(async {
-            tracing_subscriber::registry()
-                .with(
-                    tracing_subscriber::fmt::layer()
-                        .with_writer(std::io::stderr)
-                        .with_filter(EnvFilter::new("debug")),
-                )
-                .with(sentry_layer())
+            tracing_subscriber::fmt()
+                .with_writer(std::io::stderr)
+                .with_env_filter(EnvFilter::new("debug"))
                 .init();
 
             let version = env!("CARGO_PKG_VERSION");

@@ -49,16 +49,6 @@ pub async fn create_label(
 ) -> Result<ResponseJson<ApiResponse<TaskLabel>>, ApiError> {
     let label = TaskLabel::create(&deployment.db().pool, &payload).await?;
 
-    deployment
-        .track_if_analytics_allowed(
-            "task_label_created",
-            serde_json::json!({
-                "label_id": label.id.to_string(),
-                "project_id": label.project_id.to_string(),
-            }),
-        )
-        .await;
-
     Ok(ResponseJson(ApiResponse::success(label)))
 }
 

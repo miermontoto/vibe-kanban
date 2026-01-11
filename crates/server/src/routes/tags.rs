@@ -38,19 +38,7 @@ pub async fn create_tag(
     State(deployment): State<DeploymentImpl>,
     Json(payload): Json<CreateTag>,
 ) -> Result<ResponseJson<ApiResponse<Tag>>, ApiError> {
-    let tag = Tag::create(&deployment.db().pool, &payload).await?;
-
-    deployment
-        .track_if_analytics_allowed(
-            "tag_created",
-            serde_json::json!({
-                "tag_id": tag.id.to_string(),
-                "tag_name": tag.tag_name,
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(tag)))
+    let tag = Tag::create(&deployment.db().pool, &payload).await?;    Ok(ResponseJson(ApiResponse::success(tag)))
 }
 
 pub async fn update_tag(
@@ -58,19 +46,7 @@ pub async fn update_tag(
     State(deployment): State<DeploymentImpl>,
     Json(payload): Json<UpdateTag>,
 ) -> Result<ResponseJson<ApiResponse<Tag>>, ApiError> {
-    let updated_tag = Tag::update(&deployment.db().pool, tag.id, &payload).await?;
-
-    deployment
-        .track_if_analytics_allowed(
-            "tag_updated",
-            serde_json::json!({
-                "tag_id": tag.id.to_string(),
-                "tag_name": updated_tag.tag_name,
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(updated_tag)))
+    let updated_tag = Tag::update(&deployment.db().pool, tag.id, &payload).await?;    Ok(ResponseJson(ApiResponse::success(updated_tag)))
 }
 
 pub async fn delete_tag(

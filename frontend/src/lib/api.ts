@@ -198,13 +198,23 @@ export const handleApiResponse = async <T, E = T>(
       errorMessage = response.statusText || errorMessage;
     }
 
-    console.error('[API Error]', {
-      message: errorMessage,
-      status: response.status,
-      response,
-      endpoint: response.url,
-      timestamp: new Date().toISOString(),
-    });
+    // suprime errores esperados de auth en desarrollo local
+    // el cliente remoto es opcional y no está configurado por defecto
+    const isAuthError = response.url.includes('/api/auth/');
+    const isRemoteNotConfigured = errorMessage.includes('Remote client not configured');
+
+    if (import.meta.env.MODE === 'development' && isAuthError && isRemoteNotConfigured) {
+      console.debug('[API] Remote auth not configured (expected in local dev)');
+    } else {
+      console.error('[API Error]', {
+        message: errorMessage,
+        status: response.status,
+        response,
+        endpoint: response.url,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     throw new ApiError<E>(errorMessage, response.status, response);
   }
 

@@ -79,7 +79,6 @@ pub struct Config {
     pub notifications: NotificationConfig,
     pub editor: EditorConfig,
     pub github: GitHubConfig,
-    pub analytics_enabled: bool,
     pub workspace_dir: Option<String>,
     #[serde(default)]
     pub language: UiLanguage,
@@ -137,7 +136,6 @@ impl Config {
             notifications: old_config.notifications,
             editor: old_config.editor,
             github: old_config.github,
-            analytics_enabled: old_config.analytics_enabled,
             workspace_dir: old_config.workspace_dir,
             language: old_config.language,
             git_branch_prefix: old_config.git_branch_prefix,
@@ -197,7 +195,6 @@ impl Default for Config {
             notifications: NotificationConfig::default(),
             editor: EditorConfig::default(),
             github: GitHubConfig::default(),
-            analytics_enabled: true,
             workspace_dir: None,
             language: UiLanguage::default(),
             git_branch_prefix: default_git_branch_prefix(),

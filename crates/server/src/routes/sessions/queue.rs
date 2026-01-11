@@ -31,19 +31,7 @@ pub async fn queue_message(
 
     let queued = deployment
         .queued_message_service()
-        .queue_message(session.id, data);
-
-    deployment
-        .track_if_analytics_allowed(
-            "follow_up_queued",
-            serde_json::json!({
-                "session_id": session.id.to_string(),
-                "workspace_id": session.workspace_id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(QueueStatus::Queued {
+        .queue_message(session.id, data);    Ok(ResponseJson(ApiResponse::success(QueueStatus::Queued {
         message: queued,
     })))
 }
@@ -55,19 +43,7 @@ pub async fn cancel_queued_message(
 ) -> Result<ResponseJson<ApiResponse<QueueStatus>>, ApiError> {
     deployment
         .queued_message_service()
-        .cancel_queued(session.id);
-
-    deployment
-        .track_if_analytics_allowed(
-            "follow_up_queue_cancelled",
-            serde_json::json!({
-                "session_id": session.id.to_string(),
-                "workspace_id": session.workspace_id.to_string(),
-            }),
-        )
-        .await;
-
-    Ok(ResponseJson(ApiResponse::success(QueueStatus::Empty)))
+        .cancel_queued(session.id);    Ok(ResponseJson(ApiResponse::success(QueueStatus::Empty)))
 }
 
 /// Get the current queue status for a session's workspace

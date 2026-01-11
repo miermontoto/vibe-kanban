@@ -5,7 +5,7 @@ use db::DBService;
 use deployment::{Deployment, DeploymentError, RemoteClientNotConfigured};
 use executors::profile::ExecutorConfigs;
 use services::services::{
-    analytics::{AnalyticsConfig, AnalyticsContext, AnalyticsService, generate_user_id},
+    analytics::{AnalyticsConfig, AnalyticsService, generate_user_id},
     approvals::Approvals,
     auth::AuthContext,
     config::{Config, load_config_from_file, save_config_to_file},
@@ -154,19 +154,12 @@ impl Deployment for LocalDeployment {
 
         let oauth_handoffs = Arc::new(RwLock::new(HashMap::new()));
 
-        // We need to make analytics accessible to the ContainerService
-        // TODO: Handle this more gracefully
-        let analytics_ctx = analytics.as_ref().map(|s| AnalyticsContext {
-            user_id: user_id.clone(),
-            analytics_service: s.clone(),
-        });
         let container = LocalContainerService::new(
             db.clone(),
             msg_stores.clone(),
             config.clone(),
             git.clone(),
             image.clone(),
-            analytics_ctx,
             approvals.clone(),
             queued_message_service.clone(),
             share_publisher.clone(),
