@@ -115,7 +115,7 @@ export class ApiError<E = unknown> extends Error {
 }
 
 // Custom JSON.stringify replacer to handle BigInt values
-const bigIntReplacer = (_key: string, value: any) => {
+const bigIntReplacer = (_key: string, value: unknown) => {
   if (typeof value === 'bigint') {
     return Number(value);
   }
@@ -123,7 +123,7 @@ const bigIntReplacer = (_key: string, value: any) => {
 };
 
 // Helper to stringify with BigInt support
-export const stringifyWithBigInt = (data: any): string => {
+export const stringifyWithBigInt = (data: unknown): string => {
   return JSON.stringify(data, bigIntReplacer);
 };
 

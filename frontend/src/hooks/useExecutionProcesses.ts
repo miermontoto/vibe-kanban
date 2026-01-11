@@ -185,8 +185,9 @@ export const useExecutionProcesses = (
 
   // limpiar todos los procesos optimistas al desmontar o cambiar sessionId
   useEffect(() => {
+    const optimisticProcessesMap = optimisticProcessesRef.current;
     return () => {
-      optimisticProcessesRef.current.clear();
+      optimisticProcessesMap.clear();
       setOptimisticProcesses([]);
     };
   }, [sessionId]);

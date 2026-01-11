@@ -53,6 +53,7 @@ import type {
   ExecutorProfileId,
   ImageResponse,
   Task as TaskType_Full,
+  CreateTask,
 } from 'shared/types';
 
 interface Task {
@@ -272,7 +273,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
             ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
             ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
             label_ids: null,
-          } as any,
+          } satisfies CreateTask,
         },
         { onSuccess: () => modal.remove() }
       );
@@ -294,7 +295,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         ralph_max_iterations: value.useRalphWiggum ? BigInt(value.ralphMaxIterations) : null,
         ralph_completion_promise: value.useRalphWiggum && value.ralphCompletionPromise.trim() ? value.ralphCompletionPromise.trim() : null,
         label_ids: null,
-      } as any;
+      } satisfies CreateTask;
       const shouldAutoStart = value.autoStart && !forceCreateOnlyRef.current;
       if (shouldAutoStart) {
         const repos = value.repoBranches.map((rb) => ({

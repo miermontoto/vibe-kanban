@@ -215,7 +215,7 @@ export function SlashCommandTypeaheadPlugin() {
               </div>
             ) : (
               <div className="py-1">
-                {/* global commands */}
+                {/* Global commands section */}
                 {globalCommands.length > 0 && (
                   <>
                     <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
@@ -258,7 +258,7 @@ export function SlashCommandTypeaheadPlugin() {
                   </>
                 )}
 
-                {/* project commands */}
+                {/* Project commands section */}
                 {projectCommands.length > 0 && (
                   <>
                     {globalCommands.length > 0 && (
