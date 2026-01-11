@@ -54,6 +54,7 @@ import type {
   ImageResponse,
   Task as TaskType_Full,
   CreateTask,
+  UpdateTask,
 } from 'shared/types';
 
 interface Task {
@@ -290,7 +291,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                 ? value.ralphCompletionPromise.trim()
                 : null,
             label_ids: null,
-          } satisfies CreateTask,
+          } satisfies UpdateTask,
         },
         { onSuccess: () => modal.remove() }
       );
