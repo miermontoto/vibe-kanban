@@ -116,22 +116,26 @@ async function ensureBinary(platform, binaryName, onProgress) {
 
   fs.mkdirSync(cacheDir, { recursive: true });
 
-  const manifest = await fetchJson(`${R2_BASE_URL}/binaries/${BINARY_TAG}/manifest.json`);
-  const binaryInfo = manifest.platforms?.[platform]?.[binaryName];
+  // GitHub Releases format: /{tag}/{binary}-{platform}.zip
+  // Example: /v1.0.0/vkm-linux-x64.zip
+  const url = `${R2_BASE_URL}/${BINARY_TAG}/${binaryName}-${platform}.zip`;
 
-  if (!binaryInfo) {
-    throw new Error(`Binary ${binaryName} not available for ${platform}`);
-  }
-
-  const url = `${R2_BASE_URL}/binaries/${BINARY_TAG}/${platform}/${binaryName}.zip`;
-  await downloadFile(url, zipPath, binaryInfo.sha256, onProgress);
+  // Skip checksum validation for GitHub Releases (no manifest.json)
+  await downloadFile(url, zipPath, null, onProgress);
 
   return zipPath;
 }
 
 async function getLatestVersion() {
-  const manifest = await fetchJson(`${R2_BASE_URL}/binaries/manifest.json`);
-  return manifest.latest;
+  try {
+    // Use GitHub API to get latest release
+    const data = await fetchJson("https://api.github.com/repos/miermontoto/vkm/releases/latest");
+    // GitHub returns version with 'v' prefix, remove it to match package.json
+    return data.tag_name?.replace(/^v/, "");
+  } catch (err) {
+    // silently fail si no hay conexión o el API no está disponible
+    return null;
+  }
 }
 
 module.exports = { R2_BASE_URL, BINARY_TAG, CACHE_DIR, LOCAL_DEV_MODE, LOCAL_DIST_DIR, ensureBinary, getLatestVersion };
