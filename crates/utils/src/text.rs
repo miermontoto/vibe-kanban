@@ -3,14 +3,11 @@ use regex::Regex;
 use uuid::Uuid;
 
 // compile regex once at first use, not on every call
-static BRANCH_SANITIZER: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-z0-9]+").unwrap());
+static BRANCH_SANITIZER: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-zA-Z0-9]+").unwrap());
 
 pub fn git_branch_id(input: &str) -> String {
-    // 1. lowercase
-    let lower = input.to_lowercase();
-
-    // 2. replace non-alphanumerics with hyphens
-    let slug = BRANCH_SANITIZER.replace_all(&lower, "-");
+    // 1. replace non-alphanumerics with hyphens (preserving case)
+    let slug = BRANCH_SANITIZER.replace_all(input, "-");
 
     // 3. trim extra hyphens
     let trimmed = slug.trim_matches('-');
@@ -49,7 +46,7 @@ mod tests {
 
     #[test]
     fn test_git_branch_id_basic() {
-        assert_eq!(git_branch_id("My Feature"), "my-feature");
+        assert_eq!(git_branch_id("My Feature"), "My-Feature");
         assert_eq!(git_branch_id("fix auth bug"), "fix-auth-bug");
         assert_eq!(git_branch_id("update-readme"), "update-readme");
     }
@@ -103,6 +100,16 @@ mod tests {
         assert_eq!(git_branch_id("---foo---"), "foo");
         assert_eq!(git_branch_id("!!!bar!!!"), "bar");
         assert_eq!(git_branch_id("   spaces   "), "spaces");
+    }
+
+    #[test]
+    fn test_git_branch_id_case_preservation() {
+        // verify that casing is preserved as specified by user
+        assert_eq!(git_branch_id("MyFeature"), "MyFeature");
+        assert_eq!(git_branch_id("MY_FEATURE"), "MY-FEATURE");
+        assert_eq!(git_branch_id("camelCase"), "camelCase");
+        assert_eq!(git_branch_id("PascalCase"), "PascalCase");
+        assert_eq!(git_branch_id("SCREAMING-CASE"), "SCREAMING-CASE");
     }
 
     #[test]
