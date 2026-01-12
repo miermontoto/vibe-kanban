@@ -42,7 +42,7 @@
       "name": "vkm",
       "description": "Create, update and delete vkm tasks",
       "url": "https://github.com/miermontoto/vibe-kanban",
-      "icon": "favicon-vk-light.svg"
+      "icon": "favicon-vkm-light.svg"
     },
     "context7": {
       "name": "Context7",

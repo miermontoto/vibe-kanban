@@ -1,15 +1,15 @@
 {
-  "name": "Vibe Kanban",
-  "short_name": "VK",
+  "name": "vkm",
+  "short_name": "vkm",
   "icons": [
     {
-      "src": "/favicon-vk-light.svg",
+      "src": "/favicon-vkm-light.svg",
       "sizes": "any",
       "purpose": "any",
       "type": "image/svg+xml"
     },
     {
-      "src": "/favicon-vk-light-maskable.svg",
+      "src": "/favicon-vkm-light-maskable.svg",
       "sizes": "any",
       "purpose": "maskable",
       "type": "image/svg+xml"
