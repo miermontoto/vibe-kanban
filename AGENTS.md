@@ -130,3 +130,120 @@ The `release.yml` workflow automatically:
 - Prereleases (containing `-`, `alpha`, `beta`, or `rc`) are NOT auto-published to NPM
 - All tests must pass before binaries are built
 - The exact binaries tested are what get released (no "works on my machine" issues)
+
+### NPM Package Architecture
+
+The NPM package (`@miermontoto/vkm`) is a lightweight wrapper (~6KB) that downloads platform-specific binaries from GitHub Releases at runtime:
+
+**How it works:**
+1. User runs `npx @miermontoto/vkm@1.0.1`
+2. NPM downloads the wrapper package from npm registry
+3. `npx-cli/bin/cli.js` detects platform (linux-x64, macos-arm64, etc.)
+4. `npx-cli/bin/download.js` downloads binary from GitHub Release:
+   - URL format: `https://github.com/miermontoto/vkm/releases/download/v1.0.1/vkm-linux-x64.zip`
+   - Cached at: `~/.vkm/bin/v1.0.1/{platform}/`
+5. Binary is extracted and executed
+
+**Why this architecture:**
+- NPM has package size limits (~200MB)
+- All platform binaries together = ~150MB
+- Wrapper + runtime download = only download what you need (~27MB per platform)
+
+### Troubleshooting Releases
+
+#### NPM Publish Fails (First Release Only)
+
+**Symptom:** `publish-npm` job fails with `404 Not Found` error
+
+**Cause:** First release to a scoped package (`@miermontoto/vkm`) requires manual publish to establish the scope on npm registry.
+
+**Fix:**
+```bash
+# Download the package from GitHub Release
+cd /tmp
+curl -L -O https://github.com/miermontoto/vkm/releases/download/v1.0.1/miermontoto-vkm-1.0.1.tgz
+
+# Publish manually (requires npm login)
+npm login
+npm publish miermontoto-vkm-1.0.1.tgz --access public
+```
+
+After the first manual publish, all future releases will auto-publish via GitHub Actions.
+
+#### Testing NPM Package
+
+After a release, verify the package works:
+
+```bash
+# Test from npm registry
+npx @miermontoto/vkm@1.0.1 --version
+
+# Should download binary from GitHub Releases and start successfully
+# Binary cached at: ~/.vkm/bin/v1.0.1/linux-x64/
+```
+
+**Expected behavior:**
+```
+Starting vkm v1.0.1...
+Downloading vkm...
+   Downloading: 26.5MB / 26.5MB (100%)
+[VKM server starts successfully]
+```
+
+**If download fails with 404:**
+- Check that `npx-cli/bin/download.js` uses correct GitHub Release URLs
+- Verify binaries exist in GitHub Release with correct naming: `vkm-{platform}.zip`
+- Test URL manually: `curl -I https://github.com/miermontoto/vkm/releases/download/v1.0.1/vkm-linux-x64.zip`
+
+#### cargo-xwin Installation Issues
+
+**Symptom:** Windows builds fail with "failed to compile cargo-xwin" or "xwin version yanked"
+
+**Fix:** Use `--locked` flag in workflow (already applied):
+```yaml
+cargo install --locked cargo-xwin@0.20.2
+```
+
+#### Windows ARM64 Build Failures
+
+Windows ARM64 builds may fail due to aws-lc-sys cross-compilation issues. This is expected and marked as experimental (`continue-on-error: true`). The release will proceed with 5 platforms instead of 6.
+
+### Release History & Notes
+
+#### v1.0.1 (2026-01-12) - First Working NPM Package ✅
+
+**Status:** Fully functional, production-ready
+**What changed:** Fixed `npx-cli/bin/download.js` to work with GitHub Releases
+
+The NPM package now correctly downloads binaries from GitHub Releases at runtime. Previously failed with 404 errors due to expecting an R2/Cloudflare storage structure with manifest.json.
+
+**Fix details:**
+- Changed URL format from `/binaries/{tag}/{platform}/{binary}.zip` to `/{tag}/{binary}-{platform}.zip`
+- Removed manifest.json dependency and SHA256 validation
+- Updated getLatestVersion() to use GitHub API instead of manifest
+
+**Verified working:**
+```bash
+npx @miermontoto/vkm@1.0.1
+# ✅ Downloads binary from GitHub Releases
+# ✅ Caches at ~/.vkm/bin/v1.0.1/{platform}/
+# ✅ Starts successfully
+```
+
+#### v1.0.0 (2026-01-12) - Initial Major Release
+
+**Status:** GitHub Release ✅ | NPM Package ❌ (broken)
+**Issue:** NPM package fails with 404 errors when trying to download binaries
+
+The release workflow successfully created the GitHub Release with all binaries, but the NPM package was non-functional due to download.js expecting a different URL structure. Users should use v1.0.1 or later.
+
+**Builds:**
+- ✅ Linux x64/ARM64 (musl)
+- ✅ macOS x64/ARM64
+- ✅ Windows x64
+- ❌ Windows ARM64 (experimental, aws-lc-sys cross-compilation issues)
+
+**Lessons learned:**
+1. Always test NPM package end-to-end after publishing
+2. cargo-xwin requires `--locked` flag to avoid yanked dependency issues
+3. First scoped package publish requires manual `npm publish` to establish scope
