@@ -1,12 +1,17 @@
 {
   "name": "@miermontoto/vkm",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "bin": {
     "vkm": "bin/cli.js"
   },
-  "keywords": ["kanban", "project-management", "task-management", "developer-tools"],
+  "keywords": [
+    "kanban",
+    "project-management",
+    "task-management",
+    "developer-tools"
+  ],
   "author": "Juan Mier",
   "license": "",
   "description": "NPX wrapper around vkm and vkm-mcp",
