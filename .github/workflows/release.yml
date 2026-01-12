@@ -207,7 +207,7 @@ jobs:
         if: runner.os == 'Linux' && contains(matrix.target, 'windows')
         run: |
           if ! command -v cargo-xwin &> /dev/null; then
-            cargo install cargo-xwin@${{ env.CARGO_XWIN_VERSION }}
+            cargo install --locked cargo-xwin@${{ env.CARGO_XWIN_VERSION }}
           fi
 
       - name: Cache xwin
