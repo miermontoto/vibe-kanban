@@ -257,11 +257,12 @@ jobs:
             EXT=""
           fi
 
-          # Copy and zip each binary
+          # Copy and zip each binary with platform-specific names
           for binary in vkm vkm-mcp vkm-review; do
             cp "target/$TARGET/release/${binary}${EXT}" "dist/$PLATFORM_NAME/${binary}${EXT}"
             cd "dist/$PLATFORM_NAME"
-            zip "${binary}.zip" "${binary}${EXT}"
+            # Include platform name in zip filename to avoid conflicts
+            zip "${binary}-${PLATFORM_NAME}.zip" "${binary}${EXT}"
             rm "${binary}${EXT}"
             cd ../..
           done
