@@ -35,8 +35,13 @@ const INITIAL_TOP_ITEM = { index: 'LAST' as const, align: 'end' as const };
 
 const InitialDataScrollModifier: ScrollModifier = {
   type: 'item-location',
-  location: INITIAL_TOP_ITEM,
+  location: { index: 'LAST', align: 'end' },
   purgeItemSizes: true,
+};
+
+const InitialScrollToBottom: ScrollModifier = {
+  type: 'auto-scroll-to-bottom',
+  autoScroll: false,
 };
 
 const AutoScrollToBottom: ScrollModifier = {
@@ -105,7 +110,10 @@ export function ConversationList({ attempt, task }: ConversationListProps) {
   ) => {
     let scrollModifier: ScrollModifier = InitialDataScrollModifier;
 
-    if (addType === 'plan' && !loading) {
+    if (addType === 'initial') {
+      // cuando se carga inicialmente o desde caché, scroll al fondo real
+      scrollModifier = InitialScrollToBottom;
+    } else if (addType === 'plan' && !loading) {
       scrollModifier = ScrollToTopOfLastItem;
     } else if (addType === 'running' && !loading) {
       scrollModifier = AutoScrollToBottom;
