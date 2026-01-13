@@ -13,6 +13,17 @@
   - `origin`: https://github.com/miermontoto/vibe-kanban (PRIMARY)
   - `upstream`: https://github.com/BloopAI/vibe-kanban.git (reference only)
 
+### Merging Upstream Changes
+
+To merge changes from upstream BloopAI/vibe-kanban, use the `/merge-upstream` command which provides a comprehensive guide for:
+- Pre-merge preparation and checks
+- Handling merge conflicts systematically
+- Preserving custom features (package name, versioning, git workflow)
+- Post-merge fixes (SQLx, TypeScript types, formatting)
+- Full verification checklist
+
+See `.claude/commands/merge-upstream.md` for detailed instructions.
+
 ### Upstream Merge History
 
 #### Merge 2026-01-13: BloopAI/vibe-kanban upstream sync
