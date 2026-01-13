@@ -50,6 +50,8 @@ import type {
   TaskStatus,
   ExecutorProfileId,
   ImageResponse,
+  CreateTask,
+  UpdateTask,
 } from 'shared/types';
 
 interface Task {
