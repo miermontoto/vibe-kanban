@@ -24,8 +24,8 @@ use serde::{Deserialize, Serialize};
 use services::services::{
     container::ContainerService,
     git::{GitCliError, GitServiceError},
-    github::{
-        CreatePrRequest, GitHubRepoInfo, GitHubService, GitHubServiceError, UnifiedPrComment,
+    git_host::{
+        self, CreatePrRequest, GitHostError, GitHostProvider, ProviderKind, UnifiedPrComment,
     },
 };
 use ts_rs::TS;
@@ -35,7 +35,7 @@ use uuid::Uuid;
 use crate::{DeploymentImpl, error::ApiError};
 
 #[derive(Debug, Deserialize, Serialize, TS)]
-pub struct CreateGitHubPrRequest {
+pub struct CreatePrApiRequest {
     pub title: String,
     pub body: Option<String>,
     pub target_branch: Option<String>,
@@ -43,24 +43,18 @@ pub struct CreateGitHubPrRequest {
     pub repo_id: Uuid,
     #[serde(default)]
     pub auto_generate_description: bool,
-    /// si es true, abre el PR en el navegador después de crearlo
-    #[serde(default = "default_open_in_browser")]
-    pub open_in_browser: bool,
-}
-
-fn default_open_in_browser() -> bool {
-    true
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(tag = "type", rename_all = "snake_case")]
-pub enum CreatePrError {
-    GithubCliNotInstalled,
-    GithubCliNotLoggedIn,
+pub enum PrError {
+    CliNotInstalled { provider: ProviderKind },
+    CliNotLoggedIn { provider: ProviderKind },
     GitCliNotLoggedIn,
     GitCliNotInstalled,
     TargetBranchNotFound { branch: String },
+    UnsupportedProvider,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -86,8 +80,8 @@ pub struct PrCommentsResponse {
 #[ts(tag = "type", rename_all = "snake_case")]
 pub enum GetPrCommentsError {
     NoPrAttached,
-    GithubCliNotInstalled,
-    GithubCliNotLoggedIn,
+    CliNotInstalled { provider: ProviderKind },
+    CliNotLoggedIn { provider: ProviderKind },
 }
 
 #[derive(Debug, Deserialize, TS)]
@@ -95,37 +89,8 @@ pub struct GetPrCommentsQuery {
     pub repo_id: Uuid,
 }
 
-/// resultado de la creación automática de PR para un repositorio
-#[derive(Debug, Clone, Serialize, TS)]
-pub struct AutoPrResult {
-    pub repo_id: Uuid,
-    pub repo_name: String,
-    pub success: bool,
-    pub pr_url: Option<String>,
-    pub pr_number: Option<i64>,
-    pub error: Option<AutoPrError>,
-}
-
-/// errores posibles durante la creación automática de PR
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[ts(tag = "type", rename_all = "snake_case")]
-pub enum AutoPrError {
-    GithubCliNotInstalled,
-    GithubCliNotLoggedIn,
-    GitCliNotLoggedIn,
-    GitCliNotInstalled,
-    TargetBranchNotFound { branch: String },
-    NoBranchToPush,
-    PrAlreadyExists { url: String },
-    NoWorkspace,
-    RepoNotFound,
-    Other { message: String },
-}
-
-pub const DEFAULT_PR_DESCRIPTION_PROMPT: &str = r#"Update the GitHub PR that was just created with a better title and description.
+pub const DEFAULT_PR_DESCRIPTION_PROMPT: &str = r#"Update the PR that was just created with a better title and description.
 The PR number is #{pr_number} and the URL is {pr_url}.
-The repository is {repo_owner}/{repo_name}.
 
 Analyze the changes in this branch and write:
 1. A concise, descriptive title that summarizes the changes, postfixed with "(Vibe Kanban)"
@@ -135,14 +100,13 @@ Analyze the changes in this branch and write:
    - Any important implementation details
    - At the end, include a note: "This PR was written using [Vibe Kanban](https://vibekanban.com)"
 
-Use `gh pr edit {pr_number} --repo {repo_owner}/{repo_name}` to update the PR."#;
+Use the appropriate CLI tool to update the PR (gh pr edit for GitHub, az repos pr update for Azure DevOps)."#;
 
 async fn trigger_pr_description_follow_up(
     deployment: &DeploymentImpl,
     workspace: &Workspace,
     pr_number: i64,
     pr_url: &str,
-    repo_info: &GitHubRepoInfo,
 ) -> Result<(), ApiError> {
     // Get the custom prompt from config, or use default
     let config = deployment.config().read().await;
@@ -154,9 +118,7 @@ async fn trigger_pr_description_follow_up(
     // Replace placeholders in prompt
     let prompt = prompt_template
         .replace("{pr_number}", &pr_number.to_string())
-        .replace("{pr_url}", pr_url)
-        .replace("{repo_owner}", &repo_info.owner)
-        .replace("{repo_name}", &repo_info.repo_name);
+        .replace("{pr_url}", pr_url);
 
     drop(config); // Release the lock before async operations
 
@@ -224,18 +186,18 @@ async fn trigger_pr_description_follow_up(
             workspace,
             &session,
             &action,
-            &ExecutionProcessRunReason::PrDescriptionGeneration,
+            &ExecutionProcessRunReason::CodingAgent,
         )
         .await?;
 
     Ok(())
 }
 
-pub async fn create_github_pr(
+pub async fn create_pr(
     Extension(workspace): Extension<Workspace>,
     State(deployment): State<DeploymentImpl>,
-    Json(request): Json<CreateGitHubPrRequest>,
-) -> Result<ResponseJson<ApiResponse<String, CreatePrError>>, ApiError> {
+    Json(request): Json<CreatePrApiRequest>,
+) -> Result<ResponseJson<ApiResponse<String, PrError>>, ApiError> {
     let pool = &deployment.db().pool;
 
     let workspace_repo =
@@ -247,7 +209,7 @@ pub async fn create_github_pr(
         .await?
         .ok_or(RepoError::NotFound)?;
 
-    let repo_path = repo.path;
+    let repo_path = repo.path.clone();
     let target_branch = if let Some(branch) = request.target_branch {
         branch
     } else {
@@ -259,7 +221,7 @@ pub async fn create_github_pr(
         .ensure_container_exists(&workspace)
         .await?;
     let workspace_path = PathBuf::from(&container_ref);
-    let worktree_path = workspace_path.join(repo.name);
+    let worktree_path = workspace_path.join(&repo.name);
 
     match deployment
         .git()
@@ -267,40 +229,40 @@ pub async fn create_github_pr(
     {
         Ok(false) => {
             return Ok(ResponseJson(ApiResponse::error_with_data(
-                CreatePrError::TargetBranchNotFound {
+                PrError::TargetBranchNotFound {
                     branch: target_branch.clone(),
                 },
             )));
         }
         Err(GitServiceError::GitCLI(GitCliError::AuthFailed(_))) => {
             return Ok(ResponseJson(ApiResponse::error_with_data(
-                CreatePrError::GitCliNotLoggedIn,
+                PrError::GitCliNotLoggedIn,
             )));
         }
         Err(GitServiceError::GitCLI(GitCliError::NotAvailable)) => {
             return Ok(ResponseJson(ApiResponse::error_with_data(
-                CreatePrError::GitCliNotInstalled,
+                PrError::GitCliNotInstalled,
             )));
         }
         Err(e) => return Err(ApiError::GitService(e)),
         Ok(true) => {}
     }
 
-    // Push the branch to GitHub first
+    // Push the branch to remote first
     if let Err(e) = deployment
         .git()
-        .push_to_github(&worktree_path, &workspace.branch, false)
+        .push_to_remote(&worktree_path, &workspace.branch, false)
     {
-        tracing::error!("Failed to push branch to GitHub: {}", e);
+        tracing::error!("Failed to push branch to remote: {}", e);
         match e {
             GitServiceError::GitCLI(GitCliError::AuthFailed(_)) => {
                 return Ok(ResponseJson(ApiResponse::error_with_data(
-                    CreatePrError::GitCliNotLoggedIn,
+                    PrError::GitCliNotLoggedIn,
                 )));
             }
             GitServiceError::GitCLI(GitCliError::NotAvailable) => {
                 return Ok(ResponseJson(ApiResponse::error_with_data(
-                    CreatePrError::GitCliNotInstalled,
+                    PrError::GitCliNotInstalled,
                 )));
             }
             _ => return Err(ApiError::GitService(e)),
@@ -326,7 +288,29 @@ pub async fn create_github_pr(
     } else {
         target_branch
     };
-    // Create the PR using GitHub service
+
+    let remote_url = deployment
+        .git()
+        .get_remote_url_from_branch_or_default(&repo_path, &workspace.branch)?;
+
+    let git_host = match git_host::GitHostService::from_url(&remote_url) {
+        Ok(host) => host,
+        Err(GitHostError::UnsupportedProvider) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                PrError::UnsupportedProvider,
+            )));
+        }
+        Err(GitHostError::CliNotInstalled { provider }) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                PrError::CliNotInstalled { provider },
+            )));
+        }
+        Err(e) => return Err(ApiError::GitHost(e)),
+    };
+
+    let provider = git_host.provider_kind();
+
+    // Create the PR
     let pr_request = CreatePrRequest {
         title: request.title.clone(),
         body: request.body.clone(),
@@ -334,14 +318,11 @@ pub async fn create_github_pr(
         base_branch: norm_target_branch_name.clone(),
         draft: request.draft,
     };
-    // Get repo info by parsing the remote URL - this ensures we create the PR
-    // in the same repo that we pushed to (important for forks)
-    // Using GitService instead of 'gh repo view' which may return the upstream repo
-    let repo_info = deployment
-        .git()
-        .get_github_repo_info(&worktree_path, None)?;
-    let github_service = GitHubService::new()?;
-    match github_service.create_pr(&repo_info, &pr_request).await {
+
+    match git_host
+        .create_pr(&repo_path, &remote_url, &pr_request)
+        .await
+    {
         Ok(pr_info) => {
             // Update the workspace with PR information
             if let Err(e) = Merge::create_pr(
@@ -357,12 +338,20 @@ pub async fn create_github_pr(
                 tracing::error!("Failed to update workspace PR status: {}", e);
             }
 
-            // auto-open PR in browser si está habilitado
-            if request.open_in_browser {
-                if let Err(e) = utils::browser::open_browser(&pr_info.url).await {
-                    tracing::warn!("Failed to open PR in browser: {}", e);
-                }
+            // Auto-open PR in browser
+            if let Err(e) = utils::browser::open_browser(&pr_info.url).await {
+                tracing::warn!("Failed to open PR in browser: {}", e);
             }
+
+            deployment
+                .track_if_analytics_allowed(
+                    "pr_created",
+                    serde_json::json!({
+                        "workspace_id": workspace.id.to_string(),
+                        "provider": format!("{:?}", provider),
+                    }),
+                )
+                .await;
 
             // Trigger auto-description follow-up if enabled
             if request.auto_generate_description
@@ -371,7 +360,6 @@ pub async fn create_github_pr(
                     &workspace,
                     pr_info.number,
                     &pr_info.url,
-                    &repo_info,
                 )
                 .await
             {
@@ -386,18 +374,21 @@ pub async fn create_github_pr(
         }
         Err(e) => {
             tracing::error!(
-                "Failed to create GitHub PR for attempt {}: {}",
+                "Failed to create PR for attempt {} using {:?}: {}",
                 workspace.id,
+                provider,
                 e
             );
             match &e {
-                GitHubServiceError::GhCliNotInstalled(_) => Ok(ResponseJson(
-                    ApiResponse::error_with_data(CreatePrError::GithubCliNotInstalled),
+                GitHostError::CliNotInstalled { provider } => Ok(ResponseJson(
+                    ApiResponse::error_with_data(PrError::CliNotInstalled {
+                        provider: *provider,
+                    }),
                 )),
-                GitHubServiceError::AuthFailed(_) => Ok(ResponseJson(
-                    ApiResponse::error_with_data(CreatePrError::GithubCliNotLoggedIn),
-                )),
-                _ => Err(ApiError::GitHubService(e)),
+                GitHostError::AuthFailed(_) => Ok(ResponseJson(ApiResponse::error_with_data(
+                    PrError::CliNotLoggedIn { provider },
+                ))),
+                _ => Err(ApiError::GitHost(e)),
             }
         }
     }
@@ -407,7 +398,7 @@ pub async fn attach_existing_pr(
     Extension(workspace): Extension<Workspace>,
     State(deployment): State<DeploymentImpl>,
     Json(request): Json<AttachExistingPrRequest>,
-) -> Result<ResponseJson<ApiResponse<AttachPrResponse>>, ApiError> {
+) -> Result<ResponseJson<ApiResponse<AttachPrResponse, PrError>>, ApiError> {
     let pool = &deployment.db().pool;
 
     let task = workspace
@@ -435,23 +426,45 @@ pub async fn attach_existing_pr(
         })));
     }
 
-    // Use worktree path for repo info to correctly handle forks
-    let container_ref = deployment
-        .container()
-        .ensure_container_exists(&workspace)
-        .await?;
-    let worktree_path = PathBuf::from(&container_ref).join(&repo.name);
-
-    // Get repo info by parsing the remote URL (not 'gh repo view' which may return upstream)
-    let repo_info = deployment
+    let remote_url = deployment
         .git()
-        .get_github_repo_info(&worktree_path, None)?;
-    let github_service = GitHubService::new()?;
+        .get_remote_url_from_branch_or_default(&repo.path, &workspace_repo.target_branch)?;
+
+    let git_host = match git_host::GitHostService::from_url(&remote_url) {
+        Ok(host) => host,
+        Err(GitHostError::UnsupportedProvider) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                PrError::UnsupportedProvider,
+            )));
+        }
+        Err(GitHostError::CliNotInstalled { provider }) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                PrError::CliNotInstalled { provider },
+            )));
+        }
+        Err(e) => return Err(ApiError::GitHost(e)),
+    };
+
+    let provider = git_host.provider_kind();
 
     // List all PRs for branch (open, closed, and merged)
-    let prs = github_service
-        .list_all_prs_for_branch(&repo_info, &workspace.branch)
-        .await?;
+    let prs = match git_host
+        .list_prs_for_branch(&repo.path, &remote_url, &workspace.branch)
+        .await
+    {
+        Ok(prs) => prs,
+        Err(GitHostError::CliNotInstalled { provider }) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                PrError::CliNotInstalled { provider },
+            )));
+        }
+        Err(GitHostError::AuthFailed(_)) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                PrError::CliNotLoggedIn { provider },
+            )));
+        }
+        Err(e) => return Err(ApiError::GitHost(e)),
+    };
 
     // Take the first PR (prefer open, but also accept merged/closed)
     if let Some(pr_info) = prs.into_iter().next() {
@@ -547,22 +560,24 @@ pub async fn get_pr_comments(
         }
     };
 
-    // Use worktree path for repo info to correctly handle forks
-    let container_ref = deployment
-        .container()
-        .ensure_container_exists(&workspace)
-        .await?;
-    let worktree_path = PathBuf::from(&container_ref).join(&repo.name);
-
-    // Get repo info by parsing the remote URL (not 'gh repo view' which may return upstream)
-    let repo_info = deployment
+    let remote_url = deployment
         .git()
-        .get_github_repo_info(&worktree_path, None)?;
-    let github_service = GitHubService::new()?;
+        .get_remote_url_from_branch_or_default(&repo.path, &workspace_repo.target_branch)?;
 
-    // Fetch comments from GitHub
-    match github_service
-        .get_pr_comments(&repo_info, pr_info.number)
+    let git_host = match git_host::GitHostService::from_url(&remote_url) {
+        Ok(host) => host,
+        Err(GitHostError::CliNotInstalled { provider }) => {
+            return Ok(ResponseJson(ApiResponse::error_with_data(
+                GetPrCommentsError::CliNotInstalled { provider },
+            )));
+        }
+        Err(e) => return Err(ApiError::GitHost(e)),
+    };
+
+    let provider = git_host.provider_kind();
+
+    match git_host
+        .get_pr_comments(&repo.path, &remote_url, pr_info.number)
         .await
     {
         Ok(comments) => Ok(ResponseJson(ApiResponse::success(PrCommentsResponse {
@@ -576,333 +591,15 @@ pub async fn get_pr_comments(
                 e
             );
             match &e {
-                GitHubServiceError::GhCliNotInstalled(_) => Ok(ResponseJson(
-                    ApiResponse::error_with_data(GetPrCommentsError::GithubCliNotInstalled),
+                GitHostError::CliNotInstalled { provider } => Ok(ResponseJson(
+                    ApiResponse::error_with_data(GetPrCommentsError::CliNotInstalled {
+                        provider: *provider,
+                    }),
                 )),
-                GitHubServiceError::AuthFailed(_) => Ok(ResponseJson(
-                    ApiResponse::error_with_data(GetPrCommentsError::GithubCliNotLoggedIn),
-                )),
-                _ => Err(ApiError::GitHubService(e)),
-            }
-        }
-    }
-}
-
-/// crea PRs automáticamente para todos los repos de un workspace
-pub async fn auto_create_prs_for_workspace(
-    deployment: &DeploymentImpl,
-    workspace: &Workspace,
-    task: &Task,
-    is_draft: bool,
-    auto_generate_description: bool,
-) -> Vec<AutoPrResult> {
-    let pool = &deployment.db().pool;
-    let mut results = Vec::new();
-
-    // obtener todos los repos del workspace
-    let workspace_repos = match WorkspaceRepo::find_by_workspace_id(pool, workspace.id).await {
-        Ok(repos) => repos,
-        Err(e) => {
-            tracing::error!("Failed to get workspace repos: {}", e);
-            return results;
-        }
-    };
-
-    for workspace_repo in workspace_repos {
-        let result = auto_create_pr_for_repo(
-            deployment,
-            workspace,
-            task,
-            &workspace_repo,
-            is_draft,
-            auto_generate_description,
-        )
-        .await;
-        results.push(result);
-    }
-
-    results
-}
-
-/// crea un PR para un repositorio específico
-async fn auto_create_pr_for_repo(
-    deployment: &DeploymentImpl,
-    workspace: &Workspace,
-    task: &Task,
-    workspace_repo: &WorkspaceRepo,
-    is_draft: bool,
-    auto_generate_description: bool,
-) -> AutoPrResult {
-    let pool = &deployment.db().pool;
-
-    // obtener info del repo
-    let repo = match Repo::find_by_id(pool, workspace_repo.repo_id).await {
-        Ok(Some(r)) => r,
-        Ok(None) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name: "unknown".to_string(),
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::RepoNotFound),
-            };
-        }
-        Err(e) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name: "unknown".to_string(),
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::Other {
-                    message: e.to_string(),
-                }),
-            };
-        }
-    };
-
-    let repo_name = repo.name.clone();
-    let target_branch = workspace_repo.target_branch.clone();
-
-    // verificar si ya existe un PR para este repo
-    if let Ok(merges) =
-        Merge::find_by_workspace_and_repo_id(pool, workspace.id, workspace_repo.repo_id).await
-        && let Some(Merge::Pr(pr_merge)) = merges.into_iter().next()
-    {
-        return AutoPrResult {
-            repo_id: workspace_repo.repo_id,
-            repo_name,
-            success: true,
-            pr_url: Some(pr_merge.pr_info.url.clone()),
-            pr_number: Some(pr_merge.pr_info.number),
-            error: Some(AutoPrError::PrAlreadyExists {
-                url: pr_merge.pr_info.url.clone(),
-            }),
-        };
-    }
-
-    // obtener container ref para el workspace
-    let container_ref = match deployment
-        .container()
-        .ensure_container_exists(workspace)
-        .await
-    {
-        Ok(c) => c,
-        Err(e) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::Other {
-                    message: e.to_string(),
-                }),
-            };
-        }
-    };
-
-    let workspace_path = PathBuf::from(&container_ref);
-    let worktree_path = workspace_path.join(&repo.name);
-
-    // verificar que el target branch existe en el remoto
-    match deployment
-        .git()
-        .check_remote_branch_exists(&repo.path, &target_branch)
-    {
-        Ok(false) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::TargetBranchNotFound {
-                    branch: target_branch,
-                }),
-            };
-        }
-        Err(GitServiceError::GitCLI(GitCliError::AuthFailed(_))) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::GitCliNotLoggedIn),
-            };
-        }
-        Err(GitServiceError::GitCLI(GitCliError::NotAvailable)) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::GitCliNotInstalled),
-            };
-        }
-        Err(e) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::Other {
-                    message: e.to_string(),
-                }),
-            };
-        }
-        Ok(true) => {}
-    }
-
-    // push the branch
-    if let Err(e) = deployment
-        .git()
-        .push_to_github(&worktree_path, &workspace.branch, false)
-    {
-        tracing::warn!("Failed to push branch for auto-PR: {}", e);
-        return AutoPrResult {
-            repo_id: workspace_repo.repo_id,
-            repo_name,
-            success: false,
-            pr_url: None,
-            pr_number: None,
-            error: Some(match e {
-                GitServiceError::GitCLI(GitCliError::AuthFailed(_)) => {
-                    AutoPrError::GitCliNotLoggedIn
-                }
-                GitServiceError::GitCLI(GitCliError::NotAvailable) => {
-                    AutoPrError::GitCliNotInstalled
-                }
-                _ => AutoPrError::Other {
-                    message: e.to_string(),
-                },
-            }),
-        };
-    }
-
-    // normalizar target branch name (remover prefijo remote/)
-    let norm_target_branch = match deployment
-        .git()
-        .find_branch_type(&repo.path, &target_branch)
-    {
-        Ok(BranchType::Remote) => {
-            match deployment
-                .git()
-                .get_remote_name_from_branch_name(&worktree_path, &target_branch)
-            {
-                Ok(remote) => {
-                    let prefix = format!("{}/", remote);
-                    target_branch
-                        .strip_prefix(&prefix)
-                        .unwrap_or(&target_branch)
-                        .to_string()
-                }
-                Err(_) => target_branch.clone(),
-            }
-        }
-        _ => target_branch.clone(),
-    };
-
-    // crear el PR
-    let pr_title = task.title.clone();
-    let pr_request = CreatePrRequest {
-        title: pr_title,
-        body: task.description.clone(),
-        head_branch: workspace.branch.clone(),
-        base_branch: norm_target_branch.clone(),
-        draft: Some(is_draft),
-    };
-
-    // obtener repo info desde el worktree
-    let repo_info = match deployment.git().get_github_repo_info(&worktree_path, None) {
-        Ok(info) => info,
-        Err(e) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::Other {
-                    message: e.to_string(),
-                }),
-            };
-        }
-    };
-
-    let github_service = match GitHubService::new() {
-        Ok(s) => s,
-        Err(e) => {
-            return AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(AutoPrError::Other {
-                    message: e.to_string(),
-                }),
-            };
-        }
-    };
-
-    match github_service.create_pr(&repo_info, &pr_request).await {
-        Ok(pr_info) => {
-            // guardar PR info en la base de datos
-            if let Err(e) = Merge::create_pr(
-                pool,
-                workspace.id,
-                workspace_repo.repo_id,
-                &norm_target_branch,
-                pr_info.number,
-                &pr_info.url,
-            )
-            .await
-            {
-                tracing::error!("Failed to save PR info to database: {}", e);
-            }
-
-            // trigger auto-description si está habilitado
-            if auto_generate_description
-                && let Err(e) = trigger_pr_description_follow_up(
-                    deployment,
-                    workspace,
-                    pr_info.number,
-                    &pr_info.url,
-                    &repo_info,
-                )
-                .await
-            {
-                tracing::warn!("Failed to trigger PR description follow-up: {}", e);
-            }
-            AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: true,
-                pr_url: Some(pr_info.url),
-                pr_number: Some(pr_info.number),
-                error: None,
-            }
-        }
-        Err(e) => {
-            tracing::error!("Failed to create auto-PR: {}", e);
-            AutoPrResult {
-                repo_id: workspace_repo.repo_id,
-                repo_name,
-                success: false,
-                pr_url: None,
-                pr_number: None,
-                error: Some(match &e {
-                    GitHubServiceError::GhCliNotInstalled(_) => AutoPrError::GithubCliNotInstalled,
-                    GitHubServiceError::AuthFailed(_) => AutoPrError::GithubCliNotLoggedIn,
-                    _ => AutoPrError::Other {
-                        message: e.to_string(),
-                    },
-                }),
+                GitHostError::AuthFailed(_) => Ok(ResponseJson(ApiResponse::error_with_data(
+                    GetPrCommentsError::CliNotLoggedIn { provider },
+                ))),
+                _ => Err(ApiError::GitHost(e)),
             }
         }
     }

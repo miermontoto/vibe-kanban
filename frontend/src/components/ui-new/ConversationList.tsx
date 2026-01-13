@@ -35,18 +35,13 @@ const INITIAL_TOP_ITEM = { index: 'LAST' as const, align: 'end' as const };
 
 const InitialDataScrollModifier: ScrollModifier = {
   type: 'item-location',
-  location: { index: 'LAST', align: 'end' },
+  location: INITIAL_TOP_ITEM,
   purgeItemSizes: true,
-};
-
-const InitialScrollToBottom: ScrollModifier = {
-  type: 'auto-scroll-to-bottom',
-  autoScroll: false,
 };
 
 const AutoScrollToBottom: ScrollModifier = {
   type: 'auto-scroll-to-bottom',
-  autoScroll: false,
+  autoScroll: 'smooth',
 };
 
 const ScrollToTopOfLastItem: ScrollModifier = {
@@ -96,6 +91,12 @@ export function ConversationList({ attempt, task }: ConversationListProps) {
     useState<DataWithScrollModifier<PatchTypeWithKey> | null>(null);
   const [loading, setLoading] = useState(true);
   const { setEntries, reset } = useEntries();
+  const pendingUpdateRef = useRef<{
+    entries: PatchTypeWithKey[];
+    addType: AddEntryType;
+    loading: boolean;
+  } | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -103,28 +104,48 @@ export function ConversationList({ attempt, task }: ConversationListProps) {
     reset();
   }, [attempt.id, reset]);
 
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const onEntriesUpdated = (
     newEntries: PatchTypeWithKey[],
     addType: AddEntryType,
     newLoading: boolean
   ) => {
-    let scrollModifier: ScrollModifier = InitialDataScrollModifier;
+    pendingUpdateRef.current = {
+      entries: newEntries,
+      addType,
+      loading: newLoading,
+    };
 
-    if (addType === 'initial') {
-      // cuando se carga inicialmente o desde caché, scroll al fondo real
-      scrollModifier = InitialScrollToBottom;
-    } else if (addType === 'plan' && !loading) {
-      scrollModifier = ScrollToTopOfLastItem;
-    } else if (addType === 'running' && !loading) {
-      scrollModifier = AutoScrollToBottom;
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
 
-    setChannelData({ data: newEntries, scrollModifier });
-    setEntries(newEntries);
+    debounceTimeoutRef.current = setTimeout(() => {
+      const pending = pendingUpdateRef.current;
+      if (!pending) return;
 
-    if (loading) {
-      setLoading(newLoading);
-    }
+      let scrollModifier: ScrollModifier = InitialDataScrollModifier;
+
+      if (pending.addType === 'plan' && !loading) {
+        scrollModifier = ScrollToTopOfLastItem;
+      } else if (pending.addType === 'running' && !loading) {
+        scrollModifier = AutoScrollToBottom;
+      }
+
+      setChannelData({ data: pending.entries, scrollModifier });
+      setEntries(pending.entries);
+
+      if (loading) {
+        setLoading(pending.loading);
+      }
+    }, 100);
   };
 
   useConversationHistory({ attempt, onEntriesUpdated });

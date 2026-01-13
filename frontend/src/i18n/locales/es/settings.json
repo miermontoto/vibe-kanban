@@ -6,13 +6,15 @@
         "general": "General",
         "generalDesc": "Tema, notificaciones y preferencias",
         "projects": "Proyectos",
-        "projectsDesc": "Scripts y configuración de proyectos",
+        "projectsDesc": "Repositorios de proyectos y configuración",
         "agents": "Agentes",
         "agentsDesc": "Configuraciones de agentes",
         "mcp": "Servidores MCP",
         "mcpDesc": "Servidores de Protocolo de Contexto de Modelo (MCP)",
         "organizations": "Organization Settings",
-        "organizationsDesc": "Manage organization members and permissions"
+        "organizationsDesc": "Manage organization members and permissions",
+        "repos": "Repositorios",
+        "reposDesc": "Scripts y configuración de repositorios"
       }
     },
     "general": {
@@ -212,14 +214,14 @@
         "description": "Controla cuándo y cómo recibes notificaciones.",
         "sound": {
           "label": "Notificaciones de Sonido",
-          "helper": "Reproduce un sonido cuando los intentos de tarea terminan de ejecutarse.",
+          "helper": "Reproduce un sonido cuando una tarea termina de ejecutarse.",
           "fileLabel": "Sonido",
           "filePlaceholder": "Seleccionar sonido",
           "fileHelper": "Elige el sonido que se reproducirá al completar las tareas. Haz clic en el botón de volumen para escucharlo."
         },
         "push": {
           "label": "Notificaciones Push",
-          "helper": "Muestra notificaciones del sistema cuando los intentos de tarea terminan de ejecutarse."
+          "helper": "Muestra notificaciones del sistema cuando las tareas terminan de ejecutarse."
         }
       },
       "privacy": {
@@ -227,7 +229,7 @@
         "description": "Ayuda a mejorar Vibe-Kanban compartiendo datos de uso anónimos.",
         "telemetry": {
           "label": "Habilitar Telemetría",
-          "helper": "Habilita el seguimiento de eventos de uso anónimos para ayudar a mejorar la aplicación. No se recopilan prompts ni información del proyecto."
+          "helper": "Habilita el seguimiento anónimo para ayudar a mejorar la aplicación. No se recopilan prompts ni información del proyecto."
         }
       },
       "taskTemplates": {
@@ -306,8 +308,8 @@
         "loginDetectedTooltip": "Se encontraron credenciales de autenticación recientes para este agente",
         "installationFound": "Uso previo detectado",
         "installationFoundTooltip": "Se encontró la configuración del agente. Es posible que debas iniciar sesión para usarlo.",
-        "notFound": "No encontrado",
-        "notFoundTooltip": "No se detectó uso previo. El agente puede requerir instalación y/o inicio de sesión."
+        "notFound": "Desconocido",
+        "notFoundTooltip": "No pudimos verificar que este agente esté configurado, pero pruébalo."
       },
       "editor": {
         "formLabel": "Editar JSON",
@@ -484,6 +486,60 @@
         "unsavedChanges": "• Tienes cambios sin guardar",
         "discard": "Descartar",
         "confirmSwitch": "Tienes cambios sin guardar. ¿Estás seguro de que quieres cambiar de proyecto? Tus cambios se perderán."
+      }
+    },
+    "repos": {
+      "title": "Configuración del Repositorio",
+      "description": "Configura los scripts que se ejecutan cuando este repositorio se usa en workspaces.",
+      "loading": "Cargando repositorios...",
+      "loadError": "Error al cargar repositorios.",
+      "selector": {
+        "label": "Seleccionar Repositorio",
+        "placeholder": "Elige un repositorio para configurar",
+        "helper": "Selecciona un repositorio para ver y editar su configuración.",
+        "noRepos": "No hay repositorios disponibles"
+      },
+      "general": {
+        "title": "Configuración General",
+        "description": "Configura la información básica del repositorio.",
+        "displayName": {
+          "label": "Nombre para Mostrar",
+          "placeholder": "Ingresa el nombre para mostrar",
+          "helper": "Un nombre amigable para este repositorio."
+        },
+        "path": {
+          "label": "Ruta del Repositorio"
+        }
+      },
+      "scripts": {
+        "title": "Scripts y Configuración",
+        "description": "Configura los scripts de instalación, limpieza y archivos a copiar para este repositorio. Estos scripts se ejecutan cada vez que el repositorio se usa en cualquier workspace.",
+        "setup": {
+          "label": "Script de Instalación",
+          "helper": "Este script se ejecuta desde dentro del worktree después de crearse y antes de que comience el agente de codificación. Úsalo para tareas de configuración como instalar dependencias o preparar el entorno.",
+          "parallelLabel": "Ejecutar script de instalación en paralelo con el agente de codificación",
+          "parallelHelper": "Cuando está habilitado, el script de instalación se ejecuta simultáneamente con el agente de codificación en lugar de esperar a que se complete la configuración primero."
+        },
+        "cleanup": {
+          "label": "Script de Limpieza",
+          "helper": "Este script se ejecuta desde dentro del worktree después de la ejecución del agente de codificación, solo si se realizaron cambios. Úsalo para tareas de garantía de calidad como ejecutar linters, formateadores, pruebas u otros pasos de validación."
+        },
+        "copyFiles": {
+          "label": "Copiar Archivos",
+          "helper": "Lista separada por comas de archivos para copiar del directorio del repositorio original al worktree. Útil para archivos de entorno como .env. ¡Asegúrate de que estén en gitignore!"
+        },
+        "devServer": {
+          "label": "Script del Servidor de Desarrollo",
+          "helper": "Inicia un servidor de desarrollo para este repositorio. Los scripts se ejecutan desde el directorio worktree del repositorio."
+        }
+      },
+      "save": {
+        "button": "Guardar Configuración del Repositorio",
+        "success": "¡Configuración del repositorio guardada exitosamente!",
+        "error": "Error al guardar la configuración del repositorio",
+        "unsavedChanges": "Tienes cambios sin guardar",
+        "discard": "Descartar",
+        "confirmSwitch": "Tienes cambios sin guardar. ¿Estás seguro de que quieres cambiar de repositorio? Tus cambios se perderán."
       }
     }
   },

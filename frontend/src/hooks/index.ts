@@ -1,9 +1,6 @@
 export { useBranchStatus } from './useBranchStatus';
 export { useAttemptExecution } from './useAttemptExecution';
 export { useOpenInEditor } from './useOpenInEditor';
-export { useOpenInTerminal } from './useOpenInTerminal';
-export { useOpenProjectInEditor } from './useOpenProjectInEditor';
-export { useOpenProjectInTerminal } from './useOpenProjectInTerminal';
 export { useTaskAttempt, useTaskAttemptWithSession } from './useTaskAttempt';
 export { useTaskImages } from './useTaskImages';
 export { useImageUpload } from './useImageUpload';
@@ -21,7 +18,7 @@ export { useTask } from './useTask';
 export { useAttempt } from './useAttempt';
 export { useRepoBranches } from './useRepoBranches';
 export { useProjectRepos } from './useProjectRepos';
-export { useProjectRemotes } from './useProjectRemotes';
+export { useHasDevServerScript } from './useHasDevServerScript';
 export { useRepoBranchSelection } from './useRepoBranchSelection';
 export type { RepoBranchConfig } from './useRepoBranchSelection';
 export { useTaskAttempts } from './useTaskAttempts';
@@ -36,12 +33,3 @@ export { useOrganizationInvitations } from './useOrganizationInvitations';
 export { useOrganizationMutations } from './useOrganizationMutations';
 export { useVariant } from './useVariant';
 export { useRetryProcess } from './useRetryProcess';
-export {
-  usePendingCommits,
-  usePendingCommitsCount,
-  useCommitPending,
-  useDiscardPendingCommit,
-  useDiscardAllPendingCommits,
-} from './usePendingCommits';
-export { useProjects } from './useProjects';
-export { useCollapsedCards } from './useCollapsedCards';

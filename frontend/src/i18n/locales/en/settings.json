@@ -6,13 +6,15 @@
         "general": "General",
         "generalDesc": "Theme, notifications, and preferences",
         "projects": "Projects",
-        "projectsDesc": "Project scripts and configuration",
+        "projectsDesc": "Project repositories and configuration",
         "agents": "Agents",
         "agentsDesc": "Coding agent configurations",
         "mcp": "MCP Servers",
         "mcpDesc": "Model Context Protocol servers",
         "organizations": "Organization Settings",
-        "organizationsDesc": "Manage organization members and permissions"
+        "organizationsDesc": "Manage organization members and permissions",
+        "repos": "Repositories",
+        "reposDesc": "Repository scripts and configuration"
       }
     },
     "general": {
@@ -306,8 +308,8 @@
         "loginDetectedTooltip": "Recent authentication credentials found for this agent",
         "installationFound": "Previous Usage Detected",
         "installationFoundTooltip": "Agent configuration found. You may need to log in to use it.",
-        "notFound": "Not Found",
-        "notFoundTooltip": "No previous usage detected. Agent may require installation and/or login."
+        "notFound": "Unknown",
+        "notFoundTooltip": "We couldn't verify this agent is set up, but go ahead and try it."
       },
       "editor": {
         "formLabel": "Edit JSON",
@@ -507,6 +509,60 @@
         "unsavedChanges": "• You have unsaved changes",
         "discard": "Discard",
         "confirmSwitch": "You have unsaved changes. Are you sure you want to switch projects? Your changes will be lost."
+      }
+    },
+    "repos": {
+      "title": "Repository Configuration",
+      "description": "Configure scripts that run when this repository is used in workspaces.",
+      "loading": "Loading repositories...",
+      "loadError": "Failed to load repositories.",
+      "selector": {
+        "label": "Select Repository",
+        "placeholder": "Choose a repository to configure",
+        "helper": "Select a repository to view and edit its configuration.",
+        "noRepos": "No repositories available"
+      },
+      "general": {
+        "title": "General Settings",
+        "description": "Configure basic repository information.",
+        "displayName": {
+          "label": "Display Name",
+          "placeholder": "Enter display name",
+          "helper": "A friendly name for this repository."
+        },
+        "path": {
+          "label": "Repository Path"
+        }
+      },
+      "scripts": {
+        "title": "Scripts & Configuration",
+        "description": "Configure dev server, setup, cleanup, and copy files for this repository. These scripts run whenever the repository is used in any workspace.",
+        "setup": {
+          "label": "Setup Script",
+          "helper": "This script runs from within the worktree after it's created and before the coding agent starts. Use it for setup tasks like installing dependencies or preparing the environment.",
+          "parallelLabel": "Run setup script in parallel with coding agent",
+          "parallelHelper": "When enabled, the setup script runs simultaneously with the coding agent instead of waiting for setup to complete first."
+        },
+        "cleanup": {
+          "label": "Cleanup Script",
+          "helper": "This script runs from within the worktree after coding agent execution, only if changes were made. Use it for quality assurance tasks like running linters, formatters, tests, or other validation steps."
+        },
+        "copyFiles": {
+          "label": "Copy Files",
+          "helper": "Comma-separated list of files to copy from the original repository directory to the worktree. Useful for environment files like .env. Make sure these are gitignored!"
+        },
+        "devServer": {
+          "label": "Dev Server Script",
+          "helper": "Starts a development server for this repository. Scripts execute from within the repository's worktree directory."
+        }
+      },
+      "save": {
+        "button": "Save Repository Settings",
+        "success": "Repository settings saved successfully!",
+        "error": "Failed to save repository settings",
+        "unsavedChanges": "You have unsaved changes",
+        "discard": "Discard",
+        "confirmSwitch": "You have unsaved changes. Are you sure you want to switch repositories? Your changes will be lost."
       }
     }
   },

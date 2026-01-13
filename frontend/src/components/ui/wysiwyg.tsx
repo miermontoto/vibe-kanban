@@ -8,10 +8,10 @@ import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPl
 import { TRANSFORMERS, type Transformer } from '@lexical/markdown';
 import { ImageNode, IMAGE_TRANSFORMER } from './wysiwyg/nodes/image-node';
 import {
-  GitHubCommentNode,
-  GITHUB_COMMENT_TRANSFORMER,
-  GITHUB_COMMENT_EXPORT_TRANSFORMER,
-} from './wysiwyg/nodes/github-comment-node';
+  PrCommentNode,
+  PR_COMMENT_TRANSFORMER,
+  PR_COMMENT_EXPORT_TRANSFORMER,
+} from './wysiwyg/nodes/pr-comment-node';
 import { CODE_BLOCK_TRANSFORMER } from './wysiwyg/transformers/code-block-transformer';
 import { TABLE_TRANSFORMER } from './wysiwyg/transformers/table-transformer';
 import {
@@ -21,7 +21,6 @@ import {
   type LocalImageMetadata,
 } from './wysiwyg/context/task-attempt-context';
 import { FileTagTypeaheadPlugin } from './wysiwyg/plugins/file-tag-typeahead-plugin';
-import { SlashCommandTypeaheadPlugin } from './wysiwyg/plugins/slash-command-typeahead-plugin';
 import { KeyboardCommandsPlugin } from './wysiwyg/plugins/keyboard-commands-plugin';
 import { ImageKeyboardPlugin } from './wysiwyg/plugins/image-keyboard-plugin';
 import { ReadOnlyLinkPlugin } from './wysiwyg/plugins/read-only-link-plugin';
@@ -162,7 +161,7 @@ function WYSIWYGEditor({
         CodeHighlightNode,
         LinkNode,
         ImageNode,
-        GitHubCommentNode,
+        PrCommentNode,
         TableNode,
         TableRowNode,
         TableCellNode,
@@ -171,13 +170,13 @@ function WYSIWYGEditor({
     []
   );
 
-  // Extended transformers with image, GitHub comment, table, and code block support (memoized to prevent unnecessary re-renders)
+  // Extended transformers with image, PR comment, and code block support (memoized to prevent unnecessary re-renders)
   const extendedTransformers: Transformer[] = useMemo(
     () => [
       TABLE_TRANSFORMER,
       IMAGE_TRANSFORMER,
-      GITHUB_COMMENT_EXPORT_TRANSFORMER, // Export transformer for DecoratorNode (must be before import transformer)
-      GITHUB_COMMENT_TRANSFORMER, // Import transformer for fenced code block
+      PR_COMMENT_EXPORT_TRANSFORMER, // Export transformer for DecoratorNode (must be before import transformer)
+      PR_COMMENT_TRANSFORMER, // Import transformer for fenced code block
       CODE_BLOCK_TRANSFORMER,
       ...TRANSFORMERS,
     ],
@@ -206,7 +205,7 @@ function WYSIWYGEditor({
   // Memoized placeholder element
   const placeholderElement = useMemo(
     () => (
-      <div className="absolute top-0 left-0 text-sm text-secondary-foreground text-low pointer-events-none truncate">
+      <div className="absolute top-0 left-0 text-base text-secondary-foreground text-low pointer-events-none truncate">
         {placeholder}
       </div>
     ),
@@ -214,7 +213,7 @@ function WYSIWYGEditor({
   );
 
   const editorContent = (
-    <div className="wysiwyg text-sm">
+    <div className="wysiwyg text-base">
       <TaskAttemptContext.Provider value={taskAttemptId}>
         <TaskContext.Provider value={taskId}>
           <LocalImagesContext.Provider value={localImages ?? []}>
@@ -253,7 +252,6 @@ function WYSIWYGEditor({
                   <HistoryPlugin />
                   <MarkdownShortcutPlugin transformers={extendedTransformers} />
                   <FileTagTypeaheadPlugin projectId={projectId} />
-                  <SlashCommandTypeaheadPlugin />
                   <KeyboardCommandsPlugin
                     onCmdEnter={onCmdEnter}
                     onShiftCmdEnter={onShiftCmdEnter}

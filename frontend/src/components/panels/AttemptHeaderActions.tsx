@@ -10,16 +10,16 @@ import {
 } from '../ui/tooltip';
 import type { LayoutMode } from '../layout/TasksLayout';
 import type { TaskWithAttemptStatus } from 'shared/types';
-import type { Workspace } from 'shared/types';
 import { ActionsDropdown } from '../ui/actions-dropdown';
 import type { SharedTaskRecord } from '@/hooks/useProjectTasks';
+import { WorkspaceWithSession } from '@/types/attempt';
 
 interface AttemptHeaderActionsProps {
   onClose: () => void;
   mode?: LayoutMode;
   onModeChange?: (mode: LayoutMode) => void;
   task: TaskWithAttemptStatus;
-  attempt?: Workspace | null;
+  attempt?: WorkspaceWithSession | null;
   sharedTask?: SharedTaskRecord;
 }
 

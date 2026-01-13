@@ -18,8 +18,6 @@ use db::{
             ExecutionContext, ExecutionProcess, ExecutionProcessRunReason, ExecutionProcessStatus,
         },
         execution_process_repo_state::ExecutionProcessRepoState,
-        pending_commit::{CreatePendingCommit, PendingCommit},
-        project_repo::ProjectRepo,
         repo::Repo,
         scratch::{DraftFollowUpData, Scratch, ScratchType},
         task::{Task, TaskStatus},
@@ -41,9 +39,11 @@ use executors::{
     profile::ExecutorProfileId,
 };
 use futures::{FutureExt, TryStreamExt, stream::select};
+use serde_json::json;
 use services::services::{
+    analytics::AnalyticsContext,
     approvals::{Approvals, executor_approvals::ExecutorApprovalBridge},
-    config::{Config, GitCommitTitleMode},
+    config::Config,
     container::{ContainerError, ContainerRef, ContainerService},
     diff_stream::{self, DiffStreamHandle},
     git::{GitCli, GitService},
@@ -73,6 +73,7 @@ pub struct LocalContainerService {
     config: Arc<RwLock<Config>>,
     git: GitService,
     image_service: ImageService,
+    analytics: Option<AnalyticsContext>,
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
     publisher: Result<SharePublisher, RemoteClientNotConfigured>,
@@ -87,6 +88,7 @@ impl LocalContainerService {
         config: Arc<RwLock<Config>>,
         git: GitService,
         image_service: ImageService,
+        analytics: Option<AnalyticsContext>,
         approvals: Approvals,
         queued_message_service: QueuedMessageService,
         publisher: Result<SharePublisher, RemoteClientNotConfigured>,
@@ -103,6 +105,7 @@ impl LocalContainerService {
             config,
             git,
             image_service,
+            analytics,
             approvals,
             queued_message_service,
             publisher,
@@ -230,67 +233,41 @@ impl LocalContainerService {
         }
     }
 
-    /// resuelve el modo de título de commit efectivo (proyecto override o config global)
-    async fn get_effective_commit_title_mode(&self, ctx: &ExecutionContext) -> GitCommitTitleMode {
-        // primero verificar si el proyecto tiene un override
-        if let Some(mode_str) = &ctx.project.git_commit_title_mode {
-            match mode_str.as_str() {
-                "AgentSummary" => return GitCommitTitleMode::AgentSummary,
-                "AiGenerated" => return GitCommitTitleMode::AiGenerated,
-                "Manual" => return GitCommitTitleMode::Manual,
-                _ => {
-                    tracing::warn!(
-                        "Invalid git_commit_title_mode '{}' in project, using global config",
-                        mode_str
-                    );
-                }
-            }
-        }
-        // si no hay override, usar config global
-        self.config.read().await.git_commit_title_mode.clone()
-    }
-
-    /// obtener el summary del agente si está disponible
-    async fn get_agent_summary(&self, ctx: &ExecutionContext) -> Option<String> {
-        if ctx.execution_process.run_reason != ExecutionProcessRunReason::CodingAgent {
-            return None;
-        }
-
-        match CodingAgentTurn::find_by_execution_process_id(
-            &self.db().pool,
-            ctx.execution_process.id,
-        )
-        .await
-        {
-            Ok(Some(turn)) => turn.summary,
-            Ok(None) => {
-                tracing::debug!(
-                    "No coding agent turn found for execution process {}",
-                    ctx.execution_process.id
-                );
-                None
-            }
-            Err(e) => {
-                tracing::debug!(
-                    "Failed to retrieve coding agent turn for execution process {}: {}",
-                    ctx.execution_process.id,
-                    e
-                );
-                None
-            }
-        }
-    }
-
-    /// Get the commit message based on the execution run reason (mode AgentSummary).
-    async fn get_commit_message_from_agent(&self, ctx: &ExecutionContext) -> String {
+    /// Get the commit message based on the execution run reason.
+    async fn get_commit_message(&self, ctx: &ExecutionContext) -> String {
         match ctx.execution_process.run_reason {
             ExecutionProcessRunReason::CodingAgent => {
-                self.get_agent_summary(ctx).await.unwrap_or_else(|| {
-                    format!(
-                        "Commit changes from coding agent for workspace {}",
-                        ctx.workspace.id
-                    )
-                })
+                // Try to retrieve the task summary from the coding agent turn
+                // otherwise fallback to default message
+                match CodingAgentTurn::find_by_execution_process_id(
+                    &self.db().pool,
+                    ctx.execution_process.id,
+                )
+                .await
+                {
+                    Ok(Some(turn)) if turn.summary.is_some() => turn.summary.unwrap(),
+                    Ok(_) => {
+                        tracing::debug!(
+                            "No summary found for execution process {}, using default message",
+                            ctx.execution_process.id
+                        );
+                        format!(
+                            "Commit changes from coding agent for workspace {}",
+                            ctx.workspace.id
+                        )
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            "Failed to retrieve summary for execution process {}: {}",
+                            ctx.execution_process.id,
+                            e
+                        );
+                        format!(
+                            "Commit changes from coding agent for workspace {}",
+                            ctx.workspace.id
+                        )
+                    }
+                }
             }
             ExecutionProcessRunReason::CleanupScript => {
                 format!("Cleanup script changes for workspace {}", ctx.workspace.id)
@@ -300,73 +277,6 @@ impl LocalContainerService {
                 ctx.execution_process.id
             ),
         }
-    }
-
-    /// obtener un resumen del diff para mostrar al usuario en modo Manual
-    fn get_diff_summary(&self, worktree_path: &Path) -> String {
-        let git = GitCli::new();
-        match git.diff_stat(worktree_path) {
-            Ok(stat) => stat,
-            Err(e) => {
-                tracing::warn!("Failed to get diff stat: {}", e);
-                "Changes pending".to_string()
-            }
-        }
-    }
-
-    /// crear pending commits para modo Manual
-    async fn create_pending_commits(
-        &self,
-        ctx: &ExecutionContext,
-        repos_with_changes: Vec<(Repo, PathBuf)>,
-    ) -> Result<usize, ContainerError> {
-        let agent_summary = self.get_agent_summary(ctx).await;
-        let mut created = 0;
-
-        let mut failures = Vec::new();
-
-        for (repo, worktree_path) in repos_with_changes {
-            let diff_summary = self.get_diff_summary(&worktree_path);
-
-            let data = CreatePendingCommit {
-                workspace_id: ctx.workspace.id,
-                repo_id: repo.id,
-                repo_path: repo.name.clone(),
-                diff_summary,
-                agent_summary: agent_summary.clone(),
-            };
-
-            match PendingCommit::create(&self.db().pool, &data).await {
-                Ok(pending) => {
-                    tracing::info!(
-                        "Created pending commit {} for repo '{}' in workspace {}",
-                        pending.id,
-                        repo.name,
-                        ctx.workspace.id
-                    );
-                    created += 1;
-                }
-                Err(e) => {
-                    let error_msg = format!(
-                        "Failed to create pending commit for repo '{}': {}",
-                        repo.name, e
-                    );
-                    tracing::error!("{}", error_msg);
-                    failures.push(error_msg);
-                }
-            }
-        }
-
-        if !failures.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Failed to create {} pending commit(s): {}",
-                failures.len(),
-                failures.join("; ")
-            )
-            .into());
-        }
-
-        Ok(created)
     }
 
     /// Check which repos have uncommitted changes. Fails if any repo is inaccessible.
@@ -402,14 +312,8 @@ impl LocalContainerService {
     }
 
     /// Commit changes to each repo. Logs failures but continues with other repos.
-    /// Returns list of (Repo, PathBuf) pairs where commits succeeded for potential auto-push
-    fn commit_repos(
-        &self,
-        repos_with_changes: Vec<(Repo, PathBuf)>,
-        message: &str,
-    ) -> (bool, Vec<(Repo, PathBuf)>) {
+    fn commit_repos(&self, repos_with_changes: Vec<(Repo, PathBuf)>, message: &str) -> bool {
         let mut any_committed = false;
-        let mut successfully_committed = Vec::new();
 
         for (repo, worktree_path) in repos_with_changes {
             tracing::debug!(
@@ -421,7 +325,6 @@ impl LocalContainerService {
             match self.git().commit(&worktree_path, message) {
                 Ok(true) => {
                     any_committed = true;
-                    successfully_committed.push((repo.clone(), worktree_path.clone()));
                     tracing::info!("Committed changes in repo '{}'", repo.name);
                 }
                 Ok(false) => {
@@ -433,7 +336,7 @@ impl LocalContainerService {
             }
         }
 
-        (any_committed, successfully_committed)
+        any_committed
     }
 
     /// Spawn a background task that polls the child process for completion and
@@ -447,7 +350,9 @@ impl LocalContainerService {
         let child_store = self.child_store.clone();
         let msg_stores = self.msg_stores.clone();
         let db = self.db.clone();
+        let config = self.config.clone();
         let container = self.clone();
+        let analytics = self.analytics.clone();
         let publisher = self.publisher.clone();
 
         let mut process_exit_rx = self.spawn_os_exit_watcher(exec_id);
@@ -525,9 +430,6 @@ impl LocalContainerService {
                     ExecutionProcessStatus::Running
                 );
 
-                // track si ya finalizamos para evitar notificaciones duplicadas
-                let mut already_finalized = false;
-
                 if success || cleanup_done {
                     // Commit changes (if any) and get feedback about whether changes were made
                     let changes_committed = match container.try_commit_changes(&ctx).await {
@@ -561,11 +463,10 @@ impl LocalContainerService {
 
                         // Manually finalize task since we're bypassing normal execution flow
                         container.finalize_task(publisher.as_ref().ok(), &ctx).await;
-                        already_finalized = true;
                     }
                 }
 
-                if container.should_finalize(&ctx) && !already_finalized {
+                if container.should_finalize(&ctx) {
                     // Only execute queued messages if the execution succeeded
                     // If it failed or was killed, just clear the queue and finalize
                     let should_execute_queued = !matches!(
@@ -617,6 +518,24 @@ impl LocalContainerService {
                     } else {
                         container.finalize_task(publisher.as_ref().ok(), &ctx).await;
                     }
+                }
+
+                // Fire analytics event when CodingAgent execution has finished
+                if config.read().await.analytics_enabled
+                    && matches!(
+                        &ctx.execution_process.run_reason,
+                        ExecutionProcessRunReason::CodingAgent
+                    )
+                    && let Some(analytics) = &analytics
+                {
+                    analytics.analytics_service.track_event(&analytics.user_id, "task_attempt_finished", Some(json!({
+                        "task_id": ctx.task.id.to_string(),
+                        "project_id": ctx.task.project_id.to_string(),
+                        "workspace_id": ctx.workspace.id.to_string(),
+                        "session_id": ctx.session.id.to_string(),
+                        "execution_success": matches!(ctx.execution_process.status, ExecutionProcessStatus::Completed),
+                        "exit_code": ctx.execution_process.exit_code,
+                    })));
                 }
             }
 
@@ -908,9 +827,9 @@ impl LocalContainerService {
         )
         .await?;
 
-        let project_repos =
-            ProjectRepo::find_by_project_id_with_names(&self.db.pool, ctx.project.id).await?;
-        let cleanup_action = self.cleanup_actions_for_repos(&project_repos);
+        let repos =
+            WorkspaceRepo::find_repos_for_workspace(&self.db.pool, ctx.workspace.id).await?;
+        let cleanup_action = self.cleanup_actions_for_repos(&repos);
 
         let working_dir = ctx
             .workspace
@@ -943,128 +862,6 @@ impl LocalContainerService {
             &ExecutionProcessRunReason::CodingAgent,
         )
         .await
-    }
-
-    /// intenta hacer auto-push después de un commit exitoso
-    /// solo hace push si la configuración (proyecto o global) lo permite
-    async fn try_auto_push_after_commit(
-        &self,
-        ctx: &ExecutionContext,
-        committed_repos: Vec<(db::models::repo::Repo, PathBuf)>,
-    ) {
-        use db::models::merge::Merge;
-        use services::services::config::GitAutoPushMode;
-
-        // determinar el modo de auto-push efectivo (proyecto override o config global)
-        let auto_push_mode = if let Some(mode_str) = &ctx.project.git_auto_push_mode {
-            match mode_str.as_str() {
-                "Never" => GitAutoPushMode::Never,
-                "Always" => GitAutoPushMode::Always,
-                "IfPrExists" => GitAutoPushMode::IfPrExists,
-                _ => {
-                    tracing::warn!(
-                        "Invalid git_auto_push_mode '{}' in project, using global config",
-                        mode_str
-                    );
-                    self.config.read().await.git_auto_push_mode.clone()
-                }
-            }
-        } else {
-            self.config.read().await.git_auto_push_mode.clone()
-        };
-
-        // si el modo es Never, no hacer nada
-        if matches!(auto_push_mode, GitAutoPushMode::Never) {
-            tracing::debug!("Auto-push disabled, skipping push after commit");
-            return;
-        }
-
-        for (repo, worktree_path) in committed_repos {
-            // obtener el nombre de la rama actual
-            let branch_name = match self.git().get_current_branch(&worktree_path) {
-                Ok(name) => name,
-                Err(e) => {
-                    tracing::warn!(
-                        "Failed to get current branch for repo '{}': {}",
-                        repo.name,
-                        e
-                    );
-                    continue;
-                }
-            };
-
-            // verificar si debemos hacer push según el modo
-            let should_push = match auto_push_mode {
-                GitAutoPushMode::Always => true,
-                GitAutoPushMode::IfPrExists => {
-                    // verificar si existe un PR abierto para esta rama
-                    match Merge::has_open_pr_for_branch(
-                        &self.db().pool,
-                        ctx.workspace.id,
-                        repo.id,
-                        &branch_name,
-                    )
-                    .await
-                    {
-                        Ok(has_pr) => {
-                            if has_pr {
-                                tracing::info!(
-                                    "Found open PR for branch '{}' in repo '{}', will auto-push",
-                                    branch_name,
-                                    repo.name
-                                );
-                            } else {
-                                tracing::debug!(
-                                    "No open PR found for branch '{}' in repo '{}', skipping auto-push",
-                                    branch_name,
-                                    repo.name
-                                );
-                            }
-                            has_pr
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to check for open PR in repo '{}': {}, skipping auto-push",
-                                repo.name,
-                                e
-                            );
-                            false
-                        }
-                    }
-                }
-                GitAutoPushMode::Never => false,
-            };
-
-            if !should_push {
-                continue;
-            }
-
-            // intentar hacer push
-            tracing::info!(
-                "Auto-pushing branch '{}' in repo '{}' after commit",
-                branch_name,
-                repo.name
-            );
-
-            if let Err(e) = self
-                .git()
-                .push_to_github(&worktree_path, &branch_name, false)
-            {
-                tracing::warn!(
-                    "Auto-push failed for repo '{}' branch '{}': {}",
-                    repo.name,
-                    branch_name,
-                    e
-                );
-                // no retornamos error - el commit fue exitoso, solo el push falló
-            } else {
-                tracing::info!(
-                    "Auto-push successful for repo '{}' branch '{}'",
-                    repo.name,
-                    branch_name
-                );
-            }
-        }
     }
 }
 
@@ -1519,16 +1316,7 @@ impl ContainerService for LocalContainerService {
             return Ok(false);
         }
 
-        // verifica si auto-commit está habilitado (proyecto override o config global)
-        let auto_commit_enabled = match ctx.project.git_auto_commit_enabled {
-            Some(project_setting) => project_setting,
-            None => self.config.read().await.git_auto_commit_enabled,
-        };
-
-        if !auto_commit_enabled {
-            tracing::debug!("Auto-commit disabled, skipping commit");
-            return Ok(false);
-        }
+        let message = self.get_commit_message(ctx).await;
 
         let container_ref = ctx
             .workspace
@@ -1543,54 +1331,7 @@ impl ContainerService for LocalContainerService {
             return Ok(false);
         }
 
-        // obtener el modo de título de commit
-        let title_mode = self.get_effective_commit_title_mode(ctx).await;
-        tracing::debug!("Commit title mode: {:?}", title_mode);
-
-        match title_mode {
-            GitCommitTitleMode::AgentSummary => {
-                let message = self.get_commit_message_from_agent(ctx).await;
-                let (any_committed, committed_repos) =
-                    self.commit_repos(repos_with_changes, &message);
-
-                // intentar hacer auto-push después del commit si está habilitado
-                if any_committed {
-                    self.try_auto_push_after_commit(ctx, committed_repos).await;
-                }
-
-                Ok(any_committed)
-            }
-            GitCommitTitleMode::AiGenerated => {
-                // TODO: implementar generación de título con AI
-                // por ahora, usar el comportamiento de AgentSummary como fallback
-                tracing::debug!(
-                    "AiGenerated mode not yet implemented, using AgentSummary fallback"
-                );
-                let message = self.get_commit_message_from_agent(ctx).await;
-                let (any_committed, committed_repos) =
-                    self.commit_repos(repos_with_changes, &message);
-
-                // intentar hacer auto-push después del commit si está habilitado
-                if any_committed {
-                    self.try_auto_push_after_commit(ctx, committed_repos).await;
-                }
-
-                Ok(any_committed)
-            }
-            GitCommitTitleMode::Manual => {
-                // crear pending commits en lugar de commitear directamente
-                let created = self.create_pending_commits(ctx, repos_with_changes).await?;
-                if created > 0 {
-                    tracing::info!(
-                        "Created {} pending commit(s) for workspace {} (manual mode)",
-                        created,
-                        ctx.workspace.id
-                    );
-                }
-                // retornar false porque no se hizo commit automático
-                Ok(false)
-            }
-        }
+        Ok(self.commit_repos(repos_with_changes, &message))
     }
 
     /// Copy files from the original project directory to the worktree.

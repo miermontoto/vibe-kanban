@@ -60,7 +60,8 @@
       "ranCommand": "Ejecutó comando",
       "createdTask": "Creó tarea: {{description}}",
       "todoOperation": "{{operation}} tareas pendientes"
-    }
+    },
+    "fixScript": "Corregir Script"
   },
   "language": {
     "browserDefault": "Predeterminado del navegador"
@@ -142,7 +143,9 @@
   "fileTree": {
     "searchPlaceholder": "Buscar archivos...",
     "noResults": "No hay archivos coincidentes",
-    "title": "Archivos"
+    "title": "Archivos",
+    "showGitHubComments": "Mostrar comentarios de GitHub",
+    "hideGitHubComments": "Ocultar comentarios de GitHub"
   },
   "sections": {
     "changes": "Cambios",
@@ -169,7 +172,15 @@
     "viewInChangesPanel": "Ver en panel de cambios",
     "copyPath": "Copiar ruta",
     "copyWorktreePath": "Copiar ruta del worktree",
-    "openInIde": "Abrir en IDE"
+    "openInIde": "Abrir en IDE",
+    "cancel": "Cancelar",
+    "saveChanges": "Guardar cambios",
+    "copied": "Copiado"
+  },
+  "comments": {
+    "addReviewComment": "Agregar comentario de revisión",
+    "addPlaceholder": "Agregar un comentario...",
+    "editPlaceholder": "Editar comentario..."
   },
   "confirm": {
     "defaultConfirm": "Confirmar",

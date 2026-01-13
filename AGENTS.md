@@ -53,6 +53,9 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 - Data directory: `~/.local/share/vkm` (XDG standard)
 - Cache directory: `~/.vkm/bin`
 
+## Automated QA
+- When testing changes by runnign the application, you should prefer `pnpm run dev:qa` over `pnpm run dev`, which starts the application in a dedicated mode that is optimised for QA testing
+
 ## Coding Style & Naming Conventions
 
 - Rust: `rustfmt` enforced (`rustfmt.toml`); group imports by crate; snake_case modules, PascalCase types.

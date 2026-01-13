@@ -48,11 +48,8 @@ import WYSIWYGEditor from '@/components/ui/wysiwyg';
 import { useRetryUi } from '@/contexts/RetryUiContext';
 import { useFollowUpSend } from '@/hooks/useFollowUpSend';
 import { useVariant } from '@/hooks/useVariant';
-import type {
-  DraftFollowUpData,
-  ExecutorAction,
-  ExecutorProfileId,
-} from 'shared/types';
+import type { DraftFollowUpData, ExecutorProfileId } from 'shared/types';
+import { extractProfileFromAction } from '@/utils/executor';
 import { buildResolveConflictsInstructions } from '@/lib/conflicts';
 import { useTranslation } from 'react-i18next';
 import { useScratch } from '@/hooks/useScratch';
@@ -61,8 +58,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queueApi } from '@/lib/api';
 import type { QueueStatus } from 'shared/types';
 import { imagesApi, attemptsApi } from '@/lib/api';
-import { GitHubCommentsDialog } from '@/components/dialogs/tasks/GitHubCommentsDialog';
-import type { NormalizedComment } from '@/components/ui/wysiwyg/nodes/github-comment-node';
+import { PrCommentsDialog } from '@/components/dialogs/tasks/PrCommentsDialog';
+import type { NormalizedComment } from '@/components/ui/wysiwyg/nodes/pr-comment-node';
 import type { Session } from 'shared/types';
 
 interface TaskFollowUpSectionProps {
@@ -156,29 +153,11 @@ export function TaskFollowUpSection({
   // Variant selection - derive default from latest process
   const latestProfileId = useMemo<ExecutorProfileId | null>(() => {
     if (!processes?.length) return null;
-
-    const extractProfile = (
-      action: ExecutorAction | null
-    ): ExecutorProfileId | null => {
-      let curr: ExecutorAction | null = action;
-      while (curr) {
-        const typ = curr.typ;
-        switch (typ.type) {
-          case 'CodingAgentInitialRequest':
-          case 'CodingAgentFollowUpRequest':
-            return typ.executor_profile_id;
-          case 'ScriptRequest':
-            curr = curr.next_action;
-            continue;
-        }
-      }
-      return null;
-    };
     return (
       processes
         .slice()
         .reverse()
-        .map((p) => extractProfile(p.executor_action ?? null))
+        .map((p) => extractProfileFromAction(p.executor_action ?? null))
         .find((pid) => pid !== null) ?? null
     );
   }, [processes]);
@@ -580,13 +559,13 @@ export function TaskFollowUpSection({
     [handlePasteFiles]
   );
 
-  // Handler for GitHub comments insertion
-  const handleGitHubCommentClick = useCallback(async () => {
+  // Handler for PR comments insertion
+  const handlePrCommentClick = useCallback(async () => {
     if (!workspaceId) return;
     const repoId = getSelectedRepoId();
     if (!repoId) return;
 
-    const result = await GitHubCommentsDialog.show({
+    const result = await PrCommentsDialog.show({
       attemptId: workspaceId,
       repoId,
     });
@@ -835,14 +814,14 @@ export function TaskFollowUpSection({
             <Paperclip className="h-4 w-4" />
           </Button>
 
-          {/* GitHub Comments button */}
+          {/* PR Comments button */}
           <Button
-            onClick={handleGitHubCommentClick}
+            onClick={handlePrCommentClick}
             disabled={!isEditable}
             size="sm"
             variant="outline"
-            title="Insert GitHub comment"
-            aria-label="Insert GitHub comment"
+            title="Insert PR comment"
+            aria-label="Insert PR comment"
           >
             <MessageSquare className="h-4 w-4" />
           </Button>

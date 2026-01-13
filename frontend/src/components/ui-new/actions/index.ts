@@ -1,7 +1,7 @@
 import type { Icon } from '@phosphor-icons/react';
 import type { NavigateFunction } from 'react-router-dom';
 import type { QueryClient } from '@tanstack/react-query';
-import type { EditorType, Workspace } from 'shared/types';
+import type { EditorType, ExecutionProcess, Workspace } from 'shared/types';
 import type { DiffViewMode } from '@/stores/useDiffViewStore';
 import {
   CopyIcon,
@@ -30,6 +30,8 @@ import {
   CrosshairIcon,
   DesktopIcon,
   PencilSimpleIcon,
+  ArrowUpIcon,
+  HighlighterIcon,
 } from '@phosphor-icons/react';
 import { useDiffViewStore } from '@/stores/useDiffViewStore';
 import { useUiPreferencesStore } from '@/stores/useUiPreferencesStore';
@@ -41,10 +43,12 @@ import { workspaceSummaryKeys } from '@/components/ui-new/hooks/useWorkspaces';
 import { ConfirmDialog } from '@/components/ui-new/dialogs/ConfirmDialog';
 import { ChangeTargetDialog } from '@/components/ui-new/dialogs/ChangeTargetDialog';
 import { RebaseDialog } from '@/components/ui-new/dialogs/RebaseDialog';
+import { ResolveConflictsDialog } from '@/components/ui-new/dialogs/ResolveConflictsDialog';
 import { RenameWorkspaceDialog } from '@/components/ui-new/dialogs/RenameWorkspaceDialog';
 import { CreatePRDialog } from '@/components/dialogs/tasks/CreatePRDialog';
 import { getIdeName } from '@/components/ide/IdeIcon';
 import { EditorSelectionDialog } from '@/components/dialogs/tasks/EditorSelectionDialog';
+import { StartReviewDialog } from '@/components/dialogs/tasks/StartReviewDialog';
 
 // Special icon types for ContextBar
 export type SpecialIconType = 'ide-icon' | 'copy-icon';
@@ -62,20 +66,13 @@ export type DevServerState = 'stopped' | 'starting' | 'running' | 'stopping';
 export interface ActionExecutorContext {
   navigate: NavigateFunction;
   queryClient: QueryClient;
-  // Optional workspace selection context (for archive action)
-  selectWorkspace?: (workspaceId: string) => void;
-  activeWorkspaces?: SidebarWorkspace[];
-  // Current workspace ID (for actions that optionally use workspace context)
-  currentWorkspaceId?: string;
-
-  // ContextBar-specific state (optional, only set in ContextBar context)
-  containerRef?: string; // For copy path (workspace.container_ref)
-  runningDevServerId?: string; // For stopping dev server
-  startDevServer?: () => void; // For starting dev server with mutation tracking
-  stopDevServer?: () => void; // For stopping dev server with mutation tracking
-
-  // Git-specific state (optional, only set when clicking from a specific RepoCard)
-  gitRepoId?: string;
+  selectWorkspace: (workspaceId: string) => void;
+  activeWorkspaces: SidebarWorkspace[];
+  currentWorkspaceId: string | null;
+  containerRef: string | null;
+  runningDevServers: ExecutionProcess[];
+  startDevServer: () => void;
+  stopDevServer: () => void;
 }
 
 // Context for evaluating action visibility and state conditions
@@ -98,14 +95,19 @@ export interface ActionVisibilityContext {
   diffViewMode: DiffViewMode;
   isAllDiffsExpanded: boolean;
 
-  // ContextBar-specific state (optional)
-  editorType?: EditorType | null;
-  devServerState?: DevServerState;
-  runningDevServerId?: string;
+  // Dev server state
+  editorType: EditorType | null;
+  devServerState: DevServerState;
+  runningDevServers: ExecutionProcess[];
 
   // Git panel state
   hasGitRepos: boolean;
   hasMultipleRepos: boolean;
+  hasOpenPR: boolean;
+  hasUnpushedCommits: boolean;
+
+  // Execution state
+  isAttemptRunning: boolean;
 }
 
 // Base properties shared by all actions
@@ -144,23 +146,35 @@ export interface WorkspaceActionDefinition extends ActionBase {
   ) => Promise<void> | void;
 }
 
+// Git action (requires workspace + repoId)
+export interface GitActionDefinition extends ActionBase {
+  requiresTarget: 'git';
+  execute: (
+    ctx: ActionExecutorContext,
+    workspaceId: string,
+    repoId: string
+  ) => Promise<void> | void;
+}
+
 // Discriminated union
 export type ActionDefinition =
   | GlobalActionDefinition
-  | WorkspaceActionDefinition;
+  | WorkspaceActionDefinition
+  | GitActionDefinition;
 
-// Helper to get workspace from query cache
-function getWorkspaceFromCache(
+// Helper to get workspace from query cache or fetch from API
+async function getWorkspace(
   queryClient: QueryClient,
   workspaceId: string
-): Workspace {
-  const workspace = queryClient.getQueryData<Workspace>(
+): Promise<Workspace> {
+  const cached = queryClient.getQueryData<Workspace>(
     attemptKeys.byId(workspaceId)
   );
-  if (!workspace) {
-    throw new Error('Workspace not found');
+  if (cached) {
+    return cached;
   }
-  return workspace;
+  // Fetch from API if not in cache
+  return attemptsApi.get(workspaceId);
 }
 
 // Helper to invalidate workspace-related queries
@@ -170,6 +184,22 @@ function invalidateWorkspaceQueries(
 ) {
   queryClient.invalidateQueries({ queryKey: attemptKeys.byId(workspaceId) });
   queryClient.invalidateQueries({ queryKey: workspaceSummaryKeys.all });
+}
+
+// Helper to find the next workspace to navigate to when removing current workspace
+function getNextWorkspaceId(
+  activeWorkspaces: SidebarWorkspace[],
+  removingWorkspaceId: string
+): string | null {
+  const currentIndex = activeWorkspaces.findIndex(
+    (ws) => ws.id === removingWorkspaceId
+  );
+  if (currentIndex >= 0 && activeWorkspaces.length > 1) {
+    const nextWorkspace =
+      activeWorkspaces[currentIndex + 1] || activeWorkspaces[currentIndex - 1];
+    return nextWorkspace?.id ?? null;
+  }
+  return null;
 }
 
 // All application actions
@@ -199,7 +229,7 @@ export const Actions = {
     icon: PencilSimpleIcon,
     requiresTarget: true,
     execute: async (ctx, workspaceId) => {
-      const workspace = getWorkspaceFromCache(ctx.queryClient, workspaceId);
+      const workspace = await getWorkspace(ctx.queryClient, workspaceId);
       await RenameWorkspaceDialog.show({
         workspaceId,
         currentName: workspace.name || workspace.branch,
@@ -213,7 +243,7 @@ export const Actions = {
     icon: PushPinIcon,
     requiresTarget: true,
     execute: async (ctx, workspaceId) => {
-      const workspace = getWorkspaceFromCache(ctx.queryClient, workspaceId);
+      const workspace = await getWorkspace(ctx.queryClient, workspaceId);
       await attemptsApi.update(workspaceId, {
         pinned: !workspace.pinned,
       });
@@ -230,29 +260,20 @@ export const Actions = {
     isVisible: (ctx) => ctx.hasWorkspace,
     isActive: (ctx) => ctx.workspaceArchived,
     execute: async (ctx, workspaceId) => {
-      const workspace = getWorkspaceFromCache(ctx.queryClient, workspaceId);
+      const workspace = await getWorkspace(ctx.queryClient, workspaceId);
       const wasArchived = workspace.archived;
 
-      // Calculate next workspace before archiving (if we have the context)
-      let nextWorkspaceId: string | null = null;
-      if (!wasArchived && ctx.selectWorkspace && ctx.activeWorkspaces) {
-        const currentIndex = ctx.activeWorkspaces.findIndex(
-          (ws) => ws.id === workspaceId
-        );
-        if (currentIndex >= 0 && ctx.activeWorkspaces.length > 1) {
-          const nextWorkspace =
-            ctx.activeWorkspaces[currentIndex + 1] ||
-            ctx.activeWorkspaces[currentIndex - 1];
-          nextWorkspaceId = nextWorkspace?.id ?? null;
-        }
-      }
+      // Calculate next workspace before archiving
+      const nextWorkspaceId = !wasArchived
+        ? getNextWorkspaceId(ctx.activeWorkspaces, workspaceId)
+        : null;
 
       // Perform the archive/unarchive
       await attemptsApi.update(workspaceId, { archived: !wasArchived });
       invalidateWorkspaceQueries(ctx.queryClient, workspaceId);
 
       // Select next workspace after successful archive
-      if (!wasArchived && nextWorkspaceId && ctx.selectWorkspace) {
+      if (!wasArchived && nextWorkspaceId) {
         ctx.selectWorkspace(nextWorkspaceId);
       }
     },
@@ -265,7 +286,7 @@ export const Actions = {
     variant: 'destructive',
     requiresTarget: true,
     execute: async (ctx, workspaceId) => {
-      const workspace = getWorkspaceFromCache(ctx.queryClient, workspaceId);
+      const workspace = await getWorkspace(ctx.queryClient, workspaceId);
       const result = await ConfirmDialog.show({
         title: 'Delete Workspace',
         message:
@@ -275,12 +296,41 @@ export const Actions = {
         variant: 'destructive',
       });
       if (result === 'confirmed') {
+        // Calculate next workspace before deleting (only if deleting current)
+        const isCurrentWorkspace = ctx.currentWorkspaceId === workspaceId;
+        const nextWorkspaceId = isCurrentWorkspace
+          ? getNextWorkspaceId(ctx.activeWorkspaces, workspaceId)
+          : null;
+
         await tasksApi.delete(workspace.task_id);
         ctx.queryClient.invalidateQueries({ queryKey: taskKeys.all });
         ctx.queryClient.invalidateQueries({
           queryKey: workspaceSummaryKeys.all,
         });
+
+        // Navigate away if we deleted the current workspace
+        if (isCurrentWorkspace) {
+          if (nextWorkspaceId) {
+            ctx.selectWorkspace(nextWorkspaceId);
+          } else {
+            ctx.navigate('/workspaces/create');
+          }
+        }
       }
+    },
+  },
+
+  StartReview: {
+    id: 'start-review',
+    label: 'Start Review',
+    icon: HighlighterIcon,
+    requiresTarget: true,
+    isVisible: (ctx) => ctx.hasWorkspace,
+    getTooltip: () => 'Ask the agent to review your changes',
+    execute: async (_ctx, workspaceId) => {
+      await StartReviewDialog.show({
+        workspaceId,
+      });
     },
   },
 
@@ -289,7 +339,6 @@ export const Actions = {
     id: 'new-workspace',
     label: 'New Workspace',
     icon: PlusIcon,
-    shortcut: 'N',
     requiresTarget: false,
     execute: (ctx) => {
       ctx.navigate('/workspaces/create');
@@ -300,7 +349,6 @@ export const Actions = {
     id: 'settings',
     label: 'Settings',
     icon: GearIcon,
-    shortcut: ',',
     requiresTarget: false,
     execute: (ctx) => {
       ctx.navigate('/settings');
@@ -364,7 +412,6 @@ export const Actions = {
         ? 'Hide Sidebar'
         : 'Show Sidebar',
     icon: SidebarSimpleIcon,
-    shortcut: '[',
     requiresTarget: false,
     isActive: (ctx) => ctx.isSidebarVisible,
     execute: () => {
@@ -394,7 +441,6 @@ export const Actions = {
         ? 'Hide Git Panel'
         : 'Show Git Panel',
     icon: SidebarSimpleIcon,
-    shortcut: ']',
     requiresTarget: false,
     isActive: (ctx) => ctx.isGitPanelVisible,
     execute: () => {
@@ -409,7 +455,6 @@ export const Actions = {
         ? 'Hide Changes Panel'
         : 'Show Changes Panel',
     icon: GitDiffIcon,
-    shortcut: 'C',
     requiresTarget: false,
     isVisible: (ctx) => !ctx.isCreateMode,
     isActive: (ctx) => ctx.isChangesMode,
@@ -426,7 +471,6 @@ export const Actions = {
         ? 'Hide Logs Panel'
         : 'Show Logs Panel',
     icon: TerminalIcon,
-    shortcut: 'L',
     requiresTarget: false,
     isVisible: (ctx) => !ctx.isCreateMode,
     isActive: (ctx) => ctx.isLogsMode,
@@ -443,7 +487,6 @@ export const Actions = {
         ? 'Hide Preview Panel'
         : 'Show Preview Panel',
     icon: DesktopIcon,
-    shortcut: 'P',
     requiresTarget: false,
     isVisible: (ctx) => !ctx.isCreateMode,
     isActive: (ctx) => ctx.isPreviewMode,
@@ -466,7 +509,7 @@ export const Actions = {
         return;
       }
 
-      const workspace = getWorkspaceFromCache(
+      const workspace = await getWorkspace(
         ctx.queryClient,
         ctx.currentWorkspaceId
       );
@@ -589,10 +632,12 @@ export const Actions = {
     getLabel: (ctx) =>
       ctx.devServerState === 'running' ? 'Stop Dev Server' : 'Start Dev Server',
     execute: (ctx) => {
-      if (ctx.runningDevServerId && ctx.stopDevServer) {
+      if (ctx.runningDevServers.length > 0) {
         ctx.stopDevServer();
-      } else if (ctx.startDevServer) {
+      } else {
         ctx.startDevServer();
+        // Auto-open preview mode when starting dev server
+        useLayoutStore.getState().setPreviewMode(true);
       }
     },
   },
@@ -602,20 +647,14 @@ export const Actions = {
     id: 'git-create-pr',
     label: 'Create Pull Request',
     icon: GitPullRequestIcon,
-    requiresTarget: true,
+    requiresTarget: 'git',
     isVisible: (ctx) => ctx.hasWorkspace && ctx.hasGitRepos,
-    execute: async (ctx, workspaceId) => {
-      // Get repoId - either from context (RepoCard click) or fetch repos
-      let repoId = ctx.gitRepoId;
-      if (!repoId) {
-        const repos = await attemptsApi.getRepos(workspaceId);
-        if (repos.length === 0) throw new Error('No repositories found');
-        if (repos.length > 1) throw new Error('Please select a repository');
-        repoId = repos[0].id;
-      }
-
-      const workspace = getWorkspaceFromCache(ctx.queryClient, workspaceId);
+    execute: async (ctx, workspaceId, repoId) => {
+      const workspace = await getWorkspace(ctx.queryClient, workspaceId);
       const task = await tasksApi.getById(workspace.task_id);
+
+      const repos = await attemptsApi.getRepos(workspaceId);
+      const repo = repos.find((r) => r.id === repoId);
 
       const result = await CreatePRDialog.show({
         attempt: workspace,
@@ -628,6 +667,7 @@ export const Actions = {
           pr_url: null,
         },
         repoId,
+        targetBranch: repo?.target_branch,
       });
 
       if (!result.success && result.error) {
@@ -640,16 +680,60 @@ export const Actions = {
     id: 'git-merge',
     label: 'Merge',
     icon: GitMergeIcon,
-    requiresTarget: true,
+    requiresTarget: 'git',
     isVisible: (ctx) => ctx.hasWorkspace && ctx.hasGitRepos,
-    execute: async (ctx, workspaceId) => {
-      // Get repoId - either from context (RepoCard click) or fetch repos
-      let repoId = ctx.gitRepoId;
-      if (!repoId) {
-        const repos = await attemptsApi.getRepos(workspaceId);
-        if (repos.length === 0) throw new Error('No repositories found');
-        if (repos.length > 1) throw new Error('Please select a repository');
-        repoId = repos[0].id;
+    execute: async (ctx, workspaceId, repoId) => {
+      // Check for existing conflicts first
+      const branchStatus = await attemptsApi.getBranchStatus(workspaceId);
+      const repoStatus = branchStatus?.find((s) => s.repo_id === repoId);
+      const hasConflicts =
+        repoStatus?.is_rebase_in_progress ||
+        (repoStatus?.conflicted_files?.length ?? 0) > 0;
+
+      if (hasConflicts && repoStatus) {
+        // Show resolve conflicts dialog
+        const workspace = await getWorkspace(ctx.queryClient, workspaceId);
+        const result = await ResolveConflictsDialog.show({
+          workspaceId,
+          conflictOp: repoStatus.conflict_op ?? 'merge',
+          sourceBranch: workspace.branch,
+          targetBranch: repoStatus.target_branch_name,
+          conflictedFiles: repoStatus.conflicted_files ?? [],
+          repoName: repoStatus.repo_name,
+        });
+
+        if (result.action === 'resolved') {
+          invalidateWorkspaceQueries(ctx.queryClient, workspaceId);
+        }
+        return;
+      }
+
+      // Check if branch is behind - need to rebase first
+      const commitsBehind = repoStatus?.commits_behind ?? 0;
+      if (commitsBehind > 0) {
+        // Prompt user to rebase first
+        const confirmRebase = await ConfirmDialog.show({
+          title: 'Rebase Required',
+          message: `Your branch is ${commitsBehind} commit${commitsBehind === 1 ? '' : 's'} behind the target branch. Would you like to rebase first?`,
+          confirmText: 'Rebase',
+          cancelText: 'Cancel',
+        });
+
+        if (confirmRebase === 'confirmed') {
+          // Trigger the rebase action
+          const repos = await attemptsApi.getRepos(workspaceId);
+          const repo = repos.find((r) => r.id === repoId);
+          if (!repo) throw new Error('Repository not found');
+
+          const branches = await repoApi.getBranches(repoId);
+          await RebaseDialog.show({
+            attemptId: workspaceId,
+            repoId,
+            branches,
+            initialTargetBranch: repo.target_branch,
+          });
+        }
+        return;
       }
 
       const confirmResult = await ConfirmDialog.show({
@@ -671,27 +755,42 @@ export const Actions = {
     id: 'git-rebase',
     label: 'Rebase',
     icon: ArrowsClockwiseIcon,
-    requiresTarget: true,
+    requiresTarget: 'git',
     isVisible: (ctx) => ctx.hasWorkspace && ctx.hasGitRepos,
-    execute: async (ctx, workspaceId) => {
-      // Fetch repos to get target_branch info
-      const repos = await attemptsApi.getRepos(workspaceId);
-      if (repos.length === 0) throw new Error('No repositories found');
+    execute: async (ctx, workspaceId, repoId) => {
+      // Check for existing conflicts first
+      const branchStatus = await attemptsApi.getBranchStatus(workspaceId);
+      const repoStatus = branchStatus?.find((s) => s.repo_id === repoId);
+      const hasConflicts =
+        repoStatus?.is_rebase_in_progress ||
+        (repoStatus?.conflicted_files?.length ?? 0) > 0;
 
-      // Get repo - either from context (RepoCard click) or use first repo
-      let repo = ctx.gitRepoId
-        ? repos.find((r) => r.id === ctx.gitRepoId)
-        : repos[0];
+      if (hasConflicts && repoStatus) {
+        // Show resolve conflicts dialog
+        const workspace = await getWorkspace(ctx.queryClient, workspaceId);
+        const result = await ResolveConflictsDialog.show({
+          workspaceId,
+          conflictOp: repoStatus.conflict_op ?? 'rebase',
+          sourceBranch: workspace.branch,
+          targetBranch: repoStatus.target_branch_name,
+          conflictedFiles: repoStatus.conflicted_files ?? [],
+          repoName: repoStatus.repo_name,
+        });
 
-      if (!repo) {
-        if (repos.length > 1) throw new Error('Please select a repository');
-        repo = repos[0];
+        if (result.action === 'resolved') {
+          invalidateWorkspaceQueries(ctx.queryClient, workspaceId);
+        }
+        return;
       }
 
-      const branches = await repoApi.getBranches(repo.id);
+      const repos = await attemptsApi.getRepos(workspaceId);
+      const repo = repos.find((r) => r.id === repoId);
+      if (!repo) throw new Error('Repository not found');
+
+      const branches = await repoApi.getBranches(repoId);
       await RebaseDialog.show({
         attemptId: workspaceId,
-        repoId: repo.id,
+        repoId,
         branches,
         initialTargetBranch: repo.target_branch,
       });
@@ -702,24 +801,82 @@ export const Actions = {
     id: 'git-change-target',
     label: 'Change Target Branch',
     icon: CrosshairIcon,
-    requiresTarget: true,
+    requiresTarget: 'git',
     isVisible: (ctx) => ctx.hasWorkspace && ctx.hasGitRepos,
-    execute: async (ctx, workspaceId) => {
-      // Get repoId - either from context (RepoCard click) or fetch repos
-      let repoId = ctx.gitRepoId;
-      if (!repoId) {
-        const repos = await attemptsApi.getRepos(workspaceId);
-        if (repos.length === 0) throw new Error('No repositories found');
-        if (repos.length > 1) throw new Error('Please select a repository');
-        repoId = repos[0].id;
-      }
-
+    execute: async (_ctx, workspaceId, repoId) => {
       const branches = await repoApi.getBranches(repoId);
       await ChangeTargetDialog.show({
         attemptId: workspaceId,
         repoId,
         branches,
       });
+    },
+  },
+
+  GitPush: {
+    id: 'git-push',
+    label: 'Push',
+    icon: ArrowUpIcon,
+    requiresTarget: 'git',
+    isVisible: (ctx) =>
+      ctx.hasWorkspace &&
+      ctx.hasGitRepos &&
+      ctx.hasOpenPR &&
+      ctx.hasUnpushedCommits,
+    execute: async (ctx, workspaceId, repoId) => {
+      const result = await attemptsApi.push(workspaceId, { repo_id: repoId });
+      if (!result.success) {
+        if (result.error?.type === 'force_push_required') {
+          throw new Error(
+            'Force push required. The remote branch has diverged.'
+          );
+        }
+        throw new Error('Failed to push changes');
+      }
+      invalidateWorkspaceQueries(ctx.queryClient, workspaceId);
+    },
+  },
+
+  // === Script Actions ===
+  RunSetupScript: {
+    id: 'run-setup-script',
+    label: 'Run Setup Script',
+    icon: TerminalIcon,
+    requiresTarget: true,
+    isVisible: (ctx) => ctx.hasWorkspace,
+    isEnabled: (ctx) => !ctx.isAttemptRunning,
+    execute: async (_ctx, workspaceId) => {
+      const result = await attemptsApi.runSetupScript(workspaceId);
+      if (!result.success) {
+        if (result.error?.type === 'no_script_configured') {
+          throw new Error('No setup script configured for this project');
+        }
+        if (result.error?.type === 'process_already_running') {
+          throw new Error('Cannot run script while another process is running');
+        }
+        throw new Error('Failed to run setup script');
+      }
+    },
+  },
+
+  RunCleanupScript: {
+    id: 'run-cleanup-script',
+    label: 'Run Cleanup Script',
+    icon: TerminalIcon,
+    requiresTarget: true,
+    isVisible: (ctx) => ctx.hasWorkspace,
+    isEnabled: (ctx) => !ctx.isAttemptRunning,
+    execute: async (_ctx, workspaceId) => {
+      const result = await attemptsApi.runCleanupScript(workspaceId);
+      if (!result.success) {
+        if (result.error?.type === 'no_script_configured') {
+          throw new Error('No cleanup script configured for this project');
+        }
+        if (result.error?.type === 'process_already_running') {
+          throw new Error('Cannot run script while another process is running');
+        }
+        throw new Error('Failed to run cleanup script');
+      }
     },
   },
 } as const satisfies Record<string, ActionDefinition>;

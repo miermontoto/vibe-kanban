@@ -687,6 +687,9 @@ impl ExecutionProcess {
             ExecutorActionType::CodingAgentFollowUpRequest(request) => {
                 Ok(Some(request.executor_profile_id.clone()))
             }
+            ExecutorActionType::ReviewRequest(request) => {
+                Ok(Some(request.executor_profile_id.clone()))
+            }
             _ => Err(ExecutionProcessError::ValidationError(
                 "Couldn't find profile from initial request".to_string(),
             )),

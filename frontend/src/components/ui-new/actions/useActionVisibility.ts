@@ -3,11 +3,16 @@ import { useLayoutStore } from '@/stores/useLayoutStore';
 import { useDiffViewStore, useDiffViewMode } from '@/stores/useDiffViewStore';
 import { useUiPreferencesStore } from '@/stores/useUiPreferencesStore';
 import { useWorkspaceContext } from '@/contexts/WorkspaceContext';
-import type { Workspace } from 'shared/types';
+import { useUserSystem } from '@/components/ConfigProvider';
+import { useDevServer } from '@/hooks/useDevServer';
+import { useBranchStatus } from '@/hooks/useBranchStatus';
+import { useExecutionProcessesContext } from '@/contexts/ExecutionProcessesContext';
+import type { Workspace, Merge } from 'shared/types';
 import type {
   ActionVisibilityContext,
   ActionDefinition,
   ActionIcon,
+  DevServerState,
 } from './index';
 import { resolveLabel } from './index';
 import type { CommandBarPage } from './pages';
@@ -19,16 +24,42 @@ import type { CommandBarPage } from './pages';
  */
 export function useActionVisibilityContext(): ActionVisibilityContext {
   const layout = useLayoutStore();
-  const { workspace, isCreateMode, repos } = useWorkspaceContext();
+  const { workspace, workspaceId, isCreateMode, repos } = useWorkspaceContext();
   const diffPaths = useDiffViewStore((s) => s.diffPaths);
   const diffViewMode = useDiffViewMode();
   const expanded = useUiPreferencesStore((s) => s.expanded);
+  const { config } = useUserSystem();
+  const { isStarting, isStopping, runningDevServers } =
+    useDevServer(workspaceId);
+  const { data: branchStatus } = useBranchStatus(workspaceId);
+  const { isAttemptRunningVisible } = useExecutionProcessesContext();
 
   return useMemo(() => {
     // Compute isAllDiffsExpanded
     const diffKeys = diffPaths.map((p) => `diff:${p}`);
     const isAllDiffsExpanded =
       diffKeys.length > 0 && diffKeys.every((k) => expanded[k] !== false);
+
+    // Compute dev server state
+    const devServerState: DevServerState = isStarting
+      ? 'starting'
+      : isStopping
+        ? 'stopping'
+        : runningDevServers.length > 0
+          ? 'running'
+          : 'stopped';
+
+    // Compute git state from branch status
+    const hasOpenPR =
+      branchStatus?.some((repo) =>
+        repo.merges?.some(
+          (m: Merge) => m.type === 'pr' && m.pr_info.status === 'open'
+        )
+      ) ?? false;
+
+    const hasUnpushedCommits =
+      branchStatus?.some((repo) => (repo.remote_commits_ahead ?? 0) > 0) ??
+      false;
 
     return {
       isChangesMode: layout.isChangesMode,
@@ -43,8 +74,14 @@ export function useActionVisibilityContext(): ActionVisibilityContext {
       hasDiffs: diffPaths.length > 0,
       diffViewMode,
       isAllDiffsExpanded,
+      editorType: config?.editor?.editor_type ?? null,
+      devServerState,
+      runningDevServers,
       hasGitRepos: repos.length > 0,
       hasMultipleRepos: repos.length > 1,
+      hasOpenPR,
+      hasUnpushedCommits,
+      isAttemptRunning: isAttemptRunningVisible,
     };
   }, [
     layout.isChangesMode,
@@ -59,6 +96,12 @@ export function useActionVisibilityContext(): ActionVisibilityContext {
     diffPaths,
     diffViewMode,
     expanded,
+    config?.editor?.editor_type,
+    isStarting,
+    isStopping,
+    runningDevServers,
+    branchStatus,
+    isAttemptRunningVisible,
   ]);
 }
 

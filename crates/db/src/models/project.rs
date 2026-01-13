@@ -21,8 +21,6 @@ pub enum ProjectError {
 pub struct Project {
     pub id: Uuid,
     pub name: String,
-    pub dev_script: Option<String>,
-    pub dev_script_working_dir: Option<String>,
     pub default_agent_working_dir: Option<String>,
     pub remote_project_id: Option<Uuid>,
     /// None = usa config global, Some(true/false) = override por proyecto
@@ -62,6 +60,7 @@ pub struct ProjectWithTaskCounts {
     pub task_counts: ProjectTaskCounts,
 }
 
+
 #[derive(Debug, Clone, Deserialize, TS)]
 pub struct CreateProject {
     pub name: String,
@@ -71,8 +70,6 @@ pub struct CreateProject {
 #[derive(Debug, Deserialize, TS)]
 pub struct UpdateProject {
     pub name: Option<String>,
-    pub dev_script: Option<String>,
-    pub dev_script_working_dir: Option<String>,
     pub default_agent_working_dir: Option<String>,
     /// None = no cambia, Some(None) = usa config global, Some(Some(v)) = override
     #[serde(default, deserialize_with = "deserialize_optional_nullable")]
@@ -137,32 +134,20 @@ impl Project {
     pub async fn find_all(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(
             Project,
-            r#"SELECT p.id as "id!: Uuid",
-                      p.name,
-                      p.dev_script,
-                      p.dev_script_working_dir,
-                      p.default_agent_working_dir,
-                      p.remote_project_id as "remote_project_id: Uuid",
-                      p.git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
-                      p.git_commit_title_mode,
-                      p.auto_pr_on_review_enabled as "auto_pr_on_review_enabled?: bool",
-                      p.auto_pr_draft as "auto_pr_draft?: bool",
-                      p.redirect_to_attempt_on_create as "redirect_to_attempt_on_create?: bool",
-                      p.git_auto_push_mode,
-                      p.created_at as "created_at!: DateTime<Utc>",
-                      p.updated_at as "updated_at!: DateTime<Utc>"
-               FROM projects p
-               LEFT JOIN (
-                   SELECT t.project_id, MAX(t.updated_at) as last_task_activity
-                   FROM tasks t
-                   GROUP BY t.project_id
-               ) recent_activity ON p.id = recent_activity.project_id
-               ORDER BY
-                   CASE
-                       WHEN recent_activity.last_task_activity IS NOT NULL
-                       THEN recent_activity.last_task_activity
-                       ELSE p.created_at
-                   END DESC"#
+            r#"SELECT id as "id!: Uuid",
+                      name,
+                      default_agent_working_dir,
+                      remote_project_id as "remote_project_id: Uuid",
+                      git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
+                      git_commit_title_mode,
+                      auto_pr_on_review_enabled as "auto_pr_on_review_enabled?: bool",
+                      auto_pr_draft as "auto_pr_draft?: bool",
+                      redirect_to_attempt_on_create as "redirect_to_attempt_on_create?: bool",
+                      git_auto_push_mode,
+                      created_at as "created_at!: DateTime<Utc>",
+                      updated_at as "updated_at!: DateTime<Utc>"
+               FROM projects
+               ORDER BY created_at DESC"#
         )
         .fetch_all(pool)
         .await
@@ -173,15 +158,15 @@ impl Project {
         sqlx::query_as!(
             Project,
             r#"
-            SELECT p.id as "id!: Uuid", p.name, p.dev_script, p.dev_script_working_dir,
+            SELECT p.id as "id!: Uuid", p.name,
                    p.default_agent_working_dir,
                    p.remote_project_id as "remote_project_id: Uuid",
-                   p.git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
-                   p.git_commit_title_mode,
-                   p.auto_pr_on_review_enabled as "auto_pr_on_review_enabled?: bool",
-                   p.auto_pr_draft as "auto_pr_draft?: bool",
-                   p.redirect_to_attempt_on_create as "redirect_to_attempt_on_create?: bool",
-                   p.git_auto_push_mode,
+                      git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
+                      git_commit_title_mode,
+                      auto_pr_on_review_enabled as "auto_pr_on_review_enabled?: bool",
+                      auto_pr_draft as "auto_pr_draft?: bool",
+                      redirect_to_attempt_on_create as "redirect_to_attempt_on_create?: bool",
+                      git_auto_push_mode,
                    p.created_at as "created_at!: DateTime<Utc>", p.updated_at as "updated_at!: DateTime<Utc>"
             FROM projects p
             WHERE p.id IN (
@@ -203,8 +188,6 @@ impl Project {
             Project,
             r#"SELECT id as "id!: Uuid",
                       name,
-                      dev_script,
-                      dev_script_working_dir,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
                       git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
@@ -228,8 +211,6 @@ impl Project {
             Project,
             r#"SELECT id as "id!: Uuid",
                       name,
-                      dev_script,
-                      dev_script_working_dir,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
                       git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
@@ -256,8 +237,6 @@ impl Project {
             Project,
             r#"SELECT id as "id!: Uuid",
                       name,
-                      dev_script,
-                      dev_script_working_dir,
                       default_agent_working_dir,
                       remote_project_id as "remote_project_id: Uuid",
                       git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
@@ -292,8 +271,6 @@ impl Project {
                 )
                 RETURNING id as "id!: Uuid",
                           name,
-                          dev_script,
-                          dev_script_working_dir,
                           default_agent_working_dir,
                           remote_project_id as "remote_project_id: Uuid",
                           git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
@@ -321,8 +298,6 @@ impl Project {
             .ok_or(sqlx::Error::RowNotFound)?;
 
         let name = payload.name.clone().unwrap_or(existing.name);
-        let dev_script = payload.dev_script.clone();
-        let dev_script_working_dir = payload.dev_script_working_dir.clone();
         let default_agent_working_dir = payload.default_agent_working_dir.clone();
         // si el campo está ausente (None externo), mantener el valor existente
         let git_auto_commit_enabled = payload
@@ -347,13 +322,13 @@ impl Project {
         sqlx::query_as!(
             Project,
             r#"UPDATE projects
-               SET name = $2, dev_script = $3, dev_script_working_dir = $4, default_agent_working_dir = $5,
-                   git_auto_commit_enabled = $6, git_commit_title_mode = $7, auto_pr_on_review_enabled = $8, auto_pr_draft = $9, redirect_to_attempt_on_create = $10, git_auto_push_mode = $11
+               SET name = $2, default_agent_working_dir = $3,
+                   git_auto_commit_enabled = $4, git_commit_title_mode = $5,
+                   auto_pr_on_review_enabled = $6, auto_pr_draft = $7,
+                   redirect_to_attempt_on_create = $8, git_auto_push_mode = $9
                WHERE id = $1
                RETURNING id as "id!: Uuid",
                          name,
-                         dev_script,
-                         dev_script_working_dir,
                          default_agent_working_dir,
                          remote_project_id as "remote_project_id: Uuid",
                          git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
@@ -366,8 +341,6 @@ impl Project {
                          updated_at as "updated_at!: DateTime<Utc>""#,
             id,
             name,
-            dev_script,
-            dev_script_working_dir,
             default_agent_working_dir,
             git_auto_commit_enabled,
             git_commit_title_mode,
@@ -378,21 +351,6 @@ impl Project {
         )
         .fetch_one(pool)
         .await
-    }
-
-    pub async fn clear_default_agent_working_dir(
-        pool: &SqlitePool,
-        id: Uuid,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"UPDATE projects
-               SET default_agent_working_dir = ''
-               WHERE id = $1"#,
-            id
-        )
-        .execute(pool)
-        .await?;
-        Ok(())
     }
 
     pub async fn set_remote_project_id(
@@ -442,69 +400,6 @@ impl Project {
         Ok(result.rows_affected())
     }
 
-    pub async fn find_by_id_with_task_counts(
-        pool: &SqlitePool,
-        project_id: Uuid,
-    ) -> Result<Option<ProjectWithTaskCounts>, sqlx::Error> {
-        let record = sqlx::query!(
-            r#"
-            SELECT
-                p.id as "id!: Uuid",
-                p.name,
-                p.dev_script,
-                p.dev_script_working_dir,
-                p.default_agent_working_dir,
-                p.remote_project_id as "remote_project_id: Uuid",
-                p.git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
-                p.git_commit_title_mode,
-                p.auto_pr_on_review_enabled as "auto_pr_on_review_enabled?: bool",
-                p.auto_pr_draft as "auto_pr_draft?: bool",
-                p.redirect_to_attempt_on_create as "redirect_to_attempt_on_create?: bool",
-                p.git_auto_push_mode,
-                p.created_at as "created_at!: DateTime<Utc>",
-                p.updated_at as "updated_at!: DateTime<Utc>",
-                COALESCE(SUM(CASE WHEN t.status = 'todo' THEN 1 ELSE 0 END), 0) as "todo!: i64",
-                COALESCE(SUM(CASE WHEN t.status = 'inprogress' THEN 1 ELSE 0 END), 0) as "inprogress!: i64",
-                COALESCE(SUM(CASE WHEN t.status = 'inreview' THEN 1 ELSE 0 END), 0) as "inreview!: i64",
-                COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) as "done!: i64",
-                COALESCE(SUM(CASE WHEN t.status = 'cancelled' THEN 1 ELSE 0 END), 0) as "cancelled!: i64"
-            FROM projects p
-            LEFT JOIN tasks t ON t.project_id = p.id
-            WHERE p.id = $1
-            GROUP BY p.id
-            "#,
-            project_id
-        )
-        .fetch_optional(pool)
-        .await?;
-
-        Ok(record.map(|r| ProjectWithTaskCounts {
-            project: Project {
-                id: r.id,
-                name: r.name,
-                dev_script: r.dev_script,
-                dev_script_working_dir: r.dev_script_working_dir,
-                default_agent_working_dir: r.default_agent_working_dir,
-                remote_project_id: r.remote_project_id,
-                git_auto_commit_enabled: r.git_auto_commit_enabled,
-                git_commit_title_mode: r.git_commit_title_mode,
-                auto_pr_on_review_enabled: r.auto_pr_on_review_enabled,
-                auto_pr_draft: r.auto_pr_draft,
-                redirect_to_attempt_on_create: r.redirect_to_attempt_on_create,
-                git_auto_push_mode: r.git_auto_push_mode,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
-            },
-            task_counts: ProjectTaskCounts {
-                todo: r.todo,
-                inprogress: r.inprogress,
-                inreview: r.inreview,
-                done: r.done,
-                cancelled: r.cancelled,
-            },
-        }))
-    }
-
     pub async fn find_all_with_task_counts(
         pool: &SqlitePool,
     ) -> Result<Vec<ProjectWithTaskCounts>, sqlx::Error> {
@@ -513,8 +408,6 @@ impl Project {
             SELECT
                 p.id as "id!: Uuid",
                 p.name as "name!",
-                p.dev_script,
-                p.dev_script_working_dir,
                 p.default_agent_working_dir,
                 p.remote_project_id as "remote_project_id: Uuid",
                 p.git_auto_commit_enabled as "git_auto_commit_enabled?: bool",
@@ -546,8 +439,6 @@ impl Project {
                 project: Project {
                     id: r.id,
                     name: r.name,
-                    dev_script: r.dev_script,
-                    dev_script_working_dir: r.dev_script_working_dir,
                     default_agent_working_dir: r.default_agent_working_dir,
                     remote_project_id: r.remote_project_id,
                     git_auto_commit_enabled: r.git_auto_commit_enabled,

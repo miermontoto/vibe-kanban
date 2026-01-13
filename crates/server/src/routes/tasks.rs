@@ -14,34 +14,26 @@ use axum::{
 };
 use db::models::{
     image::TaskImage,
-    project::{Project, ProjectError},
-    repo::Repo,
-    task::{CreateTask, Task, TaskStatus, TaskWithAttemptStatus, UpdateTask},
-    task_label::TaskLabel,
+    repo::{Repo, RepoError},
+    task::{CreateTask, Task, TaskWithAttemptStatus, UpdateTask},
     workspace::{CreateWorkspace, Workspace},
     workspace_repo::{CreateWorkspaceRepo, WorkspaceRepo},
 };
 use deployment::Deployment;
 use executors::profile::ExecutorProfileId;
-use futures_util::TryStreamExt;
+use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use services::services::{
     container::ContainerService, share::ShareError, workspace_manager::WorkspaceManager,
 };
 use sqlx::Error as SqlxError;
 use ts_rs::TS;
-use utils::{api::oauth::LoginStatus, response::ApiResponse, text::git_branch_id};
+use utils::{api::oauth::LoginStatus, response::ApiResponse};
 use uuid::Uuid;
 
 use crate::{
-    DeploymentImpl,
-    error::ApiError,
-    middleware::load_task_middleware,
-    routes::task_attempts::{
-        WorkspaceRepoInput,
-        pr::{AutoPrResult, auto_create_prs_for_workspace},
-    },
-    ws_utils::stream_with_heartbeat,
+    DeploymentImpl, error::ApiError, middleware::load_task_middleware,
+    routes::task_attempts::WorkspaceRepoInput,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,14 +69,34 @@ async fn handle_tasks_ws(
     deployment: DeploymentImpl,
     project_id: Uuid,
 ) -> anyhow::Result<()> {
-    let stream = deployment
+    // Get the raw stream and convert LogMsg to WebSocket messages
+    let mut stream = deployment
         .events()
         .stream_tasks_raw(project_id)
         .await?
-        .map_ok(|msg| msg.to_ws_message_unchecked())
-        .map_err(|e| anyhow::anyhow!("{}", e));
+        .map_ok(|msg| msg.to_ws_message_unchecked());
 
-    stream_with_heartbeat(socket, stream).await
+    // Split socket into sender and receiver
+    let (mut sender, mut receiver) = socket.split();
+
+    // Drain (and ignore) any client->server messages so pings/pongs work
+    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
+
+    // Forward server messages
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(msg) => {
+                if sender.send(msg).await.is_err() {
+                    break; // client disconnected
+                }
+            }
+            Err(e) => {
+                tracing::error!("stream error: {}", e);
+                break;
+            }
+        }
+    }
+    Ok(())
 }
 
 pub async fn get_task(
@@ -112,25 +124,38 @@ pub async fn create_task(
         TaskImage::associate_many_dedup(&deployment.db().pool, task.id, image_ids).await?;
     }
 
-    if let Some(label_ids) = &payload.label_ids {
-        TaskLabel::sync_task_labels(&deployment.db().pool, task.id, label_ids).await?;
-    }
+    deployment
+        .track_if_analytics_allowed(
+            "task_created",
+            serde_json::json!({
+            "task_id": task.id.to_string(),
+            "project_id": payload.project_id,
+            "has_description": task.description.is_some(),
+            "has_images": payload.image_ids.is_some(),
+            }),
+        )
+        .await;
 
     Ok(ResponseJson(ApiResponse::success(task)))
 }
 
 #[derive(Debug, Deserialize, TS)]
-pub struct CreateTaskAndStartRequest {
+pub struct CreateAndStartTaskRequest {
     pub task: CreateTask,
-    pub repos: Vec<WorkspaceRepoInput>,
-    pub custom_branch_name: Option<String>,
     pub executor_profile_id: ExecutorProfileId,
+    pub repos: Vec<WorkspaceRepoInput>,
 }
 
 pub async fn create_task_and_start(
     State(deployment): State<DeploymentImpl>,
-    Json(payload): Json<CreateTaskAndStartRequest>,
+    Json(payload): Json<CreateAndStartTaskRequest>,
 ) -> Result<ResponseJson<ApiResponse<TaskWithAttemptStatus>>, ApiError> {
+    if payload.repos.is_empty() {
+        return Err(ApiError::BadRequest(
+            "At least one repository is required".to_string(),
+        ));
+    }
+
     let pool = &deployment.db().pool;
 
     let task_id = Uuid::new_v4();
@@ -140,39 +165,35 @@ pub async fn create_task_and_start(
         TaskImage::associate_many_dedup(pool, task.id, image_ids).await?;
     }
 
-    let project = Project::find_by_id(pool, payload.task.project_id)
-        .await?
-        .ok_or(ApiError::Project(ProjectError::ProjectNotFound))?;
+    deployment
+        .track_if_analytics_allowed(
+            "task_created",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "project_id": task.project_id,
+                "has_description": task.description.is_some(),
+                "has_images": payload.task.image_ids.is_some(),
+            }),
+        )
+        .await;
 
     let attempt_id = Uuid::new_v4();
+    let git_branch_name = deployment
+        .container()
+        .git_branch_from_workspace(&attempt_id, &task.title)
+        .await;
 
-    let git_branch_name = match &payload.custom_branch_name {
-        Some(name) if !name.trim().is_empty() => {
-            // sanitize custom branch name to ensure it's git-safe
-            let sanitized = git_branch_id(name.trim());
-            if !sanitized.is_empty() {
-                sanitized
-            } else {
-                // if sanitization results in empty string, fall back to auto-generation
-                deployment
-                    .container()
-                    .git_branch_from_workspace(&attempt_id, &task.title)
-                    .await
-            }
-        }
-        _ => {
-            deployment
-                .container()
-                .git_branch_from_workspace(&attempt_id, &task.title)
-                .await
-        }
+    // Compute agent_working_dir based on repo count:
+    // - Single repo: use repo name as working dir (agent runs in repo directory)
+    // - Multiple repos: use None (agent runs in workspace root)
+    let agent_working_dir = if payload.repos.len() == 1 {
+        let repo = Repo::find_by_id(pool, payload.repos[0].repo_id)
+            .await?
+            .ok_or(RepoError::NotFound)?;
+        Some(repo.name)
+    } else {
+        None
     };
-
-    let agent_working_dir = project
-        .default_agent_working_dir
-        .as_ref()
-        .filter(|dir: &&String| !dir.is_empty())
-        .cloned();
 
     let workspace = Workspace::create(
         pool,
@@ -201,24 +222,29 @@ pub async fn create_task_and_start(
         .await
         .inspect_err(|err| tracing::error!("Failed to start task attempt: {}", err))
         .is_ok();
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_started",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "executor": &payload.executor_profile_id.executor,
+                "variant": &payload.executor_profile_id.variant,
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
 
+    let task = Task::find_by_id(pool, task.id)
+        .await?
+        .ok_or(ApiError::Database(SqlxError::RowNotFound))?;
+
+    tracing::info!("Started attempt for task {}", task.id);
     Ok(ResponseJson(ApiResponse::success(TaskWithAttemptStatus {
         task,
         has_in_progress_attempt: is_attempt_running,
         last_attempt_failed: false,
         executor: payload.executor_profile_id.executor.to_string(),
-        pr_number: None,
-        pr_url: None,
     })))
-}
-
-/// respuesta del endpoint update_task incluyendo resultados de auto-PR
-#[derive(Debug, Serialize, TS)]
-pub struct TaskUpdateResponse {
-    #[serde(flatten)]
-    pub task: Task,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auto_pr_results: Option<Vec<AutoPrResult>>,
 }
 
 pub async fn update_task(
@@ -226,29 +252,20 @@ pub async fn update_task(
     State(deployment): State<DeploymentImpl>,
 
     Json(payload): Json<UpdateTask>,
-) -> Result<ResponseJson<ApiResponse<TaskUpdateResponse>>, ApiError> {
+) -> Result<ResponseJson<ApiResponse<Task>>, ApiError> {
     ensure_shared_task_auth(&existing_task, &deployment).await?;
 
     // Use existing values if not provided in update
-    let title = payload.title.unwrap_or(existing_task.title.clone());
+    let title = payload.title.unwrap_or(existing_task.title);
     let description = match payload.description {
         Some(s) if s.trim().is_empty() => None, // Empty string = clear description
         Some(s) => Some(s),                     // Non-empty string = update description
-        None => existing_task.description.clone(), // Field omitted = keep existing
+        None => existing_task.description,      // Field omitted = keep existing
     };
-    let status = payload.status.unwrap_or(existing_task.status.clone());
+    let status = payload.status.unwrap_or(existing_task.status);
     let parent_workspace_id = payload
         .parent_workspace_id
         .or(existing_task.parent_workspace_id);
-    let use_ralph_wiggum = payload
-        .use_ralph_wiggum
-        .unwrap_or(existing_task.use_ralph_wiggum);
-    let ralph_max_iterations = payload
-        .ralph_max_iterations
-        .or(existing_task.ralph_max_iterations);
-    let ralph_completion_promise = payload
-        .ralph_completion_promise
-        .or(existing_task.ralph_completion_promise);
 
     let task = Task::update(
         &deployment.db().pool,
@@ -256,21 +273,14 @@ pub async fn update_task(
         existing_task.project_id,
         title,
         description,
-        status.clone(),
+        status,
         parent_workspace_id,
-        use_ralph_wiggum,
-        ralph_max_iterations,
-        ralph_completion_promise,
     )
     .await?;
 
     if let Some(image_ids) = &payload.image_ids {
         TaskImage::delete_by_task_id(&deployment.db().pool, task.id).await?;
         TaskImage::associate_many_dedup(&deployment.db().pool, task.id, image_ids).await?;
-    }
-
-    if let Some(label_ids) = &payload.label_ids {
-        TaskLabel::sync_task_labels(&deployment.db().pool, task.id, label_ids).await?;
     }
 
     // If task has been shared, broadcast update
@@ -281,118 +291,7 @@ pub async fn update_task(
         publisher.update_shared_task(&task).await?;
     }
 
-    // intentar crear PRs automáticamente si la tarea pasó a InReview
-    tracing::debug!(
-        "Task {} status change: {:?} -> {:?}",
-        task.id,
-        existing_task.status,
-        status
-    );
-    let auto_pr_results =
-        if existing_task.status != TaskStatus::InReview && status == TaskStatus::InReview {
-            tracing::info!(
-                "Task {} transitioned to InReview, attempting auto-PR creation",
-                task.id
-            );
-            try_auto_create_prs(&deployment, &task).await
-        } else {
-            None
-        };
-
-    Ok(ResponseJson(ApiResponse::success(TaskUpdateResponse {
-        task,
-        auto_pr_results,
-    })))
-}
-
-/// intenta crear PRs automáticamente para una tarea
-async fn try_auto_create_prs(
-    deployment: &DeploymentImpl,
-    task: &Task,
-) -> Option<Vec<AutoPrResult>> {
-    let pool = &deployment.db().pool;
-
-    // obtener configuración del proyecto
-    let project = match Project::find_by_id(pool, task.project_id).await {
-        Ok(Some(p)) => p,
-        Ok(None) => {
-            tracing::warn!("Project not found for auto-PR: {}", task.project_id);
-            return None;
-        }
-        Err(e) => {
-            tracing::error!("Failed to get project for auto-PR: {}", e);
-            return None;
-        }
-    };
-
-    // obtener configuración global
-    let config = deployment.config().read().await;
-
-    // resolver configuración efectiva (project override > global)
-    let auto_enabled = project
-        .auto_pr_on_review_enabled
-        .unwrap_or(config.auto_pr_on_review_enabled);
-
-    tracing::info!(
-        "Auto-PR check for task {}: project_setting={:?}, global_setting={}, effective={}",
-        task.id,
-        project.auto_pr_on_review_enabled,
-        config.auto_pr_on_review_enabled,
-        auto_enabled
-    );
-
-    if !auto_enabled {
-        tracing::debug!("Auto-PR disabled for task {}, skipping", task.id);
-        return None;
-    }
-
-    let is_draft = project.auto_pr_draft.unwrap_or(config.auto_pr_draft);
-    let auto_generate_description = config.pr_auto_description_enabled;
-
-    drop(config); // liberar el lock antes de operaciones async
-
-    // obtener el workspace más reciente para la tarea (fetch_all devuelve ordenado por created_at DESC)
-    let workspace = match Workspace::fetch_all(pool, Some(task.id)).await {
-        Ok(workspaces) => match workspaces.into_iter().next() {
-            Some(w) => w,
-            None => {
-                tracing::debug!("No workspace found for task {}, skipping auto-PR", task.id);
-                return None;
-            }
-        },
-        Err(e) => {
-            tracing::error!("Failed to get workspace for auto-PR: {}", e);
-            return None;
-        }
-    };
-
-    tracing::info!(
-        "Auto-PR triggered for task {} using workspace {}",
-        task.id,
-        workspace.id
-    );
-
-    // crear PRs para todos los repos
-    let results = auto_create_prs_for_workspace(
-        deployment,
-        &workspace,
-        task,
-        is_draft,
-        auto_generate_description,
-    )
-    .await;
-
-    tracing::info!(
-        "Auto-PR results for task {}: {} PR(s) attempted",
-        task.id,
-        results.len()
-    );
-
-    if results.is_empty() {
-        None
-    } else {
-        Some(results)
-    }
+    Ok(ResponseJson(ApiResponse::success(task)))
 }
 
 async fn ensure_shared_task_auth(
@@ -476,8 +375,19 @@ pub async fn delete_task(
         );
     }
 
+    deployment
+        .track_if_analytics_allowed(
+            "task_deleted",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "project_id": task.project_id.to_string(),
+                "attempt_count": attempts.len(),
+            }),
+        )
+        .await;
+
     let task_id = task.id;
-    let pool_clone = pool.clone();
+    let pool = pool.clone();
     tokio::spawn(async move {
         tracing::info!(
             "Starting background cleanup for task {} ({} workspaces, {} repos)",
@@ -498,7 +408,7 @@ pub async fn delete_task(
             }
         }
 
-        match Repo::delete_orphaned(&pool_clone).await {
+        match Repo::delete_orphaned(&pool).await {
             Ok(count) if count > 0 => {
                 tracing::info!("Deleted {} orphaned repo records", count);
             }
@@ -533,6 +443,14 @@ pub async fn share_task(
         .await
         .ok_or(ShareError::MissingAuth)?;
     let shared_task_id = publisher.share_task(task.id, profile.user_id).await?;
+
+    let props = serde_json::json!({
+        "task_id": task.id,
+        "shared_task_id": shared_task_id,
+    });
+    deployment
+        .track_if_analytics_allowed("start_sharing_task", props)
+        .await;
 
     Ok(ResponseJson(ApiResponse::success(ShareTaskResponse {
         shared_task_id,

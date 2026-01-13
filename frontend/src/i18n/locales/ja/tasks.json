@@ -35,7 +35,9 @@
     "openInTerminal": "ターミナルで開く",
     "task": "Task",
     "viewProcesses": "View processes",
-    "viewRelatedTasks": "View related tasks"
+    "viewRelatedTasks": "View related tasks",
+    "startReview": "レビューを開始",
+    "startingReview": "レビューを開始中..."
   },
   "editBranchName": {
     "dialog": {
@@ -118,11 +120,16 @@
     "cancel": "キャンセル",
     "confirm": "タスクを共有",
     "inProgress": "共有中…",
-    "closeButton": "閉じる"
+    "closeButton": "閉じる",
+    "gitProviderRequired": {
+      "title": "Git プロバイダーを接続",
+      "description": "タスクを共有するには、Git プロバイダーアカウントを接続してください。このプロジェクトにはリモートリポジトリが必要です。",
+      "action": "接続"
+    }
   },
   "createPrDialog": {
-    "title": "GitHub プルリクエストを作成",
-    "description": "このタスク試行のプルリクエストをGitHubで作成します。",
+    "title": "プルリクエストを作成",
+    "description": "このタスク試行のプルリクエストを作成します。",
     "titleLabel": "タイトル",
     "titlePlaceholder": "PRタイトルを入力",
     "descriptionLabel": "説明 (オプション)",
@@ -136,9 +143,9 @@
     "creating": "作成中...",
     "createButton": "PRを作成",
     "errors": {
-      "insufficientPermissions": "権限が不足しています。GitHub CLIに必要な権限があることを確認してください。",
+      "insufficientPermissions": "権限が不足しています。CLIに必要な権限があることを確認してください。",
       "repoNotFoundOrNoAccess": "リポジトリが見つからないか、アクセス権がありません。リポジトリへのアクセス権を確認し、認証されていることを確認してください。",
-      "failedToCreate": "GitHub PRの作成に失敗しました",
+      "failedToCreate": "PRの作成に失敗しました",
       "gitCliNotLoggedIn": "Gitが認証されていません。\"gh auth login\" を実行するかGitの認証情報を設定してから再試行してください。",
       "gitCliNotInstalled": "Git CLIがインストールされていません。PRを作成するにはGitをインストールしてください。",
       "targetBranchNotFound": "ターゲットブランチ '{{branch}}' がリモートに存在しません。プルリクエストを作成する前にブランチが存在することを確認してください。"
@@ -318,7 +325,8 @@
       "forcePush": "強制プッシュ",
       "forcePushing": "強制プッシュ中...",
       "rebase": "リベース",
-      "rebasing": "リベース中..."
+      "rebasing": "リベース中...",
+      "pushFailed": "失敗"
     },
     "status": {
       "ahead": "先行",
@@ -367,7 +375,9 @@
       "startButton": "開発サーバーを開始",
       "startPrompt": "プレビューを表示するには開発サーバーを起動してください",
       "stopAndEditButton": "開発サーバーを停止して問題を解決",
-      "title": "開発サーバーが実行されていません"
+      "title": "開発サーバーが実行されていません",
+      "configureButton": "設定",
+      "fixScript": "開発スクリプトを修正"
     },
     "selectAttempt": "Select an attempt to see preview",
     "title": "Preview",
@@ -385,7 +395,8 @@
       "item2Suffix": "？（これにより実行中であることを認識します）",
       "item3": "Web Companion（クリックして編集機能に必要）をインストールしましたか？インストールしていない場合は、",
       "item3Link": "こちらのインストール手順に従ってください",
-      "title": "アプリケーションのプレビューに問題があります："
+      "title": "アプリケーションのプレビューに問題があります：",
+      "fixScript": "開発スクリプトを修正"
     }
   },
   "processes": {
@@ -664,6 +675,63 @@
       "modified": "変更済み",
       "deleted": "削除済み",
       "renamed": "名前変更済み"
+    },
+    "saveAsDefault": "デフォルトとして保存"
+  },
+  "startReviewDialog": {
+    "title": "レビューを開始",
+    "description": "コーディングエージェントに変更のレビューとフィードバックを依頼します。",
+    "additionalInstructions": "追加の指示（オプション）",
+    "reviewComments": "レビューコメント（{{count}}）",
+    "includeGitContext": "Gitコンテキストを含める",
+    "includeGitContextDescription": "このブランチで行われたすべての変更を確認する方法をエージェントに伝えます",
+    "newSession": "新しいセッション"
+  },
+  "resolveConflicts": {
+    "dialog": {
+      "title": "競合を解決",
+      "description": "競合が検出されました。エージェントにどのように解決させるか選択してください。",
+      "sessionLabel": "セッション",
+      "existingSession": "現在のセッションで続行",
+      "newSession": "新規セッション",
+      "resolve": "競合を解決",
+      "resolving": "開始中...",
+      "filesWithConflicts_one": "{{count}}件のファイルに競合があります",
+      "filesWithConflicts_other": "{{count}}件のファイルに競合があります",
+      "andMore": "...他{{count}}件"
     }
+  },
+  "prComments": {
+    "dialog": {
+      "title": "PRコメントを選択",
+      "noComments": "このPRにコメントはありません",
+      "selectAll": "すべて選択",
+      "deselectAll": "すべて選択解除",
+      "add": "追加",
+      "selectedCount": "{{total}}件中{{selected}}件選択"
+    },
+    "card": {
+      "review": "レビュー",
+      "tooltip": "クリックで表示、ダブルクリックで編集"
+    }
+  },
+  "scriptFixer": {
+    "title": "スクリプトを修正",
+    "setupScriptTitle": "セットアップスクリプトを修正",
+    "cleanupScriptTitle": "クリーンアップスクリプトを修正",
+    "devServerTitle": "開発サーバースクリプトを修正",
+    "scriptLabel": "スクリプト（編集）",
+    "logsLabel": "最後の実行ログ",
+    "saveButton": "保存",
+    "saveAndTestButton": "保存してテスト",
+    "saving": "保存中...",
+    "testing": "テスト中...",
+    "noLogs": "利用可能な実行ログがありません",
+    "selectRepo": "リポジトリ",
+    "fixScript": "スクリプトを修正",
+    "statusRunning": "実行中...",
+    "statusSuccess": "正常に完了しました",
+    "statusFailed": "終了コード {{exitCode}} で失敗しました",
+    "statusKilled": "プロセスが強制終了されました"
   }
 }

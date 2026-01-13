@@ -26,7 +26,6 @@ use db::models::{
     coding_agent_turn::CodingAgentTurn,
     execution_process::{ExecutionProcess, ExecutionProcessRunReason, ExecutionProcessStatus},
     merge::{Merge, MergeStatus, PrMerge, PullRequestInfo},
-    project_repo::ProjectRepo,
     repo::{Repo, RepoError},
     session::{CreateSession, Session},
     task::{Task, TaskRelationships, TaskStatus},
@@ -47,7 +46,6 @@ use serde::{Deserialize, Serialize};
 use services::services::{
     container::ContainerService,
     git::{ConflictOp, GitCliError, GitServiceError},
-    github::GitHubService,
     workspace_manager::WorkspaceManager,
 };
 use sqlx::Error as SqlxError;
@@ -57,7 +55,7 @@ use uuid::Uuid;
 
 use crate::{
     DeploymentImpl, error::ApiError, middleware::load_workspace_middleware,
-    routes::task_attempts::gh_cli_setup::GhCliSetupError, ws_utils::stream_with_heartbeat,
+    routes::task_attempts::gh_cli_setup::GhCliSetupError,
 };
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -178,16 +176,17 @@ pub async fn create_task_attempt(
         .await?
         .ok_or(SqlxError::RowNotFound)?;
 
-    let project = task
-        .parent_project(pool)
-        .await?
-        .ok_or(SqlxError::RowNotFound)?;
-
-    let agent_working_dir = project
-        .default_agent_working_dir
-        .as_ref()
-        .filter(|dir| !dir.is_empty())
-        .cloned();
+    // Compute agent_working_dir based on repo count:
+    // - Single repo: use repo name as working dir (agent runs in repo directory)
+    // - Multiple repos: use None (agent runs in workspace root)
+    let agent_working_dir = if payload.repos.len() == 1 {
+        let repo = Repo::find_by_id(pool, payload.repos[0].repo_id)
+            .await?
+            .ok_or(RepoError::NotFound)?;
+        Some(repo.name)
+    } else {
+        None
+    };
 
     let attempt_id = Uuid::new_v4();
     let git_branch_name = deployment
@@ -223,6 +222,20 @@ pub async fn create_task_attempt(
     {
         tracing::error!("Failed to start task attempt: {}", err);
     }
+
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_started",
+            serde_json::json!({
+                "task_id": workspace.task_id.to_string(),
+                "variant": &executor_profile_id.variant,
+                "executor": &executor_profile_id.executor,
+                "workspace_id": workspace.id.to_string(),
+                "repository_count": payload.repos.len(),
+            }),
+        )
+        .await;
+
     tracing::info!("Created attempt for task {}", task.id);
 
     Ok(ResponseJson(ApiResponse::success(workspace)))
@@ -246,6 +259,17 @@ pub async fn run_agent_setup(
         }
         _ => return Err(ApiError::Executor(ExecutorError::SetupHelperNotSupported)),
     }
+
+    deployment
+        .track_if_analytics_allowed(
+            "agent_setup_script_executed",
+            serde_json::json!({
+                "executor_profile_id": executor_profile_id.to_string(),
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(RunAgentSetupResponse {})))
 }
 
@@ -273,17 +297,44 @@ async fn handle_task_attempt_diff_ws(
     workspace: Workspace,
     stats_only: bool,
 ) -> anyhow::Result<()> {
-    use futures_util::TryStreamExt;
+    use futures_util::{SinkExt, StreamExt, TryStreamExt};
     use utils::log_msg::LogMsg;
 
     let stream = deployment
         .container()
         .stream_diff(&workspace, stats_only)
-        .await?
-        .map_ok(|msg: LogMsg| msg.to_ws_message_unchecked())
-        .map_err(|e| anyhow::anyhow!("{}", e));
+        .await?;
 
-    stream_with_heartbeat(socket, stream).await
+    let mut stream = stream.map_ok(|msg: LogMsg| msg.to_ws_message_unchecked());
+
+    let (mut sender, mut receiver) = socket.split();
+
+    loop {
+        tokio::select! {
+            // Wait for next stream item
+            item = stream.next() => {
+                match item {
+                    Some(Ok(msg)) => {
+                        if sender.send(msg).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        tracing::error!("stream error: {}", e);
+                        break;
+                    }
+                    None => break,
+                }
+            }
+            // Detect client disconnection
+            msg = receiver.next() => {
+                if msg.is_none() {
+                    break;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub async fn stream_workspaces_ws(
@@ -305,16 +356,40 @@ async fn handle_workspaces_ws(
     archived: Option<bool>,
     limit: Option<i64>,
 ) -> anyhow::Result<()> {
-    use futures_util::TryStreamExt;
+    use futures_util::{SinkExt, StreamExt, TryStreamExt};
 
-    let stream = deployment
+    let mut stream = deployment
         .events()
         .stream_workspaces_raw(archived, limit)
         .await?
-        .map_ok(|msg| msg.to_ws_message_unchecked())
-        .map_err(|e| anyhow::anyhow!("{}", e));
+        .map_ok(|msg| msg.to_ws_message_unchecked());
 
-    stream_with_heartbeat(socket, stream).await
+    let (mut sender, mut receiver) = socket.split();
+
+    loop {
+        tokio::select! {
+            item = stream.next() => {
+                match item {
+                    Some(Ok(msg)) => {
+                        if sender.send(msg).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        tracing::error!("stream error: {}", e);
+                        break;
+                    }
+                    None => break,
+                }
+            }
+            msg = receiver.next() => {
+                if msg.is_none() {
+                    break;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -429,6 +504,17 @@ pub async fn merge_task_attempt(
             task.id
         );
     }
+
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_merged",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(())))
 }
 
@@ -438,9 +524,6 @@ pub async fn push_task_attempt_branch(
     Json(request): Json<PushTaskAttemptRequest>,
 ) -> Result<ResponseJson<ApiResponse<(), PushError>>, ApiError> {
     let pool = &deployment.db().pool;
-
-    let github_service = GitHubService::new()?;
-    github_service.check_token().await?;
 
     let workspace_repo =
         WorkspaceRepo::find_by_workspace_and_repo_id(pool, workspace.id, request.repo_id)
@@ -460,7 +543,7 @@ pub async fn push_task_attempt_branch(
 
     match deployment
         .git()
-        .push_to_github(&worktree_path, &workspace.branch, false)
+        .push_to_remote(&worktree_path, &workspace.branch, false)
     {
         Ok(_) => Ok(ResponseJson(ApiResponse::success(()))),
         Err(GitServiceError::GitCLI(GitCliError::PushRejected(_))) => Ok(ResponseJson(
@@ -476,9 +559,6 @@ pub async fn force_push_task_attempt_branch(
     Json(request): Json<PushTaskAttemptRequest>,
 ) -> Result<ResponseJson<ApiResponse<(), PushError>>, ApiError> {
     let pool = &deployment.db().pool;
-
-    let github_service = GitHubService::new()?;
-    github_service.check_token().await?;
 
     let workspace_repo =
         WorkspaceRepo::find_by_workspace_and_repo_id(pool, workspace.id, request.repo_id)
@@ -498,7 +578,7 @@ pub async fn force_push_task_attempt_branch(
 
     deployment
         .git()
-        .push_to_github(&worktree_path, &workspace.branch, true)?;
+        .push_to_remote(&worktree_path, &workspace.branch, true)?;
     Ok(ResponseJson(ApiResponse::success(())))
 }
 
@@ -564,6 +644,18 @@ pub async fn open_task_attempt_in_editor(
                 path.display(),
                 if url.is_some() { " (remote mode)" } else { "" }
             );
+
+            deployment
+                .track_if_analytics_allowed(
+                    "task_attempt_editor_opened",
+                    serde_json::json!({
+                        "workspace_id": workspace.id.to_string(),
+                        "editor_type": payload.editor_type.as_ref(),
+                        "remote_mode": url.is_some(),
+                    }),
+                )
+                .await;
+
             Ok(ResponseJson(ApiResponse::success(OpenEditorResponse {
                 url,
             })))
@@ -575,48 +667,6 @@ pub async fn open_task_attempt_in_editor(
                 e
             );
             Err(ApiError::EditorOpen(e))
-        }
-    }
-}
-
-pub async fn open_task_attempt_in_terminal(
-    Extension(workspace): Extension<Workspace>,
-    State(deployment): State<DeploymentImpl>,
-) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
-    let container_ref = deployment
-        .container()
-        .ensure_container_exists(&workspace)
-        .await?;
-    let workspace_path = Path::new(&container_ref);
-
-    // For single-repo projects, open from the repo directory
-    let workspace_repos =
-        WorkspaceRepo::find_repos_for_workspace(&deployment.db().pool, workspace.id).await?;
-    let base_path = if workspace_repos.len() == 1 {
-        workspace_path.join(&workspace_repos[0].name)
-    } else {
-        workspace_path.to_path_buf()
-    };
-
-    match utils::terminal::open_terminal(&base_path).await {
-        Ok(()) => {
-            tracing::info!(
-                "Opened terminal for task attempt {} at path: {}",
-                workspace.id,
-                base_path.display()
-            );
-            Ok(ResponseJson(ApiResponse::success(())))
-        }
-        Err(e) => {
-            tracing::error!(
-                "Failed to open terminal for attempt {}: {}",
-                workspace.id,
-                e
-            );
-            Err(ApiError::BadRequest(format!(
-                "Failed to open terminal: {}",
-                e
-            )))
         }
     }
 }
@@ -848,6 +898,17 @@ pub async fn change_target_branch(
         deployment
             .git()
             .get_branch_status(&repo.path, &workspace.branch, &new_target_branch)?;
+
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_target_branch_changed",
+            serde_json::json!({
+                "repo_id": repo_id.to_string(),
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(
         ChangeTargetBranchResponse {
             repo_id,
@@ -982,6 +1043,16 @@ pub async fn rename_branch(
             new_branch_name
         );
     }
+
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_branch_renamed",
+            serde_json::json!({
+                "updated_children": updated_children_count,
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(RenameBranchResponse {
         branch: new_branch_name.to_string(),
     })))
@@ -1070,6 +1141,17 @@ pub async fn rebase_task_attempt(
             other => Err(ApiError::GitService(other)),
         };
     }
+
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_rebased",
+            serde_json::json!({
+                "workspace_id": workspace.id.to_string(),
+                "repo_id": payload.repo_id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(())))
 }
 
@@ -1148,33 +1230,18 @@ pub async fn start_dev_server(
         }
     }
 
-    // Get dev script from project (dev_script is project-level, not per-repo)
-    let dev_script = match &project.dev_script {
-        Some(script) if !script.is_empty() => script.clone(),
-        _ => {
-            return Ok(ResponseJson(ApiResponse::error(
-                "No dev server script configured for this project",
-            )));
-        }
-    };
+    let repos = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let repos_with_dev_script: Vec<_> = repos
+        .iter()
+        .filter(|r| r.dev_server_script.as_ref().is_some_and(|s| !s.is_empty()))
+        .collect();
 
-    let working_dir = project
-        .dev_script_working_dir
-        .as_ref()
-        .filter(|dir| !dir.is_empty())
-        .cloned();
+    if repos_with_dev_script.is_empty() {
+        return Ok(ResponseJson(ApiResponse::error(
+            "No dev server script configured for any repository in this workspace",
+        )));
+    }
 
-    let executor_action = ExecutorAction::new(
-        ExecutorActionType::ScriptRequest(ScriptRequest {
-            script: dev_script,
-            language: ScriptRequestLanguage::Bash,
-            context: ScriptContext::DevServer,
-            working_dir,
-        }),
-        None,
-    );
-
-    // Get or create a session for dev server
     let session = match Session::find_latest_by_workspace_id(pool, workspace.id).await? {
         Some(s) => s,
         None => {
@@ -1190,15 +1257,39 @@ pub async fn start_dev_server(
         }
     };
 
+    for repo in repos_with_dev_script {
+        let executor_action = ExecutorAction::new(
+            ExecutorActionType::ScriptRequest(ScriptRequest {
+                script: repo.dev_server_script.clone().unwrap(),
+                language: ScriptRequestLanguage::Bash,
+                context: ScriptContext::DevServer,
+                working_dir: Some(repo.name.clone()),
+            }),
+            None,
+        );
+
+        deployment
+            .container()
+            .start_execution(
+                &workspace,
+                &session,
+                &executor_action,
+                &ExecutionProcessRunReason::DevServer,
+            )
+            .await?;
+    }
+
     deployment
-        .container()
-        .start_execution(
-            &workspace,
-            &session,
-            &executor_action,
-            &ExecutionProcessRunReason::DevServer,
+        .track_if_analytics_allowed(
+            "dev_server_started",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "project_id": project.id.to_string(),
+                "workspace_id": workspace.id.to_string(),
+            }),
         )
-        .await?;
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(())))
 }
 
@@ -1207,7 +1298,20 @@ pub async fn get_task_attempt_children(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<TaskRelationships>>, StatusCode> {
     match Task::find_relationships_for_workspace(&deployment.db().pool, &workspace).await {
-        Ok(relationships) => Ok(ResponseJson(ApiResponse::success(relationships))),
+        Ok(relationships) => {
+            deployment
+                .track_if_analytics_allowed(
+                    "task_attempt_children_viewed",
+                    serde_json::json!({
+                        "workspace_id": workspace.id.to_string(),
+                        "children_count": relationships.children.len(),
+                        "parent_count": if relationships.parent_task.is_some() { 1 } else { 0 },
+                    }),
+                )
+                .await;
+
+            Ok(ResponseJson(ApiResponse::success(relationships)))
+        }
         Err(e) => {
             tracing::error!(
                 "Failed to fetch relationships for task attempt {}: {}",
@@ -1224,6 +1328,16 @@ pub async fn stop_task_attempt_execution(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
     deployment.container().try_stop(&workspace, false).await;
+
+    deployment
+        .track_if_analytics_allowed(
+            "task_attempt_stopped",
+            serde_json::json!({
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(())))
 }
 
@@ -1256,7 +1370,6 @@ pub async fn run_setup_script(
         .ensure_container_exists(&workspace)
         .await?;
 
-    // Get parent task and project
     let task = workspace
         .parent_task(pool)
         .await?
@@ -1266,11 +1379,9 @@ pub async fn run_setup_script(
         .parent_project(pool)
         .await?
         .ok_or(SqlxError::RowNotFound)?;
-    let project_repos = ProjectRepo::find_by_project_id_with_names(pool, project.id).await?;
-    let executor_action = match deployment
-        .container()
-        .setup_actions_for_repos(&project_repos)
-    {
+
+    let repos = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let executor_action = match deployment.container().setup_actions_for_repos(&repos) {
         Some(action) => action,
         None => {
             return Ok(ResponseJson(ApiResponse::error_with_data(
@@ -1304,6 +1415,18 @@ pub async fn run_setup_script(
             &ExecutionProcessRunReason::SetupScript,
         )
         .await?;
+
+    deployment
+        .track_if_analytics_allowed(
+            "setup_script_executed",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "project_id": project.id.to_string(),
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(execution_process)))
 }
 
@@ -1328,7 +1451,6 @@ pub async fn run_cleanup_script(
         .ensure_container_exists(&workspace)
         .await?;
 
-    // Get parent task and project
     let task = workspace
         .parent_task(pool)
         .await?
@@ -1338,11 +1460,9 @@ pub async fn run_cleanup_script(
         .parent_project(pool)
         .await?
         .ok_or(SqlxError::RowNotFound)?;
-    let project_repos = ProjectRepo::find_by_project_id_with_names(pool, project.id).await?;
-    let executor_action = match deployment
-        .container()
-        .cleanup_actions_for_repos(&project_repos)
-    {
+
+    let repos = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let executor_action = match deployment.container().cleanup_actions_for_repos(&repos) {
         Some(action) => action,
         None => {
             return Ok(ResponseJson(ApiResponse::error_with_data(
@@ -1376,6 +1496,18 @@ pub async fn run_cleanup_script(
             &ExecutionProcessRunReason::CleanupScript,
         )
         .await?;
+
+    deployment
+        .track_if_analytics_allowed(
+            "cleanup_script_executed",
+            serde_json::json!({
+                "task_id": task.id.to_string(),
+                "project_id": project.id.to_string(),
+                "workspace_id": workspace.id.to_string(),
+            }),
+        )
+        .await;
+
     Ok(ResponseJson(ApiResponse::success(execution_process)))
 }
 
@@ -1385,7 +1517,18 @@ pub async fn gh_cli_setup_handler(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<ExecutionProcess, GhCliSetupError>>, ApiError> {
     match gh_cli_setup::run_gh_cli_setup(&deployment, &workspace).await {
-        Ok(execution_process) => Ok(ResponseJson(ApiResponse::success(execution_process))),
+        Ok(execution_process) => {
+            deployment
+                .track_if_analytics_allowed(
+                    "gh_cli_setup_executed",
+                    serde_json::json!({
+                        "workspace_id": workspace.id.to_string(),
+                    }),
+                )
+                .await;
+
+            Ok(ResponseJson(ApiResponse::success(execution_process)))
+        }
         Err(ApiError::Executor(ExecutorError::ExecutableNotFound { program }))
             if program == "brew" =>
         {
@@ -1428,34 +1571,19 @@ pub async fn get_first_user_message(
     Ok(ResponseJson(ApiResponse::success(message)))
 }
 
-#[derive(Debug, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[ts(tag = "type", rename_all = "snake_case")]
-pub enum DeleteWorkspaceError {
-    HasRunningProcesses,
-}
-
 pub async fn delete_workspace(
     Extension(workspace): Extension<Workspace>,
     State(deployment): State<DeploymentImpl>,
-) -> Result<
-    (
-        StatusCode,
-        ResponseJson<ApiResponse<(), DeleteWorkspaceError>>,
-    ),
-    ApiError,
-> {
+) -> Result<(StatusCode, ResponseJson<ApiResponse<()>>), ApiError> {
     let pool = &deployment.db().pool;
 
     // Check for running execution processes
     if ExecutionProcess::has_running_non_dev_server_processes_for_workspace(pool, workspace.id)
         .await?
     {
-        return Ok((
-            StatusCode::CONFLICT,
-            ResponseJson(ApiResponse::error_with_data(
-                DeleteWorkspaceError::HasRunningProcesses,
-            )),
+        return Err(ApiError::Conflict(
+            "Cannot delete workspace while processes are running. Stop all processes first."
+                .to_string(),
         ));
     }
 
@@ -1503,7 +1631,19 @@ pub async fn delete_workspace(
 
     if rows_affected == 0 {
         return Err(ApiError::Database(SqlxError::RowNotFound));
-    } // Spawn background cleanup task for filesystem resources
+    }
+
+    deployment
+        .track_if_analytics_allowed(
+            "workspace_deleted",
+            serde_json::json!({
+                "workspace_id": workspace.id.to_string(),
+                "task_id": workspace.task_id.to_string(),
+            }),
+        )
+        .await;
+
+    // Spawn background cleanup task for filesystem resources
     if let Some(workspace_dir) = workspace_dir {
         let workspace_id = workspace.id;
         tokio::spawn(async move {
@@ -1567,11 +1707,10 @@ pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
         .route("/push/force", post(force_push_task_attempt_branch))
         .route("/rebase", post(rebase_task_attempt))
         .route("/conflicts/abort", post(abort_conflicts_task_attempt))
-        .route("/pr", post(pr::create_github_pr))
+        .route("/pr", post(pr::create_pr))
         .route("/pr/attach", post(pr::attach_existing_pr))
         .route("/pr/comments", get(pr::get_pr_comments))
         .route("/open-editor", post(open_task_attempt_in_editor))
-        .route("/open-terminal", post(open_task_attempt_in_terminal))
         .route("/children", get(get_task_attempt_children))
         .route("/stop", post(stop_task_attempt_execution))
         .route("/change-target-branch", post(change_target_branch))

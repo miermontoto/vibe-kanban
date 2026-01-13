@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import WYSIWYGEditor from '@/components/ui/wysiwyg';
 import {
@@ -27,6 +28,7 @@ import {
   Settings,
   Terminal,
   User,
+  Wrench,
 } from 'lucide-react';
 import RawLogText from '../common/RawLogText';
 import UserMessage from './UserMessage';
@@ -34,7 +36,12 @@ import PendingApprovalEntry from './PendingApprovalEntry';
 import { NextActionCard } from './NextActionCard';
 import { cn } from '@/lib/utils';
 import { useRetryUi } from '@/contexts/RetryUiContext';
-import { formatTimestamp, formatFullTimestamp } from '@/utils/formatTimestamp';
+import { Button } from '@/components/ui/button';
+import {
+  ScriptFixerDialog,
+  type ScriptType,
+} from '@/components/dialogs/scripts/ScriptFixerDialog';
+import { useAttemptRepo } from '@/hooks/useAttemptRepo';
 
 type Props = {
   entry: NormalizedEntry | ProcessStartPayload;
@@ -508,11 +515,6 @@ const ToolCallCard: React.FC<{
     'w-full flex items-center gap-1.5 text-left text-secondary-foreground'
   );
 
-  // timestamp a mostrar
-  const timestamp = isNormalizedEntry ? entry.timestamp : null;
-  const formattedTime = formatTimestamp(timestamp);
-  const fullTime = formatFullTimestamp(timestamp);
-
   return (
     <div className="inline-block w-full flex flex-col gap-4">
       <HeaderWrapper {...headerProps} className={headerClassName}>
@@ -527,11 +529,6 @@ const ToolCallCard: React.FC<{
             <span className="text-sm font-mono">{label}</span>
           )}
         </span>
-        {formattedTime && (
-          <span className="text-xs opacity-50 ml-auto" title={fullTime}>
-            {formattedTime}
-          </span>
-        )}
       </HeaderWrapper>
 
       {effectiveExpanded && (
@@ -588,6 +585,80 @@ const ToolCallCard: React.FC<{
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+};
+
+// Script tool names that can be fixed
+const SCRIPT_TOOL_NAMES = [
+  'Setup Script',
+  'Cleanup Script',
+  'Tool Install Script',
+];
+
+const getScriptType = (toolName: string): ScriptType => {
+  if (toolName === 'Setup Script') return 'setup';
+  if (toolName === 'Cleanup Script') return 'cleanup';
+  return 'dev_server'; // Tool Install Script
+};
+
+const ScriptToolCallCard: React.FC<{
+  entry: NormalizedEntry | ProcessStartPayload;
+  expansionKey: string;
+  taskAttemptId?: string;
+  sessionId?: string;
+  isFailed: boolean;
+  toolName: string;
+  forceExpanded?: boolean;
+}> = ({
+  entry,
+  expansionKey,
+  taskAttemptId,
+  sessionId,
+  isFailed,
+  toolName,
+  forceExpanded = false,
+}) => {
+  const { t } = useTranslation('common');
+  const { repos } = useAttemptRepo(taskAttemptId);
+
+  const handleFix = useCallback(() => {
+    if (!taskAttemptId || repos.length === 0) return;
+
+    const scriptType = getScriptType(toolName);
+
+    ScriptFixerDialog.show({
+      scriptType,
+      repos,
+      workspaceId: taskAttemptId,
+      sessionId,
+      initialRepoId: repos.length === 1 ? repos[0].id : undefined,
+    });
+  }, [toolName, taskAttemptId, sessionId, repos]);
+
+  const canFix = taskAttemptId && repos.length > 0 && isFailed;
+
+  return (
+    <div className="flex items-start gap-2">
+      <div className="flex-1">
+        <ToolCallCard
+          entry={entry}
+          expansionKey={expansionKey}
+          forceExpanded={forceExpanded}
+          taskAttemptId={taskAttemptId}
+        />
+      </div>
+      {canFix && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleFix}
+          className="shrink-0 gap-1"
+        >
+          <Wrench className="h-3 w-3" />
+          {t('conversation.fixScript')}
+        </Button>
       )}
     </div>
   );
@@ -745,6 +816,31 @@ function DisplayConversationEntry({
         );
       }
 
+      // Script entries (Setup Script, Cleanup Script, Tool Install Script)
+      if (
+        toolEntry.action_type.action === 'command_run' &&
+        SCRIPT_TOOL_NAMES.includes(toolEntry.tool_name)
+      ) {
+        const actionType = toolEntry.action_type;
+        const exitCode =
+          actionType.result?.exit_status?.type === 'exit_code'
+            ? actionType.result.exit_status.code
+            : null;
+        const isFailed = exitCode !== null && exitCode !== 0;
+
+        return (
+          <ScriptToolCallCard
+            entry={entry}
+            expansionKey={expansionKey}
+            taskAttemptId={taskAttempt?.id}
+            sessionId={taskAttempt?.session?.id}
+            isFailed={isFailed}
+            toolName={toolEntry.tool_name}
+            forceExpanded={isPendingApproval}
+          />
+        );
+      }
+
       return (
         <ToolCallCard
           entry={entry}
@@ -811,6 +907,7 @@ function DisplayConversationEntry({
       <div className="px-4 py-2 text-sm">
         <NextActionCard
           attemptId={taskAttempt?.id}
+          sessionId={taskAttempt?.session?.id}
           containerRef={taskAttempt?.container_ref}
           failed={entry.entry_type.failed}
           execution_processes={entry.entry_type.execution_processes}
@@ -821,19 +918,8 @@ function DisplayConversationEntry({
     );
   }
 
-  // timestamp para mensajes generales (assistant, system, thinking, etc.)
-  const timestamp = isNormalizedEntry(entry) ? entry.timestamp : null;
-  const formattedTime = formatTimestamp(timestamp);
-  const fullTime = formatFullTimestamp(timestamp);
-
   return (
     <div className="px-4 py-2 text-sm">
-      {formattedTime && (
-        <div className="flex items-center gap-1.5 mb-1 text-xs opacity-50">
-          {getEntryIcon(entryType)}
-          <span title={fullTime}>{formattedTime}</span>
-        </div>
-      )}
       <div className={getContentClassName(entryType)}>
         {shouldRenderMarkdown(entryType) ? (
           <WYSIWYGEditor

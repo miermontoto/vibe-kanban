@@ -83,7 +83,8 @@
       "item2": "Did your dev server print the URL and port to the terminal in the format",
       "item2Suffix": "? (this is how we know it's running)",
       "item3": "Have you installed the Web Companion (required for click-to-edit)? If not, please",
-      "item3Link": "follow the installation instructions here"
+      "item3Link": "follow the installation instructions here",
+      "fixScript": "Fix Dev Script"
     },
     "noServer": {
       "title": "No dev server running",
@@ -93,7 +94,9 @@
       "companionLink": "View installation guide",
       "startButton": "Start Dev Server",
       "editButton": "Edit Dev Script",
-      "stopAndEditButton": "Stop Dev Server & Resolve Issues"
+      "stopAndEditButton": "Stop Dev Server & Resolve Issues",
+      "configureButton": "Configure",
+      "fixScript": "Fix Dev Script"
     },
     "devScript": {
       "saveAndStart": "Save & Start",
@@ -287,7 +290,8 @@
     },
     "updatedTodos": "Updated Todos",
     "viewInChangesPanel": "View in changes panel",
-    "unableToRenderDiff": "Unable to render diff."
+    "unableToRenderDiff": "Unable to render diff.",
+    "saveAsDefault": "Save as default"
   },
   "attempt": {
     "actions": {
@@ -361,7 +365,8 @@
       "forcePush": "Force Push",
       "forcePushing": "Force Pushing...",
       "creating": "Creating...",
-      "createPr": "Create PR"
+      "createPr": "Create PR",
+      "pushFailed": "Failed"
     },
     "errors": {
       "changeTargetBranch": "Failed to change target branch",
@@ -473,7 +478,9 @@
     "share": "Share",
     "reassign": "Reassign",
     "stopShare": "Stop share",
-    "duplicate": "Duplicate"
+    "duplicate": "Duplicate",
+    "startReview": "Start Review",
+    "startingReview": "Starting Review..."
   },
   "editBranchName": {
     "dialog": {
@@ -518,11 +525,16 @@
     "cancel": "Cancel",
     "confirm": "Share task",
     "inProgress": "Sharing...",
-    "closeButton": "Close"
+    "closeButton": "Close",
+    "gitProviderRequired": {
+      "title": "Connect Git Provider",
+      "description": "Connect your Git provider account to share tasks. This project must have a remote repository.",
+      "action": "Connect"
+    }
   },
   "createPrDialog": {
-    "title": "Create GitHub Pull Request",
-    "description": "Create a pull request for this task attempt on GitHub.",
+    "title": "Create Pull Request",
+    "description": "Create a pull request for this task attempt.",
     "titleLabel": "Title",
     "titlePlaceholder": "Enter PR title",
     "descriptionLabel": "Description (optional)",
@@ -536,9 +548,9 @@
     "creating": "Creating...",
     "createButton": "Create PR",
     "errors": {
-      "insufficientPermissions": "Insufficient permissions. Please ensure the GitHub CLI has the necessary permissions.",
+      "insufficientPermissions": "Insufficient permissions. Please ensure the CLI has the necessary permissions.",
       "repoNotFoundOrNoAccess": "Repository not found or no access. Please check your repository access and ensure you are authenticated.",
-      "failedToCreate": "Failed to create GitHub PR",
+      "failedToCreate": "Failed to create PR",
       "gitCliNotLoggedIn": "Git is not authenticated. Run \"gh auth login\" (or configure Git credentials) and try again.",
       "gitCliNotInstalled": "Git CLI is not installed. Install Git to create a PR.",
       "targetBranchNotFound": "Target branch '{{branch}}' does not exist on remote. Please ensure the branch exists before creating a pull request."
@@ -665,5 +677,61 @@
     "buttons": {
       "retry": "Retry"
     }
+  },
+  "startReviewDialog": {
+    "title": "Start Review",
+    "description": "Ask the coding agent to review your changes and provide feedback.",
+    "additionalInstructions": "Additional Instructions (optional)",
+    "reviewComments": "Review Comments ({{count}})",
+    "includeGitContext": "Include git context",
+    "includeGitContextDescription": "Tells the agent how to view all changes made on this branch",
+    "newSession": "New Session"
+  },
+  "resolveConflicts": {
+    "dialog": {
+      "title": "Resolve Conflicts",
+      "description": "Conflicts were detected. Choose how you want the agent to resolve them.",
+      "sessionLabel": "Session",
+      "existingSession": "Continue in current session",
+      "newSession": "Start a new session",
+      "resolve": "Resolve Conflicts",
+      "resolving": "Starting...",
+      "filesWithConflicts_one": "{{count}} file has conflicts",
+      "filesWithConflicts_other": "{{count}} files have conflicts",
+      "andMore": "...and {{count}} more"
+    }
+  },
+  "prComments": {
+    "dialog": {
+      "title": "Select PR Comments",
+      "noComments": "No comments found on this PR",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "add": "Add",
+      "selectedCount": "{{selected}} of {{total}} selected"
+    },
+    "card": {
+      "review": "Review",
+      "tooltip": "Click to view, double-click to edit"
+    }
+  },
+  "scriptFixer": {
+    "title": "Fix Script",
+    "setupScriptTitle": "Fix Setup Script",
+    "cleanupScriptTitle": "Fix Cleanup Script",
+    "devServerTitle": "Fix Dev Server Script",
+    "scriptLabel": "Script (edit)",
+    "logsLabel": "Last Execution Logs",
+    "saveButton": "Save",
+    "saveAndTestButton": "Save and Test",
+    "saving": "Saving...",
+    "testing": "Testing...",
+    "noLogs": "No execution logs available",
+    "selectRepo": "Repository",
+    "fixScript": "Fix Script",
+    "statusRunning": "Running...",
+    "statusSuccess": "Completed successfully",
+    "statusFailed": "Failed with exit code {{exitCode}}",
+    "statusKilled": "Process was killed"
   }
 }

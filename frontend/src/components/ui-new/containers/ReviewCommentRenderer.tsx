@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PrimaryButton } from '../primitives/PrimaryButton';
+import { CommentCard } from '../primitives/CommentCard';
 import WYSIWYGEditor from '@/components/ui/wysiwyg';
 import { useReview, type ReviewComment } from '@/contexts/ReviewProvider';
 
@@ -41,34 +42,38 @@ export function ReviewCommentRenderer({
 
   if (isEditing) {
     return (
-      <div className="p-base rounded-sm border border-brand bg-brand/10 font-sans">
+      <CommentCard
+        variant="user"
+        actions={
+          <>
+            <PrimaryButton
+              variant="default"
+              onClick={handleSave}
+              disabled={!editText.trim()}
+            >
+              {t('actions.saveChanges')}
+            </PrimaryButton>
+            <PrimaryButton variant="tertiary" onClick={handleCancel}>
+              {t('actions.cancel')}
+            </PrimaryButton>
+          </>
+        }
+      >
         <WYSIWYGEditor
           value={editText}
           onChange={setEditText}
           placeholder={t('comments.editPlaceholder')}
-          className="w-full text-normal min-h-[60px]"
+          className="w-full text-sm text-normal min-h-[60px]"
           projectId={projectId}
           onCmdEnter={handleSave}
           autoFocus
         />
-        <div className="mt-half flex gap-half">
-          <PrimaryButton
-            variant="default"
-            onClick={handleSave}
-            disabled={!editText.trim()}
-          >
-            {t('actions.saveChanges')}
-          </PrimaryButton>
-          <PrimaryButton variant="tertiary" onClick={handleCancel}>
-            {t('actions.cancel')}
-          </PrimaryButton>
-        </div>
-      </div>
+      </CommentCard>
     );
   }
 
   return (
-    <div className="p-base rounded-sm border border-brand bg-brand/10 font-sans">
+    <CommentCard variant="user">
       <WYSIWYGEditor
         value={comment.text}
         disabled={true}
@@ -76,6 +81,6 @@ export function ReviewCommentRenderer({
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-    </div>
+    </CommentCard>
   );
 }

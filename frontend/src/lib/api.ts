@@ -6,9 +6,9 @@ import {
   Config,
   CreateFollowUpAttempt,
   EditorType,
-  CreateGitHubPrRequest,
+  CreatePrApiRequest,
   CreateTask,
-  CreateTaskAndStartRequest,
+  CreateAndStartTaskRequest,
   CreateTaskAttemptBody,
   CreateTag,
   DirectoryListResponse,
@@ -16,14 +16,12 @@ import {
   ExecutionProcess,
   ExecutionProcessRepoState,
   GitBranch,
-  GitRemote,
   Project,
-  ProjectRepo,
   Repo,
   RepoWithTargetBranch,
   CreateProject,
   CreateProjectRepo,
-  UpdateProjectRepo,
+  UpdateRepo,
   SearchResult,
   ShareTaskResponse,
   Task,
@@ -31,7 +29,6 @@ import {
   Tag,
   TagSearchParams,
   TaskWithAttemptStatus,
-  TaskUpdateResponse,
   UpdateProject,
   UpdateTask,
   UpdateTag,
@@ -73,7 +70,7 @@ import {
   ListInvitationsResponse,
   OpenEditorResponse,
   OpenEditorRequest,
-  CreatePrError,
+  PrError,
   Scratch,
   ScratchType,
   CreateScratch,
@@ -91,8 +88,8 @@ import {
   AbortConflictsRequest,
   Session,
   Workspace,
-  PendingCommit,
-  CommitPendingRequest,
+  StartReviewRequest,
+  ReviewError,
 } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { createWorkspaceWithSession } from '@/types/attempt';
@@ -113,19 +110,6 @@ export class ApiError<E = unknown> extends Error {
     this.error_data = error_data;
   }
 }
-
-// Custom JSON.stringify replacer to handle BigInt values
-const bigIntReplacer = (_key: string, value: unknown) => {
-  if (typeof value === 'bigint') {
-    return Number(value);
-  }
-  return value;
-};
-
-// Helper to stringify with BigInt support
-export const stringifyWithBigInt = (data: unknown): string => {
-  return JSON.stringify(data, bigIntReplacer);
-};
 
 const makeRequest = async (url: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers ?? {});
@@ -198,29 +182,13 @@ export const handleApiResponse = async <T, E = T>(
       errorMessage = response.statusText || errorMessage;
     }
 
-    // suprime errores esperados de auth en desarrollo local
-    // el cliente remoto es opcional y no está configurado por defecto
-    const isAuthError = response.url.includes('/api/auth/');
-    const isRemoteNotConfigured = errorMessage.includes(
-      'Remote client not configured'
-    );
-
-    if (
-      import.meta.env.MODE === 'development' &&
-      isAuthError &&
-      isRemoteNotConfigured
-    ) {
-      console.debug('[API] Remote auth not configured (expected in local dev)');
-    } else {
-      console.error('[API Error]', {
-        message: errorMessage,
-        status: response.status,
-        response,
-        endpoint: response.url,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
+    console.error('[API Error]', {
+      message: errorMessage,
+      status: response.status,
+      response,
+      endpoint: response.url,
+      timestamp: new Date().toISOString(),
+    });
     throw new ApiError<E>(errorMessage, response.status, response);
   }
 
@@ -312,13 +280,6 @@ export const projectsApi = {
     return handleApiResponse<OpenEditorResponse>(response);
   },
 
-  openTerminal: async (id: string): Promise<void> => {
-    const response = await makeRequest(`/api/projects/${id}/open-terminal`, {
-      method: 'POST',
-    });
-    return handleApiResponse<void>(response);
-  },
-
   searchFiles: async (
     id: string,
     query: string,
@@ -372,11 +333,6 @@ export const projectsApi = {
     return handleApiResponse<Repo[]>(response);
   },
 
-  getRemotes: async (projectId: string): Promise<GitRemote[]> => {
-    const response = await makeRequest(`/api/projects/${projectId}/remotes`);
-    return handleApiResponse<GitRemote[]>(response);
-  },
-
   addRepository: async (
     projectId: string,
     data: CreateProjectRepo
@@ -403,31 +359,6 @@ export const projectsApi = {
     );
     return handleApiResponse<void>(response);
   },
-
-  getRepository: async (
-    projectId: string,
-    repoId: string
-  ): Promise<ProjectRepo> => {
-    const response = await makeRequest(
-      `/api/projects/${projectId}/repositories/${repoId}`
-    );
-    return handleApiResponse<ProjectRepo>(response);
-  },
-
-  updateRepository: async (
-    projectId: string,
-    repoId: string,
-    data: UpdateProjectRepo
-  ): Promise<ProjectRepo> => {
-    const response = await makeRequest(
-      `/api/projects/${projectId}/repositories/${repoId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }
-    );
-    return handleApiResponse<ProjectRepo>(response);
-  },
 };
 
 // Task Management APIs
@@ -440,30 +371,27 @@ export const tasksApi = {
   create: async (data: CreateTask): Promise<Task> => {
     const response = await makeRequest(`/api/tasks`, {
       method: 'POST',
-      body: stringifyWithBigInt(data),
+      body: JSON.stringify(data),
     });
     return handleApiResponse<Task>(response);
   },
 
   createAndStart: async (
-    data: CreateTaskAndStartRequest
+    data: CreateAndStartTaskRequest
   ): Promise<TaskWithAttemptStatus> => {
     const response = await makeRequest(`/api/tasks/create-and-start`, {
       method: 'POST',
-      body: stringifyWithBigInt(data),
+      body: JSON.stringify(data),
     });
     return handleApiResponse<TaskWithAttemptStatus>(response);
   },
 
-  update: async (
-    taskId: string,
-    data: UpdateTask
-  ): Promise<TaskUpdateResponse> => {
+  update: async (taskId: string, data: UpdateTask): Promise<Task> => {
     const response = await makeRequest(`/api/tasks/${taskId}`, {
       method: 'PUT',
-      body: stringifyWithBigInt(data),
+      body: JSON.stringify(data),
     });
-    return handleApiResponse<TaskUpdateResponse>(response);
+    return handleApiResponse<Task>(response);
   },
 
   delete: async (taskId: string): Promise<void> => {
@@ -549,6 +477,17 @@ export const sessionsApi = {
       body: JSON.stringify(data),
     });
     return handleApiResponse<ExecutionProcess>(response);
+  },
+
+  startReview: async (
+    sessionId: string,
+    data: StartReviewRequest
+  ): Promise<ExecutionProcess> => {
+    const response = await makeRequest(`/api/sessions/${sessionId}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<ExecutionProcess, ReviewError>(response);
   },
 };
 
@@ -645,16 +584,6 @@ export const attemptsApi = {
       }
     );
     return handleApiResponse<OpenEditorResponse>(response);
-  },
-
-  openTerminal: async (attemptId: string): Promise<void> => {
-    const response = await makeRequest(
-      `/api/task-attempts/${attemptId}/open-terminal`,
-      {
-        method: 'POST',
-      }
-    );
-    return handleApiResponse<void>(response);
   },
 
   getBranchStatus: async (attemptId: string): Promise<RepoBranchStatus[]> => {
@@ -776,13 +705,13 @@ export const attemptsApi = {
 
   createPR: async (
     attemptId: string,
-    data: CreateGitHubPrRequest
-  ): Promise<Result<string, CreatePrError>> => {
+    data: CreatePrApiRequest
+  ): Promise<Result<string, PrError>> => {
     const response = await makeRequest(`/api/task-attempts/${attemptId}/pr`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return handleApiResponseAsResult<string, CreatePrError>(response);
+    return handleApiResponseAsResult<string, PrError>(response);
   },
 
   startDevServer: async (attemptId: string): Promise<void> => {
@@ -903,6 +832,24 @@ export const fileSystemApi = {
 
 // Repo APIs
 export const repoApi = {
+  list: async (): Promise<Repo[]> => {
+    const response = await makeRequest('/api/repos');
+    return handleApiResponse<Repo[]>(response);
+  },
+
+  getById: async (repoId: string): Promise<Repo> => {
+    const response = await makeRequest(`/api/repos/${repoId}`);
+    return handleApiResponse<Repo>(response);
+  },
+
+  update: async (repoId: string, data: UpdateRepo): Promise<Repo> => {
+    const response = await makeRequest(`/api/repos/${repoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<Repo>(response);
+  },
+
   register: async (data: {
     path: string;
     display_name?: string;
@@ -1407,55 +1354,5 @@ export const queueApi = {
   getStatus: async (sessionId: string): Promise<QueueStatus> => {
     const response = await makeRequest(`/api/sessions/${sessionId}/queue`);
     return handleApiResponse<QueueStatus>(response);
-  },
-};
-
-// Pending Commits API
-export const pendingCommitsApi = {
-  /**
-   * List all pending commits
-   */
-  list: async (): Promise<PendingCommit[]> => {
-    const response = await makeRequest('/api/pending-commits');
-    return handleApiResponse<PendingCommit[]>(response);
-  },
-
-  /**
-   * Get count of pending commits
-   */
-  getCount: async (): Promise<number> => {
-    const response = await makeRequest('/api/pending-commits/count');
-    return handleApiResponse<number>(response);
-  },
-
-  /**
-   * Commit a pending commit with a user-provided title
-   */
-  commit: async (id: string, data: CommitPendingRequest): Promise<void> => {
-    const response = await makeRequest(`/api/pending-commits/${id}`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    return handleApiResponse<void>(response);
-  },
-
-  /**
-   * Discard a single pending commit
-   */
-  discard: async (id: string): Promise<void> => {
-    const response = await makeRequest(`/api/pending-commits/${id}`, {
-      method: 'DELETE',
-    });
-    return handleApiResponse<void>(response);
-  },
-
-  /**
-   * Discard all pending commits
-   */
-  discardAll: async (): Promise<void> => {
-    const response = await makeRequest('/api/pending-commits', {
-      method: 'DELETE',
-    });
-    return handleApiResponse<void>(response);
   },
 };
