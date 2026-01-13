@@ -1655,7 +1655,10 @@ fn parse_github_url(url: &str) -> Result<(String, String), GitServiceError> {
 
     let url = url.trim_end_matches(".git");
 
-    if let Some(path) = url.strip_prefix("https://github.com/").or_else(|| url.strip_prefix("http://github.com/")) {
+    if let Some(path) = url
+        .strip_prefix("https://github.com/")
+        .or_else(|| url.strip_prefix("http://github.com/"))
+    {
         let parts: Vec<&str> = path.split('/').collect();
         if parts.len() >= 2 {
             return Ok((parts[0].to_string(), parts[1].to_string()));
@@ -1674,7 +1677,6 @@ fn parse_github_url(url: &str) -> Result<(String, String), GitServiceError> {
 }
 
 impl GitService {
-
     /// Extract GitHub owner and repo name from git repo path
     pub fn get_github_repo_info(
         &self,

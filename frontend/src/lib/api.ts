@@ -90,6 +90,8 @@ import {
   Workspace,
   StartReviewRequest,
   ReviewError,
+  PendingCommit,
+  CommitPendingRequest,
 } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { createWorkspaceWithSession } from '@/types/attempt';
@@ -278,6 +280,18 @@ export const projectsApi = {
       body: JSON.stringify(data),
     });
     return handleApiResponse<OpenEditorResponse>(response);
+  },
+
+  openTerminal: async (id: string): Promise<void> => {
+    const response = await makeRequest(`/api/projects/${id}/open-terminal`, {
+      method: 'POST',
+    });
+    return handleApiResponse<void>(response);
+  },
+
+  getRemotes: async (id: string): Promise<string[]> => {
+    const response = await makeRequest(`/api/projects/${id}/remotes`);
+    return handleApiResponse<string[]>(response);
   },
 
   searchFiles: async (
@@ -778,6 +792,16 @@ export const attemptsApi = {
       `/api/task-attempts/${attemptId}/mark-seen`,
       {
         method: 'PUT',
+      }
+    );
+    return handleApiResponse<void>(response);
+  },
+
+  openTerminal: async (attemptId: string): Promise<void> => {
+    const response = await makeRequest(
+      `/api/task-attempts/${attemptId}/open-terminal`,
+      {
+        method: 'POST',
       }
     );
     return handleApiResponse<void>(response);
@@ -1354,5 +1378,42 @@ export const queueApi = {
   getStatus: async (sessionId: string): Promise<QueueStatus> => {
     const response = await makeRequest(`/api/sessions/${sessionId}/queue`);
     return handleApiResponse<QueueStatus>(response);
+  },
+};
+
+export const pendingCommitsApi = {
+  list: async (): Promise<PendingCommit[]> => {
+    const response = await makeRequest('/api/pending-commits');
+    return handleApiResponse<PendingCommit[]>(response);
+  },
+
+  getCount: async (): Promise<number> => {
+    const response = await makeRequest('/api/pending-commits/count');
+    return handleApiResponse<number>(response);
+  },
+
+  commit: async (
+    id: string,
+    data: CommitPendingRequest
+  ): Promise<void> => {
+    const response = await makeRequest(`/api/pending-commits/${id}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<void>(response);
+  },
+
+  discard: async (id: string): Promise<void> => {
+    const response = await makeRequest(`/api/pending-commits/${id}`, {
+      method: 'DELETE',
+    });
+    return handleApiResponse<void>(response);
+  },
+
+  discardAll: async (): Promise<number> => {
+    const response = await makeRequest('/api/pending-commits', {
+      method: 'DELETE',
+    });
+    return handleApiResponse<number>(response);
   },
 };

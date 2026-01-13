@@ -281,13 +281,11 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           repo_id: rb.repoId,
           target_branch: rb.branch,
         }));
-        const customBranch = value.customBranchName.trim() || null;
         await createAndStart.mutateAsync(
           {
             task,
             executor_profile_id: value.executorProfileId!,
             repos,
-            custom_branch_name: customBranch,
           },
           { onSuccess: () => modal.remove() }
         );

@@ -13,6 +13,44 @@
   - `origin`: https://github.com/miermontoto/vibe-kanban (PRIMARY)
   - `upstream`: https://github.com/BloopAI/vibe-kanban.git (reference only)
 
+### Upstream Merge History
+
+#### Merge 2026-01-13: BloopAI/vibe-kanban upstream sync
+
+**Context:** Merged 57 upstream commits into fork (278 commits ahead). Merge base: `06862ab0`.
+
+**Key upstream changes integrated:**
+- **Dev scripts refactoring**: `dev_script` and `dev_script_working_dir` fields moved from Project model to Repo model
+- **Git host abstraction**: `github` module renamed to `git_host` to support Azure Repos alongside GitHub
+- **Type renames**: `CreateTaskAndStartRequest` → `CreateAndStartTaskRequest`
+- **Removed features**: `auto_pr_results`, `custom_branch_name`, `AutoPrResult`, `TaskUpdateResponse` types removed
+- **API changes**:
+  - `push_to_github` → `push_to_remote`
+  - `projectsApi.getRemotes()` now returns `string[]` instead of `GitRemote[]`
+  - `UpdateProject` now requires `default_agent_working_dir` field
+
+**Post-merge fixes required:**
+- Regenerate SQLx prepared queries: `pnpm run prepare-db`
+- Regenerate TypeScript types: `pnpm run generate-types`
+- Update all references to removed fields/types
+- Run `cargo fmt --all` to fix formatting
+- Fix ESLint warnings (useCallback dependencies)
+
+**Custom features preserved:**
+- Package name: `@miermontoto/vkm` (upstream: `vibe-kanban`)
+- Version: `1.0.1` (upstream: `0.0.150`)
+- Custom git workflow features (auto-commit, auto-PR with title mode)
+- Custom branding and configuration
+
+**Verification checklist after upstream merge:**
+1. ✅ TypeScript compilation: `pnpm run check`
+2. ✅ ESLint: `pnpm run lint`
+3. ✅ Rust formatting: `cargo fmt --all -- --check`
+4. ✅ Type generation: `pnpm run generate-types:check`
+5. ✅ Rust linting: `cargo clippy --all --all-targets -- -D warnings`
+6. ✅ Tests: `cargo test --workspace`
+7. ⚠️ i18n completeness: `./scripts/check-i18n.sh` (warnings expected from merge)
+
 ## Project Structure & Module Organization
 
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.

@@ -11,8 +11,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use services::services::container::RepoWithName;
-
 use axum::{
     Extension, Json, Router,
     extract::{
@@ -46,7 +44,7 @@ use executors::{
 use git2::BranchType;
 use serde::{Deserialize, Serialize};
 use services::services::{
-    container::ContainerService,
+    container::{ContainerService, RepoWithName},
     git::{ConflictOp, GitCliError, GitServiceError},
     workspace_manager::WorkspaceManager,
 };
@@ -669,6 +667,61 @@ pub async fn open_task_attempt_in_editor(
                 e
             );
             Err(ApiError::EditorOpen(e))
+        }
+    }
+}
+
+pub async fn open_task_attempt_in_terminal(
+    Extension(workspace): Extension<Workspace>,
+    State(deployment): State<DeploymentImpl>,
+) -> Result<ResponseJson<ApiResponse<()>>, ApiError> {
+    let container_ref = deployment
+        .container()
+        .ensure_container_exists(&workspace)
+        .await?;
+
+    Workspace::touch(&deployment.db().pool, workspace.id).await?;
+
+    let workspace_path = Path::new(&container_ref);
+
+    // For single-repo projects, open from the repo directory
+    let workspace_repos =
+        WorkspaceRepo::find_repos_for_workspace(&deployment.db().pool, workspace.id).await?;
+    let path = if workspace_repos.len() == 1 {
+        workspace_path.join(&workspace_repos[0].name)
+    } else {
+        workspace_path.to_path_buf()
+    };
+
+    match utils::terminal::open_terminal(&path).await {
+        Ok(()) => {
+            tracing::info!(
+                "Opened terminal for task attempt {} at path: {}",
+                workspace.id,
+                path.display()
+            );
+
+            deployment
+                .track_if_analytics_allowed(
+                    "task_attempt_terminal_opened",
+                    serde_json::json!({
+                        "workspace_id": workspace.id.to_string(),
+                    }),
+                )
+                .await;
+
+            Ok(ResponseJson(ApiResponse::success(())))
+        }
+        Err(e) => {
+            tracing::error!(
+                "Failed to open terminal for attempt {}: {:?}",
+                workspace.id,
+                e
+            );
+            Err(ApiError::BadRequest(format!(
+                "Failed to open terminal: {}",
+                e
+            )))
         }
     }
 }
@@ -1715,6 +1768,7 @@ pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
         .route("/pr/attach", post(pr::attach_existing_pr))
         .route("/pr/comments", get(pr::get_pr_comments))
         .route("/open-editor", post(open_task_attempt_in_editor))
+        .route("/open-terminal", post(open_task_attempt_in_terminal))
         .route("/children", get(get_task_attempt_children))
         .route("/stop", post(stop_task_attempt_execution))
         .route("/change-target-branch", post(change_target_branch))

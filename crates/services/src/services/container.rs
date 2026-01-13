@@ -909,10 +909,8 @@ pub trait ContainerService {
             ProjectRepo::find_repos_for_project(&self.db().pool, project.id).await?;
 
         // convertir de Repo a RepoWithName
-        let project_repos: Vec<RepoWithName> = project_repos_raw
-            .iter()
-            .map(RepoWithName::from)
-            .collect();
+        let project_repos: Vec<RepoWithName> =
+            project_repos_raw.iter().map(RepoWithName::from).collect();
 
         let workspace = Workspace::find_by_id(&self.db().pool, workspace.id)
             .await?

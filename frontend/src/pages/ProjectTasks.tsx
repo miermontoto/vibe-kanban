@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle, Plus, X } from 'lucide-react';
 import { Loader } from '@/components/ui/loader';
 import { tasksApi } from '@/lib/api';
-import { logAutoPrResults } from '@/hooks/useTaskMutations';
+// logAutoPrResults removed - auto-PR results no longer in API
 import type { RepoBranchStatus, Workspace } from 'shared/types';
 import { openTaskForm } from '@/lib/openTaskForm';
 import { FeatureShowcaseDialog } from '@/components/dialogs/global/FeatureShowcaseDialog';
@@ -717,7 +717,7 @@ export function ProjectTasks() {
       if (!task || task.status === newStatus) return;
 
       try {
-        const response = await tasksApi.update(draggedTaskId, {
+        /* const response = */await tasksApi.update(draggedTaskId, {
           title: task.title,
           description: task.description,
           status: newStatus,
@@ -729,7 +729,7 @@ export function ProjectTasks() {
           label_ids: null,
         });
 
-        logAutoPrResults(response.auto_pr_results);
+        // auto-PR results have been removed from the API
       } catch (err) {
         console.error('Failed to update task status:', err);
       }

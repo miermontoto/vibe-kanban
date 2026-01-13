@@ -350,7 +350,7 @@ impl LocalContainerService {
         let child_store = self.child_store.clone();
         let msg_stores = self.msg_stores.clone();
         let db = self.db.clone();
-        let config = self.config.clone();
+        let _config = self.config.clone();
         let container = self.clone();
         let analytics = self.analytics.clone();
         let publisher = self.publisher.clone();
@@ -522,10 +522,9 @@ impl LocalContainerService {
 
                 // Fire analytics event when CodingAgent execution has finished
                 if matches!(
-                        &ctx.execution_process.run_reason,
-                        ExecutionProcessRunReason::CodingAgent
-                    )
-                    && let Some(analytics) = &analytics
+                    &ctx.execution_process.run_reason,
+                    ExecutionProcessRunReason::CodingAgent
+                ) && let Some(analytics) = &analytics
                 {
                     analytics.analytics_service.track_event(&analytics.user_id, "task_attempt_finished", Some(json!({
                         "task_id": ctx.task.id.to_string(),

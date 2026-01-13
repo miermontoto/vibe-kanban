@@ -166,7 +166,6 @@ export function CreateChatBoxContainer() {
         repo_id: r.id,
         target_branch: targetBranches[r.id] ?? 'main',
       })),
-      custom_branch_name: null,
     });
 
     // Clear attachments and draft after successful creation

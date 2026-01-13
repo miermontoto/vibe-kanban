@@ -60,7 +60,6 @@ pub struct ProjectWithTaskCounts {
     pub task_counts: ProjectTaskCounts,
 }
 
-
 #[derive(Debug, Clone, Deserialize, TS)]
 pub struct CreateProject {
     pub name: String,
