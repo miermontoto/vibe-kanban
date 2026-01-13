@@ -1,7 +1,7 @@
 {
   "name": "@miermontoto/vkm",
   "private": false,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "main": "index.js",
   "bin": {
     "vkm": "bin/cli.js"

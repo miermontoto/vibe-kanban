@@ -313,6 +313,16 @@ jobs:
           VERSION="${REF_NAME#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Sync package.json versions with tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Update npx-cli/package.json to match the release tag
+          cd npx-cli
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "Updated npx-cli/package.json to version $VERSION"
+          cat package.json | grep '"version"'
+
       - name: Update download.js with release info
         env:
           REPO_FULL: ${{ github.repository }}
