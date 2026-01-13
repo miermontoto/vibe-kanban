@@ -93,7 +93,10 @@ export function closeWebSocket(ws: WebSocket | null): void {
   ws.onclose = null;
 
   // Close if not already closed/closing
-  if (ws.readyState === WebSocketState.OPEN || ws.readyState === WebSocketState.CONNECTING) {
+  if (
+    ws.readyState === WebSocketState.OPEN ||
+    ws.readyState === WebSocketState.CONNECTING
+  ) {
     ws.close();
   }
 }
