@@ -6,7 +6,7 @@ import {
   MenuOption,
 } from '@lexical/react/LexicalTypeaheadMenuPlugin';
 import { $createTextNode } from 'lexical';
-import { Terminal, Globe, FolderOpen, Bot } from 'lucide-react';
+import { Terminal, Globe, FolderOpen } from 'lucide-react';
 import type { SlashCommand } from 'shared/types';
 
 class SlashCommandOption extends MenuOption {
@@ -188,9 +188,6 @@ export function SlashCommandTypeaheadPlugin() {
         const projectCommands = options.filter(
           (opt) => opt.command.category === 'project'
         );
-        const agentCommands = options.filter(
-          (opt) => opt.command.category === 'agent'
-        );
 
         return createPortal(
           <div
@@ -294,55 +291,6 @@ export function SlashCommandTypeaheadPlugin() {
                           <div className="flex items-center gap-2 font-medium text-sm">
                             <Terminal className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                             <span className="font-mono">/{cmd.name}</span>
-                          </div>
-                          {cmd.description && (
-                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {cmd.description}
-                            </div>
-                          )}
-                          {cmd.examples && cmd.examples.length > 0 && (
-                            <div className="text-xs text-muted-foreground mt-1 font-mono opacity-75">
-                              {cmd.examples[0]}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/* Agent commands section */}
-                {agentCommands.length > 0 && (
-                  <>
-                    {(globalCommands.length > 0 || projectCommands.length > 0) && (
-                      <div className="border-t my-1" />
-                    )}
-                    <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                      <Bot className="h-3 w-3" />
-                      Agents
-                    </div>
-                    {agentCommands.map((option) => {
-                      const index = options.indexOf(option);
-                      const cmd = option.command;
-                      return (
-                        <div
-                          key={option.key}
-                          ref={(el) => {
-                            if (el) itemRefs.current.set(index, el);
-                            else itemRefs.current.delete(index);
-                          }}
-                          className={
-                            'px-3 py-2.5 cursor-pointer ' +
-                            (index === selectedIndex
-                              ? 'bg-accent text-accent-foreground'
-                              : 'hover:bg-accent/50')
-                          }
-                          onMouseEnter={() => setHighlightedIndex(index)}
-                          onClick={() => selectOptionAndCleanUp(option)}
-                        >
-                          <div className="flex items-center gap-2 font-medium text-sm">
-                            <Bot className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-                            <span className="font-mono">{cmd.name}</span>
                           </div>
                           {cmd.description && (
                             <div className="text-xs text-muted-foreground mt-1 line-clamp-2">

@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { AutoExpandingTextarea } from '@/components/ui/auto-expanding-textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { projectsApi, tagsApi } from '@/lib/api';
-import { Tag as TagIcon, FileText, AlertTriangle, Bot } from 'lucide-react';
+import { Tag as TagIcon, FileText, AlertTriangle } from 'lucide-react';
 
 import type { SearchResult, Tag, SlashCommand } from 'shared/types';
 
@@ -531,9 +531,6 @@ export const FileSearchTextarea = forwardRef<
   const projectSlashCommands = filteredSlashCommands.filter(
     (cmd) => cmd.category === 'project'
   );
-  const agentSlashCommands = filteredSlashCommands.filter(
-    (cmd) => cmd.category === 'agent'
-  );
 
   return (
     <div
@@ -773,48 +770,6 @@ export const FileSearchTextarea = forwardRef<
                           aria-selected={index === selectedSlashIndex}
                         >
                           <div className="font-medium text-foreground">
-                            {command.name}
-                          </div>
-                          <div className="text-muted-foreground text-xs mt-0.5 line-clamp-2">
-                            {command.description}
-                          </div>
-                          {command.examples && command.examples.length > 0 && (
-                            <div className="text-xs font-mono bg-muted/50 px-2 py-1 rounded mt-1">
-                              {command.examples[0]}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/* Agent commands */}
-                {agentSlashCommands.length > 0 && (
-                  <>
-                    {(globalSlashCommands.length > 0 ||
-                      projectSlashCommands.length > 0) && (
-                      <div className="border-t my-1" />
-                    )}
-                    <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                      <Bot className="h-3 w-3" />
-                      Agents
-                    </div>
-                    {agentSlashCommands.map((command) => {
-                      const index = filteredSlashCommands.indexOf(command);
-                      return (
-                        <div
-                          key={command.id}
-                          className={`
-                            px-3 py-2 cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground
-                            ${index === selectedSlashIndex ? 'bg-accent text-accent-foreground' : ''}
-                          `}
-                          onClick={() => selectSlashCommand(command)}
-                          role="option"
-                          aria-selected={index === selectedSlashIndex}
-                        >
-                          <div className="font-medium text-foreground flex items-center gap-2">
-                            <Bot className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
                             {command.name}
                           </div>
                           <div className="text-muted-foreground text-xs mt-0.5 line-clamp-2">

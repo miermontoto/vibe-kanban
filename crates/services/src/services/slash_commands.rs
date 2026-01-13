@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use db::models::commands::{CommandCategory, InternalSlashCommand, SlashCommand};
-use executors::profile::ExecutorConfigs;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Default)]
@@ -77,9 +76,6 @@ impl SlashCommandService {
             );
         }
 
-        // Add agent commands dynamically
-        internal_commands.extend(self.generate_agent_commands().await);
-
         // Sort commands by name
         internal_commands.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -88,54 +84,6 @@ impl SlashCommandService {
 
         tracing::info!("Found {} total commands", commands.len());
         Ok(commands)
-    }
-
-    async fn generate_agent_commands(&self) -> Vec<InternalSlashCommand> {
-        let mut commands = Vec::new();
-
-        // Load executor profiles to get available agents and variants
-        let executor_configs = ExecutorConfigs::get_cached();
-
-        // Get available executors and their variants
-        for (executor, config) in &executor_configs.executors {
-            let agent_name = executor.to_string().to_lowercase().replace('_', "-");
-
-            // Get all variant names including DEFAULT
-            let mut variant_keys: Vec<String> = config.configurations.keys().cloned().collect();
-            variant_keys.sort();
-
-            for variant in variant_keys {
-                let variant_name = variant.to_lowercase().replace('_', "-");
-                let command_name = if variant == "DEFAULT" {
-                    format!("/@{}", agent_name)
-                } else {
-                    format!("/@{}:{}", agent_name, variant_name)
-                };
-
-                let description = if variant == "DEFAULT" {
-                    format!("Use {} agent with default configuration",
-                        executor.to_string().replace('_', " "))
-                } else {
-                    format!("Use {} agent with {} variant",
-                        executor.to_string().replace('_', " "),
-                        variant)
-                };
-
-                commands.push(InternalSlashCommand {
-                    id: format!("agent-{}-{}", agent_name, variant_name),
-                    name: command_name.clone(),
-                    description,
-                    category: CommandCategory::Agent,
-                    examples: Some(vec![
-                        format!("{} Please implement feature X", command_name)
-                    ]),
-                    source: "system:agent".to_string(),
-                    namespace: Some("agent".to_string()),
-                });
-            }
-        }
-
-        commands
     }
 
     async fn scan_directory_recursive(
