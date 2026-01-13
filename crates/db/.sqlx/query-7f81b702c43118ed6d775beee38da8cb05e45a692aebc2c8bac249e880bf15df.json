@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", task_type as \"task_type!: TaskType\", parent_task_id as \"parent_task_id: Uuid\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", use_ralph_wiggum as \"use_ralph_wiggum!: bool\", ralph_max_iterations as \"ralph_max_iterations: i64\", ralph_completion_promise as \"ralph_completion_promise: String\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE id = $1",
+  "query": "SELECT id as \"id!: Uuid\", project_id as \"project_id!: Uuid\", title, description, status as \"status!: TaskStatus\", parent_workspace_id as \"parent_workspace_id: Uuid\", shared_task_id as \"shared_task_id: Uuid\", use_ralph_wiggum as \"use_ralph_wiggum!: bool\", ralph_max_iterations as \"ralph_max_iterations: i64\", ralph_completion_promise as \"ralph_completion_promise: String\", created_at as \"created_at!: DateTime<Utc>\", updated_at as \"updated_at!: DateTime<Utc>\"\n               FROM tasks\n               WHERE shared_task_id IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -29,53 +29,43 @@
         "type_info": "Text"
       },
       {
-        "name": "task_type!: TaskType",
-        "ordinal": 5,
-        "type_info": "Text"
-      },
-      {
-        "name": "parent_task_id: Uuid",
-        "ordinal": 6,
-        "type_info": "Blob"
-      },
-      {
         "name": "parent_workspace_id: Uuid",
-        "ordinal": 7,
+        "ordinal": 5,
         "type_info": "Blob"
       },
       {
         "name": "shared_task_id: Uuid",
-        "ordinal": 8,
+        "ordinal": 6,
         "type_info": "Blob"
       },
       {
         "name": "use_ralph_wiggum!: bool",
-        "ordinal": 9,
+        "ordinal": 7,
         "type_info": "Integer"
       },
       {
         "name": "ralph_max_iterations: i64",
-        "ordinal": 10,
+        "ordinal": 8,
         "type_info": "Integer"
       },
       {
         "name": "ralph_completion_promise: String",
-        "ordinal": 11,
+        "ordinal": 9,
         "type_info": "Text"
       },
       {
         "name": "created_at!: DateTime<Utc>",
-        "ordinal": 12,
+        "ordinal": 10,
         "type_info": "Text"
       },
       {
         "name": "updated_at!: DateTime<Utc>",
-        "ordinal": 13,
+        "ordinal": 11,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       true,
@@ -83,8 +73,6 @@
       false,
       true,
       false,
-      false,
-      true,
       true,
       true,
       false,
@@ -94,5 +82,5 @@
       false
     ]
   },
-  "hash": "ff36244fb0683b10ecc83cfec54839fd2341c3e6980583d999c6c38ffd2a5b6d"
+  "hash": "7f81b702c43118ed6d775beee38da8cb05e45a692aebc2c8bac249e880bf15df"
 }

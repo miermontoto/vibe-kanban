@@ -772,8 +772,6 @@ impl TaskServer {
             title,
             description: expanded_description,
             status,
-            task_type: None,      // mantener tipo actual
-            parent_task_id: None, // mantener parent actual
             parent_workspace_id: None,
             image_ids: None,
             use_ralph_wiggum,
