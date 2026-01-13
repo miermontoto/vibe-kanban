@@ -46,7 +46,6 @@ Supported coding agents include Claude Code, Gemini CLI, Amp, and more.
 Additional development tools:
 
 ```bash
-cargo install cargo-watch
 cargo install sqlx-cli
 ```
 

@@ -134,6 +134,11 @@ export const useConversationHistory = ({
   const loadEntriesForHistoricExecutionProcess = (
     executionProcess: ExecutionProcess
   ) => {
+    // Skip WebSocket connection for optimistic processes (no existen en el backend todavía)
+    if (executionProcess.id.startsWith('optimistic-')) {
+      return Promise.resolve([]);
+    }
+
     let url = '';
     if (executionProcess.executor_action.typ.type === 'ScriptRequest') {
       url = `/api/execution-processes/${executionProcess.id}/raw-logs/ws`;
@@ -467,6 +472,11 @@ export const useConversationHistory = ({
   // This emits its own events as they are streamed
   const loadRunningAndEmit = useCallback(
     (executionProcess: ExecutionProcess): Promise<void> => {
+      // Skip WebSocket connection for optimistic processes (no existen en el backend todavía)
+      if (executionProcess.id.startsWith('optimistic-')) {
+        return Promise.resolve();
+      }
+
       return new Promise((resolve, reject) => {
         let url = '';
         if (executionProcess.executor_action.typ.type === 'ScriptRequest') {

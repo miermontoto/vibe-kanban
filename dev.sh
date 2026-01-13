@@ -49,8 +49,8 @@ export VK_PORT_FILE="$PORT_FILE"
 # remove stale port file
 rm -f "$PORT_FILE"
 
-# start backend
-cargo watch -w crates -x 'run --bin vkm' &
+# start backend (no auto-restart)
+cargo run --bin vkm &
 BACKEND_PID=$!
 
 # wait for backend to write its port (max 60s)

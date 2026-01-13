@@ -5,12 +5,15 @@ This project uses Claude Code hooks to automate CI/CD workflows. Hooks are confi
 ## Current Hooks
 
 ### SessionStart Hook
+
 Shows available project commands when starting a new session:
+
 - `/fix-ci` - Fix all CI/CD issues
 - `/release [type]` - Create a new release
 - `/check-release` - Monitor release status
 
 ### PostToolUse Hook
+
 Reminds you to run `/fix-ci` after writing significant code changes (triggered by `Write` or `Edit` tool usage).
 
 ## Available Hook Events
@@ -18,18 +21,21 @@ Reminds you to run `/fix-ci` after writing significant code changes (triggered b
 Claude Code supports these hook events:
 
 ### Lifecycle Hooks
+
 - **SessionStart**: Runs when a new session starts
 - **SessionEnd**: Runs when a session ends
 - **SubagentStart**: Runs when a subagent/task starts
 - **SubagentStop**: Runs when a subagent/task completes
 
 ### Tool Hooks
+
 - **PreToolUse**: Runs before a tool is executed
 - **PostToolUse**: Runs after a tool succeeds
 - **PostToolUseFailure**: Runs when a tool fails
 - **PermissionRequest**: Runs when permission is requested
 
 ### Other Hooks
+
 - **UserPromptSubmit**: Runs when user submits a prompt
 - **Notification**: Runs on notifications
 - **Stop**: Runs when session is stopped
@@ -38,7 +44,9 @@ Claude Code supports these hook events:
 ## Hook Types
 
 ### 1. Command Hook
+
 Execute a bash command:
+
 ```json
 {
   "type": "command",
@@ -50,7 +58,9 @@ Execute a bash command:
 ```
 
 ### 2. Prompt Hook
+
 Run a quick LLM evaluation:
+
 ```json
 {
   "type": "prompt",
@@ -63,7 +73,9 @@ Run a quick LLM evaluation:
 ```
 
 ### 3. Agent Hook
+
 Run a full agentic verifier:
+
 ```json
 {
   "type": "agent",
@@ -87,6 +99,7 @@ Hooks can use matchers to filter when they run:
 ```
 
 Common matchers:
+
 - `"Write"` - Only on Write tool usage
 - `"Edit"` - Only on Edit tool usage
 - `"Write|Edit"` - On Write OR Edit
@@ -157,12 +170,14 @@ Add this to `PostToolUse`:
 ## The $ARGUMENTS Placeholder
 
 In prompt and agent hooks, use `$ARGUMENTS` to access:
+
 - Tool name
 - Tool parameters
 - Tool results
 - Any other context passed to the hook
 
 Example:
+
 ```json
 {
   "type": "prompt",
@@ -173,20 +188,25 @@ Example:
 ## Hook Options
 
 ### timeout
+
 Maximum seconds the hook can run (default varies by type)
 
 ### statusMessage
+
 Custom message shown while hook runs
 
 ### once
+
 If `true`, hook runs once then is removed (useful for one-time setup)
 
 ### model
+
 Override the model for prompt/agent hooks (defaults to fast models)
 
 ## Disabling Hooks
 
 To temporarily disable all hooks:
+
 ```json
 {
   "disableAllHooks": true
@@ -198,11 +218,13 @@ Or remove specific hooks from the `hooks` object.
 ## Debugging Hooks
 
 Run Claude Code with hook debugging:
+
 ```bash
 claude --debug hooks
 ```
 
 This shows:
+
 - When hooks trigger
 - Hook execution output
 - Any errors
@@ -219,42 +241,53 @@ This shows:
 ## Common Use Cases
 
 ### 1. Welcome Message
+
 Show project info on session start
 
 ### 2. Auto-formatting
+
 Run formatters after code changes
 
 ### 3. Test Automation
+
 Run tests after modifying test files
 
 ### 4. Commit Validation
+
 Verify commit message format
 
 ### 5. CI/CD Reminders
+
 Remind to check CI after changes
 
 ### 6. Documentation Updates
+
 Prompt to update docs when APIs change
 
 ### 7. Security Checks
+
 Run security scans on new dependencies
 
 ### 8. Performance Monitoring
+
 Track build times and warn on regressions
 
 ## Troubleshooting
 
 **Hook not running:**
+
 - Check matcher pattern
 - Verify hook syntax with `--debug hooks`
 - Ensure `disableAllHooks` is not set
 
 **Hook too slow:**
+
 - Reduce timeout
 - Switch from `agent` to `prompt` or `command`
 - Add specific matchers to reduce triggers
 
 **Too many hook triggers:**
+
 - Use more specific matchers
 - Add logic to check if hook already ran recently
 - Use `once: true` for one-time actions

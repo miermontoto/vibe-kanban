@@ -2,6 +2,13 @@ import { useEffect, useState, useRef } from 'react';
 import { produce } from 'immer';
 import { applyPatch } from 'rfc6902';
 import type { Operation } from 'rfc6902';
+import {
+  buildWebSocketUrl,
+  calculateBackoffDelay,
+  shouldRetryConnection,
+  closeWebSocket,
+  isWebSocketConnecting,
+} from '@/utils/websocketUtils';
 
 type WsJsonPatchMsg = { JsonPatch: Operation[] };
 type WsReadyMsg = { Ready: true };
@@ -61,11 +68,9 @@ export const useJsonPatchWsStream = <T extends object>(
 
     const attempt = retryAttemptsRef.current;
 
-    // exponential backoff con jitter: 1s, 2s, 4s, 8s, 16s, 32s (max)
-    // jitter evita thundering herd cuando muchos clientes reconectan simultáneamente
-    const baseDelay = Math.min(32000, 1000 * Math.pow(2, attempt));
-    const jitter = Math.random() * 1000; // 0-1000ms de jitter
-    const delay = baseDelay + jitter;
+    // exponential backoff con jitter usando utility compartida
+    // 1s, 2s, 4s, 8s, 16s, 32s (max) con jitter para evitar thundering herd
+    const delay = calculateBackoffDelay(attempt);
 
     setIsReconnecting(true);
     setRetryCount(attempt + 1);
@@ -118,18 +123,8 @@ export const useJsonPatchWsStream = <T extends object>(
       // Reset finished flag for new connection
       finishedRef.current = false;
 
-      // Convert HTTP endpoint to WebSocket endpoint
-      // En desarrollo, conectar directamente al backend para evitar bug del proxy de Vite
-      // con WebSockets (https://github.com/vitejs/vite/issues/20223)
-      let wsEndpoint: string;
-      if (import.meta.env.DEV && endpoint.startsWith('/api/')) {
-        // En desarrollo, construir URL absoluta al puerto del backend
-        const backendPort = import.meta.env.VITE_BACKEND_PORT || '3001';
-        wsEndpoint = `ws://localhost:${backendPort}${endpoint}`;
-      } else {
-        // En producción o para URLs absolutas, reemplazar protocolo
-        wsEndpoint = endpoint.replace(/^http/, 'ws');
-      }
+      // Convert HTTP endpoint to WebSocket endpoint using shared utility
+      const wsEndpoint = buildWebSocketUrl(endpoint);
       const ws = new WebSocket(wsEndpoint);
 
       ws.onopen = () => {
@@ -230,8 +225,8 @@ export const useJsonPatchWsStream = <T extends object>(
         setIsConnected(false);
         wsRef.current = null;
 
-        // Do not reconnect if we received a finished message or clean close
-        if (finishedRef.current || (evt?.code === 1000 && evt?.wasClean)) {
+        // Do not reconnect if we received a finished message or should not retry
+        if (finishedRef.current || !shouldRetryConnection(evt, false)) {
           return;
         }
 
@@ -250,19 +245,13 @@ export const useJsonPatchWsStream = <T extends object>(
         // En React Strict Mode (dev), los efectos se montan/desmontan/remontan inmediatamente
         // para detectar bugs. Si cerramos un WebSocket que aún está en CONNECTING,
         // falla con "closed before connection established". Ignorar el primer cleanup.
-        if (import.meta.env.DEV && ws.readyState === WebSocket.CONNECTING) {
+        if (import.meta.env.DEV && isWebSocketConnecting(ws)) {
           // No cerrar WebSockets que aún están conectándose en dev (Strict Mode)
           return;
         }
 
-        // Clear all event handlers first to prevent callbacks after cleanup
-        ws.onopen = null;
-        ws.onmessage = null;
-        ws.onerror = null;
-        ws.onclose = null;
-
-        // Close regardless of state
-        ws.close();
+        // Clean up WebSocket using shared utility
+        closeWebSocket(ws);
         wsRef.current = null;
       }
       if (retryTimerRef.current) {

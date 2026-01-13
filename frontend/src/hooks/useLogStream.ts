@@ -1,5 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import type { PatchType } from 'shared/types';
+import {
+  buildWebSocketUrl,
+  calculateBackoffDelay,
+  shouldRetryConnection,
+} from '@/utils/websocketUtils';
 
 type LogEntry = Extract<PatchType, { type: 'STDOUT' } | { type: 'STDERR' }>;
 
@@ -26,11 +31,9 @@ export const useLogStream = (processId: string): UseLogStreamResult => {
     setError(null);
 
     const open = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const ws = new WebSocket(
-        `${protocol}//${host}/api/execution-processes/${processId}/raw-logs/ws`
-      );
+      const endpoint = `/api/execution-processes/${processId}/raw-logs/ws`;
+      const wsUrl = buildWebSocketUrl(endpoint);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
       isIntentionallyClosed.current = false;
 
@@ -82,11 +85,12 @@ export const useLogStream = (processId: string): UseLogStreamResult => {
 
       ws.onclose = (event) => {
         // Only retry if the close was not intentional and not a normal closure
-        if (!isIntentionallyClosed.current && event.code !== 1000) {
+        if (shouldRetryConnection(event, isIntentionallyClosed.current)) {
           const next = retryCountRef.current + 1;
           retryCountRef.current = next;
           if (next <= 6) {
-            const delay = Math.min(1500, 250 * 2 ** (next - 1));
+            // Use shared backoff calculation (250ms base, 1500ms max, 0ms jitter for consistency)
+            const delay = calculateBackoffDelay(next - 1, 250, 1500, 0);
             retryTimerRef.current = setTimeout(() => open(), delay);
           }
         }
