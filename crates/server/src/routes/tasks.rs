@@ -282,8 +282,18 @@ pub async fn update_task(
     }
 
     // intentar crear PRs automáticamente si la tarea pasó a InReview
+    tracing::debug!(
+        "Task {} status change: {:?} -> {:?}",
+        task.id,
+        existing_task.status,
+        status
+    );
     let auto_pr_results =
         if existing_task.status != TaskStatus::InReview && status == TaskStatus::InReview {
+            tracing::info!(
+                "Task {} transitioned to InReview, attempting auto-PR creation",
+                task.id
+            );
             try_auto_create_prs(&deployment, &task).await
         } else {
             None
@@ -323,7 +333,16 @@ async fn try_auto_create_prs(
         .auto_pr_on_review_enabled
         .unwrap_or(config.auto_pr_on_review_enabled);
 
+    tracing::info!(
+        "Auto-PR check for task {}: project_setting={:?}, global_setting={}, effective={}",
+        task.id,
+        project.auto_pr_on_review_enabled,
+        config.auto_pr_on_review_enabled,
+        auto_enabled
+    );
+
     if !auto_enabled {
+        tracing::debug!("Auto-PR disabled for task {}, skipping", task.id);
         return None;
     }
 
@@ -347,6 +366,12 @@ async fn try_auto_create_prs(
         }
     };
 
+    tracing::info!(
+        "Auto-PR triggered for task {} using workspace {}",
+        task.id,
+        workspace.id
+    );
+
     // crear PRs para todos los repos
     let results = auto_create_prs_for_workspace(
         deployment,
@@ -356,6 +381,12 @@ async fn try_auto_create_prs(
         auto_generate_description,
     )
     .await;
+
+    tracing::info!(
+        "Auto-PR results for task {}: {} PR(s) attempted",
+        task.id,
+        results.len()
+    );
 
     if results.is_empty() {
         None

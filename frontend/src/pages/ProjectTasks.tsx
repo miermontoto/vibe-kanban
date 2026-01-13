@@ -716,7 +716,7 @@ export function ProjectTasks() {
       if (!task || task.status === newStatus) return;
 
       try {
-        await tasksApi.update(draggedTaskId, {
+        const response = await tasksApi.update(draggedTaskId, {
           title: task.title,
           description: task.description,
           status: newStatus,
@@ -727,6 +727,26 @@ export function ProjectTasks() {
           ralph_completion_promise: task.ralph_completion_promise,
           label_ids: null,
         });
+
+        // procesar resultados de auto-PR si existen
+        if (response.auto_pr_results && response.auto_pr_results.length > 0) {
+          const successful = response.auto_pr_results.filter((r) => r.success);
+          const failed = response.auto_pr_results.filter((r) => !r.success);
+
+          if (successful.length > 0) {
+            console.info(
+              `Auto-PR created for ${successful.length} repo(s):`,
+              successful.map((r) => r.pr_url)
+            );
+          }
+
+          if (failed.length > 0) {
+            console.warn(
+              `Auto-PR failed for ${failed.length} repo(s):`,
+              failed.map((r) => ({ repo: r.repo_name, error: r.error }))
+            );
+          }
+        }
       } catch (err) {
         console.error('Failed to update task status:', err);
       }
