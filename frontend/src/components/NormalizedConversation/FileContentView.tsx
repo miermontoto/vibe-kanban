@@ -20,7 +20,9 @@ function FileContentView({ content, lang, theme }: Props) {
     // comprobación de tamaño para evitar fallos de parseo con archivos grandes
     const MAX_FILE_SIZE_CHARS = 1_000_000; // ~1MB de texto
     if (content.length > MAX_FILE_SIZE_CHARS) {
-      console.warn(`File too large for syntax highlighting: ${content.length} chars`);
+      console.warn(
+        `File too large for syntax highlighting: ${content.length} chars`
+      );
       return null;
     }
 

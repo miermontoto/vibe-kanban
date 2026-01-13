@@ -93,7 +93,9 @@ function useDiffData(input: DiffInput): DiffData {
       const MAX_CLIENT_DIFF_CHARS = 1_000_000; // ~1MB de texto
       const totalContentSize = oldContent.length + newContent.length;
       if (totalContentSize > MAX_CLIENT_DIFF_CHARS) {
-        console.warn(`Diff too large to render: ${filePath} (${totalContentSize} chars)`);
+        console.warn(
+          `Diff too large to render: ${filePath} (${totalContentSize} chars)`
+        );
         return {
           diffFile: null,
           diffData: null,

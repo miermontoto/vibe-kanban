@@ -66,9 +66,7 @@ export function GitProjectSettings({
             label={t('settings.projects.git.autoCommit.label')}
             helper={t('settings.projects.git.autoCommit.helper')}
             value={gitAutoCommitEnabled}
-            onChange={(value) =>
-              onChange({ git_auto_commit_enabled: value })
-            }
+            onChange={(value) => onChange({ git_auto_commit_enabled: value })}
             options={[
               {
                 value: null,
@@ -98,9 +96,7 @@ export function GitProjectSettings({
             label={t('settings.projects.git.commitTitleMode.label')}
             helper={t('settings.projects.git.commitTitleMode.helper')}
             value={gitCommitTitleMode}
-            onChange={(value) =>
-              onChange({ git_commit_title_mode: value })
-            }
+            onChange={(value) => onChange({ git_commit_title_mode: value })}
             options={[
               {
                 value: null,
@@ -111,26 +107,20 @@ export function GitProjectSettings({
               },
               {
                 value: 'AgentSummary',
-                label: t(
-                  'settings.projects.git.commitTitleMode.agentSummary'
-                ),
+                label: t('settings.projects.git.commitTitleMode.agentSummary'),
                 description: t(
                   'settings.projects.git.commitTitleMode.agentSummaryDescription'
                 ),
               },
               {
                 value: 'AiGenerated',
-                label: t(
-                  'settings.projects.git.commitTitleMode.aiGenerated'
-                ),
+                label: t('settings.projects.git.commitTitleMode.aiGenerated'),
                 description: t(
                   'settings.projects.git.commitTitleMode.aiGeneratedDescription'
                 ),
                 badge: (
                   <Badge variant="outline" className="text-xs">
-                    {t(
-                      'settings.general.git.commitTitleMode.notImplemented'
-                    )}
+                    {t('settings.general.git.commitTitleMode.notImplemented')}
                   </Badge>
                 ),
               },
@@ -158,30 +148,22 @@ export function GitProjectSettings({
             label={t('settings.projects.autoPr.label')}
             helper={t('settings.projects.autoPr.helper')}
             value={autoPrOnReviewEnabled}
-            onChange={(value) =>
-              onChange({ auto_pr_on_review_enabled: value })
-            }
+            onChange={(value) => onChange({ auto_pr_on_review_enabled: value })}
             options={[
               {
                 value: null,
                 label: t('settings.projects.autoPr.useGlobal'),
-                description: t(
-                  'settings.projects.autoPr.useGlobalDescription'
-                ),
+                description: t('settings.projects.autoPr.useGlobalDescription'),
               },
               {
                 value: true,
                 label: t('settings.projects.autoPr.enabled'),
-                description: t(
-                  'settings.projects.autoPr.enabledDescription'
-                ),
+                description: t('settings.projects.autoPr.enabledDescription'),
               },
               {
                 value: false,
                 label: t('settings.projects.autoPr.disabled'),
-                description: t(
-                  'settings.projects.autoPr.disabledDescription'
-                ),
+                description: t('settings.projects.autoPr.disabledDescription'),
               },
             ]}
           />
@@ -236,27 +218,21 @@ export function GitProjectSettings({
             options={[
               {
                 value: null,
-                label: t(
-                  'settings.projects.tasks.redirectToAttempt.useGlobal'
-                ),
+                label: t('settings.projects.tasks.redirectToAttempt.useGlobal'),
                 description: t(
                   'settings.projects.tasks.redirectToAttempt.useGlobalDescription'
                 ),
               },
               {
                 value: true,
-                label: t(
-                  'settings.projects.tasks.redirectToAttempt.enabled'
-                ),
+                label: t('settings.projects.tasks.redirectToAttempt.enabled'),
                 description: t(
                   'settings.projects.tasks.redirectToAttempt.enabledDescription'
                 ),
               },
               {
                 value: false,
-                label: t(
-                  'settings.projects.tasks.redirectToAttempt.disabled'
-                ),
+                label: t('settings.projects.tasks.redirectToAttempt.disabled'),
                 description: t(
                   'settings.projects.tasks.redirectToAttempt.disabledDescription'
                 ),

@@ -1392,10 +1392,7 @@ export const pendingCommitsApi = {
     return handleApiResponse<number>(response);
   },
 
-  commit: async (
-    id: string,
-    data: CommitPendingRequest
-  ): Promise<void> => {
+  commit: async (id: string, data: CommitPendingRequest): Promise<void> => {
     const response = await makeRequest(`/api/pending-commits/${id}`, {
       method: 'POST',
       body: JSON.stringify(data),

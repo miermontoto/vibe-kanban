@@ -717,7 +717,7 @@ export function ProjectTasks() {
       if (!task || task.status === newStatus) return;
 
       try {
-        /* const response = */await tasksApi.update(draggedTaskId, {
+        /* const response = */ await tasksApi.update(draggedTaskId, {
           title: task.title,
           description: task.description,
           status: newStatus,
