@@ -21,7 +21,7 @@ use deployment::Deployment;
 use futures_util::TryStreamExt;
 use serde::Deserialize;
 use services::services::{
-    file_search_cache::SearchQuery, git::GitRemote, project::ProjectServiceError,
+    file_search::SearchQuery, git::GitRemote, project::ProjectServiceError,
     remote_client::CreateRemoteProjectPayload,
 };
 use ts_rs::TS;
