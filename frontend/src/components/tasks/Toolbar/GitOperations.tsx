@@ -133,6 +133,13 @@ function GitOperations({
     return t('git.states.createPr');
   }, [mergeInfo.hasOpenPR, pushSuccess, pushing, t]);
 
+  // determinar si hay trabajo nuevo después del último merge
+  const hasNewWorkAfterMerge = useMemo(() => {
+    if (!mergeInfo.hasMergedPR) return true; // no merge previo, siempre permitir
+    const commitsAhead = selectedRepoStatus?.commits_ahead ?? 0;
+    return commitsAhead > 0; // hay commits nuevos desde el merge
+  }, [mergeInfo.hasMergedPR, selectedRepoStatus?.commits_ahead]);
+
   const handleMergeClick = async () => {
     // Directly perform merge without checking branch status
     await performMerge();
@@ -312,7 +319,7 @@ function GitOperations({
               onClick={handleMergeClick}
               disabled={
                 !selectedRepoStatus ||
-                mergeInfo.hasMergedPR ||
+                (mergeInfo.hasMergedPR && !hasNewWorkAfterMerge) ||
                 mergeInfo.hasOpenPR ||
                 merging ||
                 hasConflictsCalculated ||
@@ -336,7 +343,7 @@ function GitOperations({
               onClick={handlePRButtonClick}
               disabled={
                 !selectedRepoStatus ||
-                mergeInfo.hasMergedPR ||
+                (mergeInfo.hasMergedPR && !hasNewWorkAfterMerge) ||
                 pushing ||
                 isAttemptRunning ||
                 hasConflictsCalculated ||
