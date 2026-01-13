@@ -448,6 +448,7 @@ jobs:
       - name: Publish to NPM
         env:
           REF_NAME: ${{ github.ref_name }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           PACKAGE_FILE=$(ls *.tgz | head -n1)
           echo "Publishing $PACKAGE_FILE to npm..."
