@@ -62,6 +62,25 @@ See `.claude/commands/merge-upstream.md` for detailed instructions.
 6. ✅ Tests: `cargo test --workspace`
 7. ⚠️ i18n completeness: `./scripts/check-i18n.sh` (warnings expected from merge)
 
+#### Merge 2026-01-13 (2): Follow-up upstream sync
+
+**Context:** Merged 5 additional upstream commits from BloopAI/vibe-kanban. Fork is 285 commits ahead.
+
+**Key upstream changes integrated:**
+- **Preview control improvements**: New IconButton and IconButtonGroup components
+- **i18n updates**: New keys for `setupTitle`, `editDevScript`, `learnMore` in tasks translations
+
+**Conflicts resolved:**
+- `crates/server/src/routes/projects.rs`: Combined import changes (file_search rename + GitRemote)
+- `shared/types.ts`: Used --ours (regenerated)
+- `frontend/src/i18n/locales/{en,es,ja,ko,zh-Hans,zh-Hant}/tasks.json`: Merged both sides' keys in `noServer` section
+
+**Custom features preserved:**
+- `editButton` and `configureButton` i18n keys (our additions)
+- Package name and versioning
+
+**All CI checks passing.**
+
 ## Project Structure & Module Organization
 
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.

@@ -150,11 +150,11 @@ export type DraftWorkspaceData = { message: string, project_id: string | null, r
 
 export type DraftWorkspaceRepo = { repo_id: string, target_branch: string, };
 
-export type PreviewUrlOverrideData = { url: string, };
+export type PreviewSettingsData = { url: string, screen_size: string | null, responsive_width: number | null, responsive_height: number | null, };
 
-export type ScratchPayload = { "type": "DRAFT_TASK", "data": string } | { "type": "DRAFT_FOLLOW_UP", "data": DraftFollowUpData } | { "type": "DRAFT_WORKSPACE", "data": DraftWorkspaceData } | { "type": "PREVIEW_URL_OVERRIDE", "data": PreviewUrlOverrideData };
+export type ScratchPayload = { "type": "DRAFT_TASK", "data": string } | { "type": "DRAFT_FOLLOW_UP", "data": DraftFollowUpData } | { "type": "DRAFT_WORKSPACE", "data": DraftWorkspaceData } | { "type": "PREVIEW_SETTINGS", "data": PreviewSettingsData };
 
-export enum ScratchType { DRAFT_TASK = "DRAFT_TASK", DRAFT_FOLLOW_UP = "DRAFT_FOLLOW_UP", DRAFT_WORKSPACE = "DRAFT_WORKSPACE", PREVIEW_URL_OVERRIDE = "PREVIEW_URL_OVERRIDE" }
+export enum ScratchType { DRAFT_TASK = "DRAFT_TASK", DRAFT_FOLLOW_UP = "DRAFT_FOLLOW_UP", DRAFT_WORKSPACE = "DRAFT_WORKSPACE", PREVIEW_SETTINGS = "PREVIEW_SETTINGS" }
 
 export type Scratch = { id: string, payload: ScratchPayload, created_at: string, updated_at: string, };
 
@@ -462,6 +462,8 @@ export type WorkspaceSummaryResponse = { summaries: Array<WorkspaceSummary>, };
 export type DirectoryEntry = { name: string, path: string, is_directory: boolean, is_git_repo: boolean, last_modified: bigint | null, };
 
 export type DirectoryListResponse = { entries: Array<DirectoryEntry>, current_path: string, };
+
+export type SearchMode = "taskform" | "settings";
 
 export type Config = { config_version: string, theme: ThemeMode, executor_profile: ExecutorProfileId, disclaimer_acknowledged: boolean, onboarding_acknowledged: boolean, notifications: NotificationConfig, editor: EditorConfig, github: GitHubConfig, workspace_dir: string | null, language: UiLanguage, git_branch_prefix: string, showcases: ShowcaseState, pr_auto_description_enabled: boolean, pr_auto_description_prompt: string | null, 
 /**
