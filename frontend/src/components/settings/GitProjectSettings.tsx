@@ -43,9 +43,11 @@ export function GitProjectSettings({
             <GitBranch className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <CardTitle className="text-xl">Git Configuration</CardTitle>
+            <CardTitle className="text-xl">
+              {t('settings.projects.git.title')}
+            </CardTitle>
             <CardDescription className="mt-1">
-              Override global git settings for this project
+              {t('settings.projects.git.description')}
             </CardDescription>
           </div>
         </div>
@@ -56,7 +58,7 @@ export function GitProjectSettings({
           <div className="flex items-center gap-2 pb-2 border-b">
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Commits
+              {t('settings.projects.git.sections.commits')}
             </h3>
           </div>
 
@@ -71,17 +73,23 @@ export function GitProjectSettings({
               {
                 value: null,
                 label: t('settings.projects.git.autoCommit.useGlobal'),
-                description: 'Use the global setting from General Settings',
+                description: t(
+                  'settings.projects.git.autoCommit.useGlobalDescription'
+                ),
               },
               {
                 value: true,
                 label: t('settings.projects.git.autoCommit.enabled'),
-                description: 'Automatically commit changes for this project',
+                description: t(
+                  'settings.projects.git.autoCommit.enabledDescription'
+                ),
               },
               {
                 value: false,
                 label: t('settings.projects.git.autoCommit.disabled'),
-                description: 'Disable auto-commit for this project',
+                description: t(
+                  'settings.projects.git.autoCommit.disabledDescription'
+                ),
               },
             ]}
           />
@@ -97,21 +105,27 @@ export function GitProjectSettings({
               {
                 value: null,
                 label: t('settings.projects.git.commitTitleMode.useGlobal'),
-                description: 'Use the global commit title mode',
+                description: t(
+                  'settings.projects.git.commitTitleMode.useGlobalDescription'
+                ),
               },
               {
                 value: 'AgentSummary',
                 label: t(
                   'settings.projects.git.commitTitleMode.agentSummary'
                 ),
-                description: 'Use agent-generated task summary as commit title',
+                description: t(
+                  'settings.projects.git.commitTitleMode.agentSummaryDescription'
+                ),
               },
               {
                 value: 'AiGenerated',
                 label: t(
                   'settings.projects.git.commitTitleMode.aiGenerated'
                 ),
-                description: 'Generate commit titles using AI',
+                description: t(
+                  'settings.projects.git.commitTitleMode.aiGeneratedDescription'
+                ),
                 badge: (
                   <Badge variant="outline" className="text-xs">
                     {t(
@@ -123,7 +137,9 @@ export function GitProjectSettings({
               {
                 value: 'Manual',
                 label: t('settings.projects.git.commitTitleMode.manual'),
-                description: 'Manually enter commit titles',
+                description: t(
+                  'settings.projects.git.commitTitleMode.manualDescription'
+                ),
               },
             ]}
           />
@@ -134,7 +150,7 @@ export function GitProjectSettings({
           <div className="flex items-center gap-2 pb-2 border-b">
             <GitPullRequest className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Pull Requests
+              {t('settings.projects.git.sections.pullRequests')}
             </h3>
           </div>
 
@@ -149,17 +165,23 @@ export function GitProjectSettings({
               {
                 value: null,
                 label: t('settings.projects.autoPr.useGlobal'),
-                description: 'Use the global auto-PR setting',
+                description: t(
+                  'settings.projects.autoPr.useGlobalDescription'
+                ),
               },
               {
                 value: true,
                 label: t('settings.projects.autoPr.enabled'),
-                description: 'Automatically create PR when review is requested',
+                description: t(
+                  'settings.projects.autoPr.enabledDescription'
+                ),
               },
               {
                 value: false,
                 label: t('settings.projects.autoPr.disabled'),
-                description: 'Do not auto-create PRs for this project',
+                description: t(
+                  'settings.projects.autoPr.disabledDescription'
+                ),
               },
             ]}
           />
@@ -173,17 +195,23 @@ export function GitProjectSettings({
               {
                 value: null,
                 label: t('settings.projects.autoPrDraft.useGlobal'),
-                description: 'Use the global draft PR setting',
+                description: t(
+                  'settings.projects.autoPrDraft.useGlobalDescription'
+                ),
               },
               {
                 value: true,
                 label: t('settings.projects.autoPrDraft.enabled'),
-                description: 'Create PRs as drafts by default',
+                description: t(
+                  'settings.projects.autoPrDraft.enabledDescription'
+                ),
               },
               {
                 value: false,
                 label: t('settings.projects.autoPrDraft.disabled'),
-                description: 'Create PRs as ready for review',
+                description: t(
+                  'settings.projects.autoPrDraft.disabledDescription'
+                ),
               },
             ]}
           />
@@ -194,7 +222,7 @@ export function GitProjectSettings({
           <div className="flex items-center gap-2 pb-2 border-b">
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Task Behavior
+              {t('settings.projects.git.sections.taskBehavior')}
             </h3>
           </div>
 
@@ -211,21 +239,27 @@ export function GitProjectSettings({
                 label: t(
                   'settings.projects.tasks.redirectToAttempt.useGlobal'
                 ),
-                description: 'Use the global redirect behavior',
+                description: t(
+                  'settings.projects.tasks.redirectToAttempt.useGlobalDescription'
+                ),
               },
               {
                 value: true,
                 label: t(
                   'settings.projects.tasks.redirectToAttempt.enabled'
                 ),
-                description: 'Automatically redirect to attempt page after task creation',
+                description: t(
+                  'settings.projects.tasks.redirectToAttempt.enabledDescription'
+                ),
               },
               {
                 value: false,
                 label: t(
                   'settings.projects.tasks.redirectToAttempt.disabled'
                 ),
-                description: 'Stay on current page after creating task',
+                description: t(
+                  'settings.projects.tasks.redirectToAttempt.disabledDescription'
+                ),
               },
             ]}
           />

@@ -438,43 +438,66 @@
         }
       },
       "git": {
+        "title": "Git Configuration",
+        "description": "Override global git settings for this project",
+        "sections": {
+          "commits": "Commits",
+          "pullRequests": "Pull Requests",
+          "taskBehavior": "Task Behavior"
+        },
         "autoCommit": {
           "label": "Auto-commit Changes",
           "helper": "Control whether the agent automatically commits changes after task execution.",
           "useGlobal": "Use global setting",
+          "useGlobalDescription": "Use the global setting from General Settings",
           "enabled": "Always auto-commit",
-          "disabled": "Never auto-commit"
+          "enabledDescription": "Automatically commit changes for this project",
+          "disabled": "Never auto-commit",
+          "disabledDescription": "Disable auto-commit for this project"
         },
         "commitTitleMode": {
           "label": "Commit Title Mode",
           "helper": "Override the global commit title mode for this project.",
           "useGlobal": "Use global setting",
+          "useGlobalDescription": "Use the global commit title mode",
           "agentSummary": "Use agent's summary",
+          "agentSummaryDescription": "Use agent-generated task summary as commit title",
           "aiGenerated": "AI-generated",
-          "manual": "Manual (queue for review)"
+          "aiGeneratedDescription": "Generate commit titles using AI",
+          "manual": "Manual (queue for review)",
+          "manualDescription": "Manually enter commit titles"
         }
       },
       "autoPr": {
         "label": "Auto-create PR on In Review",
         "helper": "Control whether a PR is automatically created when the task moves to In Review status.",
         "useGlobal": "Use global setting",
+        "useGlobalDescription": "Use the global auto-PR setting",
         "enabled": "Always create PR",
-        "disabled": "Never create PR automatically"
+        "enabledDescription": "Automatically create PR when review is requested",
+        "disabled": "Never create PR automatically",
+        "disabledDescription": "Do not auto-create PRs for this project"
       },
       "autoPrDraft": {
         "label": "Create as Draft PR",
         "helper": "Control whether auto-created PRs are created as drafts.",
         "useGlobal": "Use global setting",
+        "useGlobalDescription": "Use the global draft PR setting",
         "enabled": "Always create as draft",
-        "disabled": "Create as ready for review"
+        "enabledDescription": "Create PRs as drafts by default",
+        "disabled": "Create as ready for review",
+        "disabledDescription": "Create PRs as ready for review"
       },
       "tasks": {
         "redirectToAttempt": {
           "label": "Redirect to Attempt on Task Creation",
           "helper": "Control whether to navigate to the task attempt detail view after creating a task.",
           "useGlobal": "Use global setting",
+          "useGlobalDescription": "Use the global redirect behavior",
           "enabled": "Always redirect",
-          "disabled": "Never redirect"
+          "enabledDescription": "Automatically redirect to attempt page after task creation",
+          "disabled": "Never redirect",
+          "disabledDescription": "Stay on current page after creating task"
         }
       },
       "save": {
