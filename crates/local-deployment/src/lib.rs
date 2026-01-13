@@ -18,9 +18,7 @@ use services::services::{
     oauth_credentials::OAuthCredentials,
     project::ProjectService,
     queued_message::QueuedMessageService,
-    remote_client::{RemoteClient, RemoteClientError},
     repo::RepoService,
-    share::{ShareConfig, SharePublisher},
 };
 use tokio::sync::RwLock;
 use utils::{
@@ -51,9 +49,6 @@ pub struct LocalDeployment {
     file_search_cache: Arc<FileSearchCache>,
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
-    share_publisher: Result<SharePublisher, RemoteClientNotConfigured>,
-    share_config: Option<ShareConfig>,
-    remote_client: Result<RemoteClient, RemoteClientNotConfigured>,
     auth_context: AuthContext,
     oauth_handoffs: Arc<RwLock<HashMap<Uuid, PendingHandoff>>>,
 }
@@ -126,32 +121,6 @@ impl Deployment for LocalDeployment {
         let profile_cache = Arc::new(RwLock::new(None));
         let auth_context = AuthContext::new(oauth_credentials.clone(), profile_cache.clone());
 
-        let api_base = std::env::var("VK_SHARED_API_BASE")
-            .ok()
-            .or_else(|| option_env!("VK_SHARED_API_BASE").map(|s| s.to_string()));
-
-        let remote_client = match api_base {
-            Some(url) => match RemoteClient::new(&url, auth_context.clone()) {
-                Ok(client) => {
-                    tracing::info!("Remote client initialized with URL: {}", url);
-                    Ok(client)
-                }
-                Err(e) => {
-                    tracing::error!(?e, "failed to create remote client");
-                    Err(RemoteClientNotConfigured)
-                }
-            },
-            None => {
-                tracing::info!("VK_SHARED_API_BASE not set; remote features disabled");
-                Err(RemoteClientNotConfigured)
-            }
-        };
-
-        let share_publisher = remote_client
-            .as_ref()
-            .map(|client| SharePublisher::new(db.clone(), client.clone()))
-            .map_err(|e| *e);
-
         let oauth_handoffs = Arc::new(RwLock::new(HashMap::new()));
 
         let container = LocalContainerService::new(
@@ -162,7 +131,6 @@ impl Deployment for LocalDeployment {
             image.clone(),
             approvals.clone(),
             queued_message_service.clone(),
-            share_publisher.clone(),
         )
         .await;
 
@@ -185,9 +153,6 @@ impl Deployment for LocalDeployment {
             file_search_cache,
             approvals,
             queued_message_service,
-            share_publisher,
-            share_config: share_config.clone(),
-            remote_client,
             auth_context,
             oauth_handoffs,
         };
@@ -251,20 +216,12 @@ impl Deployment for LocalDeployment {
         &self.queued_message_service
     }
 
-    fn share_publisher(&self) -> Result<SharePublisher, RemoteClientNotConfigured> {
-        self.share_publisher.clone()
-    }
-
     fn auth_context(&self) -> &AuthContext {
         &self.auth_context
     }
 }
 
 impl LocalDeployment {
-    pub fn remote_client(&self) -> Result<RemoteClient, RemoteClientNotConfigured> {
-        self.remote_client.clone()
-    }
-
     pub async fn get_login_status(&self) -> LoginStatus {
         if self.auth_context.get_credentials().await.is_none() {
             self.auth_context.clear_profile().await;
@@ -277,22 +234,8 @@ impl LocalDeployment {
             };
         }
 
-        let Ok(client) = self.remote_client() else {
-            return LoginStatus::LoggedOut;
-        };
-
-        match client.profile().await {
-            Ok(profile) => {
-                self.auth_context.set_profile(profile.clone()).await;
-                LoginStatus::LoggedIn { profile }
-            }
-            Err(RemoteClientError::Auth) => {
-                let _ = self.auth_context.clear_credentials().await;
-                self.auth_context.clear_profile().await;
-                LoginStatus::LoggedOut
-            }
-            Err(_) => LoginStatus::LoggedOut,
-        }
+        // Without remote client, we can only check cached credentials
+        LoginStatus::LoggedOut
     }
 
     pub async fn store_oauth_handoff(

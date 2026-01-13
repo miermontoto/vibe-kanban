@@ -50,7 +50,6 @@ use services::services::{
     image::ImageService,
     notification::NotificationService,
     queued_message::QueuedMessageService,
-    share::SharePublisher,
     workspace_manager::{RepoWorkspaceInput, WorkspaceManager},
 };
 use tokio::{sync::RwLock, task::JoinHandle};
@@ -75,7 +74,6 @@ pub struct LocalContainerService {
     image_service: ImageService,
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
-    publisher: Result<SharePublisher, RemoteClientNotConfigured>,
     notification_service: NotificationService,
 }
 
@@ -89,7 +87,6 @@ impl LocalContainerService {
         image_service: ImageService,
         approvals: Approvals,
         queued_message_service: QueuedMessageService,
-        publisher: Result<SharePublisher, RemoteClientNotConfigured>,
     ) -> Self {
         let child_store = Arc::new(RwLock::new(HashMap::new()));
         let interrupt_senders = Arc::new(RwLock::new(HashMap::new()));
@@ -105,7 +102,6 @@ impl LocalContainerService {
             image_service,
             approvals,
             queued_message_service,
-            publisher,
             notification_service,
         };
 
@@ -1089,10 +1085,6 @@ impl ContainerService for LocalContainerService {
 
     fn git(&self) -> &GitService {
         &self.git
-    }
-
-    fn share_publisher(&self) -> Option<&SharePublisher> {
-        self.publisher.as_ref().ok()
     }
 
     fn notification_service(&self) -> &NotificationService {

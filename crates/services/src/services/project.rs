@@ -19,7 +19,6 @@ use super::{
     file_ranker::FileRanker,
     file_search_cache::{CacheError, FileSearchCache, SearchMode, SearchQuery},
     repo::{RepoError, RepoService},
-    share::ShareError,
 };
 
 #[derive(Debug, Error)]
@@ -30,8 +29,6 @@ pub enum ProjectServiceError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Project(#[from] ProjectError),
-    #[error(transparent)]
-    Share(#[from] ShareError),
     #[error("Path does not exist: {0}")]
     PathNotFound(PathBuf),
     #[error("Path is not a directory: {0}")]

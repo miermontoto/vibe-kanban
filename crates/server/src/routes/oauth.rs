@@ -159,15 +159,6 @@ async fn handoff_complete(
     // Fetch and cache the user's profile
     let _ = deployment.get_login_status().await;
 
-    // Trigger shared task cleanup in background
-    if let Ok(publisher) = deployment.share_publisher() {
-        tokio::spawn(async move {
-            if let Err(e) = publisher.cleanup_shared_tasks().await {
-                tracing::error!("Failed to cleanup shared tasks on login: {}", e);
-            }
-        });
-    }
-
     Ok(close_window_response(format!(
         "Signed in with {provider}. You can return to the app."
     )))
