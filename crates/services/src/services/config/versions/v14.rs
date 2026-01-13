@@ -53,6 +53,10 @@ fn default_redirect_to_attempt_on_create() -> bool {
     false
 }
 
+fn default_open_pr_in_browser() -> bool {
+    true
+}
+
 fn default_git_auto_push_mode() -> GitAutoPushMode {
     GitAutoPushMode::default()
 }
@@ -123,6 +127,9 @@ pub struct Config {
     /// modo de auto-push después de commits exitosos
     #[serde(default = "default_git_auto_push_mode")]
     pub git_auto_push_mode: GitAutoPushMode,
+    /// cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
+    #[serde(default = "default_open_pr_in_browser")]
+    pub open_pr_in_browser: bool,
 }
 
 impl Config {
@@ -154,6 +161,7 @@ impl Config {
             redirect_to_attempt_on_create: old_config.redirect_to_attempt_on_create,
             // nuevo campo con valor por defecto
             git_auto_push_mode: default_git_auto_push_mode(),
+            open_pr_in_browser: default_open_pr_in_browser(),
         }
     }
 
@@ -212,6 +220,7 @@ impl Default for Config {
             auto_pr_draft: true,
             redirect_to_attempt_on_create: false,
             git_auto_push_mode: GitAutoPushMode::default(),
+            open_pr_in_browser: true,
         }
     }
 }

@@ -131,6 +131,7 @@
     "loadingBranches": "Cargando ramas...",
     "selectBaseBranch": "Seleccionar rama base",
     "draftLabel": "Crear como borrador",
+    "openInBrowserLabel": "Abrir PR en el navegador al crearlo",
     "autoGenerateLabel": "Pedir al agente de IA que genere una mejor descripción del PR",
     "creating": "Creando...",
     "createButton": "Crear PR",
