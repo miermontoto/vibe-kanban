@@ -45,4 +45,6 @@ pub enum CommandCategory {
     Global = 0,
     #[ts(rename = "project")]
     Project = 1,
+    #[ts(rename = "agent")]
+    Agent = 2,
 }

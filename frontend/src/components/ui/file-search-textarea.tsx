@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { AutoExpandingTextarea } from '@/components/ui/auto-expanding-textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { projectsApi, tagsApi } from '@/lib/api';
-import { Tag as TagIcon, FileText, AlertTriangle } from 'lucide-react';
+import { Tag as TagIcon, FileText, AlertTriangle, Bot } from 'lucide-react';
 
 import type { SearchResult, Tag, SlashCommand } from 'shared/types';
 
@@ -524,6 +524,17 @@ export const FileSearchTextarea = forwardRef<
   const tagResults = searchResults.filter((r) => r.type === 'tag');
   const fileResults = searchResults.filter((r) => r.type === 'file');
 
+  // Group slash commands by category
+  const globalSlashCommands = filteredSlashCommands.filter(
+    (cmd) => cmd.category === 'global'
+  );
+  const projectSlashCommands = filteredSlashCommands.filter(
+    (cmd) => cmd.category === 'project'
+  );
+  const agentSlashCommands = filteredSlashCommands.filter(
+    (cmd) => cmd.category === 'agent'
+  );
+
   return (
     <div
       className={`relative ${className?.includes('flex-1') ? 'flex-1' : ''}`}
@@ -703,33 +714,123 @@ export const FileSearchTextarea = forwardRef<
               </div>
             ) : (
               <div role="listbox" className="py-1">
-                {filteredSlashCommands.map((command, index) => (
-                  <div
-                    key={command.id}
-                    className={`
-                      px-3 py-2 cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground
-                      ${index === selectedSlashIndex ? 'bg-accent text-accent-foreground' : ''}
-                    `}
-                    onClick={() => selectSlashCommand(command)}
-                    role="option"
-                    aria-selected={index === selectedSlashIndex}
-                  >
-                    <div className="font-medium text-foreground">
-                      {command.name}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {command.category === 'global' ? '🌐' : '📁'}
-                      </span>
+                {/* Global commands */}
+                {globalSlashCommands.length > 0 && (
+                  <>
+                    <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase">
+                      🌐 Global Commands
                     </div>
-                    <div className="text-muted-foreground text-xs mt-0.5 line-clamp-2">
-                      {command.description}
-                    </div>
-                    {command.examples && command.examples.length > 0 && (
-                      <div className="text-xs font-mono bg-muted/50 px-2 py-1 rounded mt-1">
-                        {command.examples[0]}
-                      </div>
+                    {globalSlashCommands.map((command) => {
+                      const index = filteredSlashCommands.indexOf(command);
+                      return (
+                        <div
+                          key={command.id}
+                          className={`
+                            px-3 py-2 cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground
+                            ${index === selectedSlashIndex ? 'bg-accent text-accent-foreground' : ''}
+                          `}
+                          onClick={() => selectSlashCommand(command)}
+                          role="option"
+                          aria-selected={index === selectedSlashIndex}
+                        >
+                          <div className="font-medium text-foreground">
+                            {command.name}
+                          </div>
+                          <div className="text-muted-foreground text-xs mt-0.5 line-clamp-2">
+                            {command.description}
+                          </div>
+                          {command.examples && command.examples.length > 0 && (
+                            <div className="text-xs font-mono bg-muted/50 px-2 py-1 rounded mt-1">
+                              {command.examples[0]}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Project commands */}
+                {projectSlashCommands.length > 0 && (
+                  <>
+                    {globalSlashCommands.length > 0 && (
+                      <div className="border-t my-1" />
                     )}
-                  </div>
-                ))}
+                    <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase">
+                      📁 Project Commands
+                    </div>
+                    {projectSlashCommands.map((command) => {
+                      const index = filteredSlashCommands.indexOf(command);
+                      return (
+                        <div
+                          key={command.id}
+                          className={`
+                            px-3 py-2 cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground
+                            ${index === selectedSlashIndex ? 'bg-accent text-accent-foreground' : ''}
+                          `}
+                          onClick={() => selectSlashCommand(command)}
+                          role="option"
+                          aria-selected={index === selectedSlashIndex}
+                        >
+                          <div className="font-medium text-foreground">
+                            {command.name}
+                          </div>
+                          <div className="text-muted-foreground text-xs mt-0.5 line-clamp-2">
+                            {command.description}
+                          </div>
+                          {command.examples && command.examples.length > 0 && (
+                            <div className="text-xs font-mono bg-muted/50 px-2 py-1 rounded mt-1">
+                              {command.examples[0]}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Agent commands */}
+                {agentSlashCommands.length > 0 && (
+                  <>
+                    {(globalSlashCommands.length > 0 ||
+                      projectSlashCommands.length > 0) && (
+                      <div className="border-t my-1" />
+                    )}
+                    <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
+                      <Bot className="h-3 w-3" />
+                      Agents
+                    </div>
+                    {agentSlashCommands.map((command) => {
+                      const index = filteredSlashCommands.indexOf(command);
+                      return (
+                        <div
+                          key={command.id}
+                          className={`
+                            px-3 py-2 cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground
+                            ${index === selectedSlashIndex ? 'bg-accent text-accent-foreground' : ''}
+                          `}
+                          onClick={() => selectSlashCommand(command)}
+                          role="option"
+                          aria-selected={index === selectedSlashIndex}
+                        >
+                          <div className="font-medium text-foreground flex items-center gap-2">
+                            <Bot className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                            {command.name}
+                          </div>
+                          <div className="text-muted-foreground text-xs mt-0.5 line-clamp-2">
+                            {command.description}
+                          </div>
+                          {command.examples && command.examples.length > 0 && (
+                            <div className="text-xs font-mono bg-muted/50 px-2 py-1 rounded mt-1">
+                              {command.examples[0]}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
                 {allFilteredSlashCommands.length > 50 && (
                   <div className="px-3 py-2 text-xs text-muted-foreground border-t border-border">
                     More commands available, keep typing to narrow down...

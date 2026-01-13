@@ -736,7 +736,7 @@ export type PatchType = { "type": "NORMALIZED_ENTRY", "content": NormalizedEntry
 
 export type SlashCommand = { id: string, name: string, description: string, category: CommandCategory, examples: Array<string> | null, namespace: string | null, };
 
-export type CommandCategory = "global" | "project";
+export type CommandCategory = "global" | "project" | "agent";
 
 export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in string]?: JsonValue } | null;
 
