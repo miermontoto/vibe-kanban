@@ -128,7 +128,7 @@ fn generate_types_content() -> String {
         server::routes::task_attempts::OpenEditorResponse::decl(),
         server::routes::shared_tasks::AssignSharedTaskRequest::decl(),
         server::routes::tasks::ShareTaskResponse::decl(),
-        server::routes::tasks::CreateTaskAndStartRequest::decl(),
+        server::routes::tasks::CreateAndStartTaskRequest::decl(),
         server::routes::task_attempts::pr::CreatePrApiRequest::decl(),
         server::routes::images::ImageResponse::decl(),
         server::routes::images::ImageMetadata::decl(),
@@ -149,9 +149,8 @@ fn generate_types_content() -> String {
         server::routes::task_attempts::pr::PrCommentsResponse::decl(),
         server::routes::task_attempts::pr::GetPrCommentsError::decl(),
         server::routes::task_attempts::pr::GetPrCommentsQuery::decl(),
-        server::routes::task_attempts::pr::AutoPrResult::decl(),
-        server::routes::task_attempts::pr::AutoPrError::decl(),
-        server::routes::tasks::TaskUpdateResponse::decl(),
+        // AutoPrResult y AutoPrError removidos en upstream
+        // TaskUpdateResponse removido en upstream
         services::services::git_host::UnifiedPrComment::decl(),
         services::services::git_host::ProviderKind::decl(),
         server::routes::task_attempts::RepoBranchStatus::decl(),

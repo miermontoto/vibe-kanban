@@ -244,6 +244,8 @@ pub async fn create_task_and_start(
         has_in_progress_attempt: is_attempt_running,
         last_attempt_failed: false,
         executor: payload.executor_profile_id.executor.to_string(),
+        pr_number: None,
+        pr_url: None,
     })))
 }
 
@@ -275,6 +277,9 @@ pub async fn update_task(
         description,
         status,
         parent_workspace_id,
+        existing_task.use_ralph_wiggum,
+        existing_task.ralph_max_iterations,
+        existing_task.ralph_completion_promise,
     )
     .await?;
 

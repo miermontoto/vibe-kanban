@@ -15,7 +15,7 @@ mod cli;
 use cli::{ChangeType, StatusDiffEntry, StatusDiffOptions};
 pub use cli::{GitCli, GitCliError};
 
-use super::{file_ranker::FileStat, github::GitHubRepoInfo};
+use super::{file_ranker::FileStat, git_host::github::GitHubRepoInfo};
 
 #[derive(Debug, Error)]
 pub enum GitServiceError {
@@ -1646,6 +1646,34 @@ impl GitService {
         }
         Ok(())
     }
+}
+
+/// parsea una URL de GitHub (HTTPS o SSH) para extraer owner y repo
+fn parse_github_url(url: &str) -> Result<(String, String), GitServiceError> {
+    // HTTPS: https://github.com/owner/repo.git o https://github.com/owner/repo
+    // SSH: git@github.com:owner/repo.git
+
+    let url = url.trim_end_matches(".git");
+
+    if let Some(path) = url.strip_prefix("https://github.com/").or_else(|| url.strip_prefix("http://github.com/")) {
+        let parts: Vec<&str> = path.split('/').collect();
+        if parts.len() >= 2 {
+            return Ok((parts[0].to_string(), parts[1].to_string()));
+        }
+    } else if let Some(path) = url.strip_prefix("git@github.com:") {
+        let parts: Vec<&str> = path.split('/').collect();
+        if parts.len() >= 2 {
+            return Ok((parts[0].to_string(), parts[1].to_string()));
+        }
+    }
+
+    Err(GitServiceError::InvalidRepository(format!(
+        "Failed to parse GitHub URL: {}",
+        url
+    )))
+}
+
+impl GitService {
 
     /// Extract GitHub owner and repo name from git repo path
     pub fn get_github_repo_info(
@@ -1676,9 +1704,11 @@ impl GitService {
         let url = remote
             .url()
             .ok_or_else(|| GitServiceError::InvalidRepository("Remote has no URL".to_string()))?;
-        GitHubRepoInfo::from_remote_url(url).map_err(|e| {
-            GitServiceError::InvalidRepository(format!("Failed to parse remote URL: {e}"))
-        })
+
+        // parsear URL de GitHub (soporta HTTPS y SSH)
+        let (owner, repo_name) = parse_github_url(url)?;
+
+        Ok(GitHubRepoInfo { owner, repo_name })
     }
 
     pub fn get_remote_name_from_branch_name(

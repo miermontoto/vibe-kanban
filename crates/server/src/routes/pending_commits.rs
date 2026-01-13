@@ -130,7 +130,7 @@ pub async fn commit_pending(
             );
             if let Err(e) = deployment
                 .git()
-                .push_to_github(&worktree_path, &branch_name, false)
+                .push_to_remote(&worktree_path, &branch_name, false)
             {
                 tracing::warn!("Auto-push failed after manual commit: {}", e);
                 // no retornamos error - el commit fue exitoso, solo el push falló

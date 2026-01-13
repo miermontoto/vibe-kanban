@@ -19,7 +19,7 @@ use db::{
             CreateExecutionProcessRepoState, ExecutionProcessRepoState,
         },
         project::{Project, UpdateProject},
-        project_repo::{ProjectRepo, ProjectRepoWithName},
+        project_repo::ProjectRepo,
         repo::Repo,
         session::{CreateSession, Session, SessionError},
         task::{Task, TaskStatus},
@@ -79,6 +79,26 @@ pub enum ContainerError {
     KillFailed(std::io::Error),
     #[error(transparent)]
     Other(#[from] AnyhowError), // Catches any unclassified errors
+}
+
+// helper struct para repos con información combinada de Repo
+#[derive(Debug, Clone)]
+pub struct RepoWithName {
+    pub repo_name: String,
+    pub setup_script: Option<String>,
+    pub cleanup_script: Option<String>,
+    pub parallel_setup_script: bool,
+}
+
+impl From<&Repo> for RepoWithName {
+    fn from(repo: &Repo) -> Self {
+        Self {
+            repo_name: repo.name.clone(),
+            setup_script: repo.setup_script.clone(),
+            cleanup_script: repo.cleanup_script.clone(),
+            parallel_setup_script: repo.parallel_setup_script,
+        }
+    }
 }
 
 #[async_trait]
@@ -372,47 +392,26 @@ pub trait ContainerService {
 
             Repo::update_name(pool, repo.id, &name, &name).await?;
 
-            // Also update dev_script_working_dir and agent_working_dir for single-repo projects
+            // Also update agent_working_dir for single-repo projects
             let project_repos = ProjectRepo::find_by_repo_id(pool, repo.id).await?;
             for pr in project_repos {
                 let all_repos = ProjectRepo::find_by_project_id(pool, pr.project_id).await?;
                 if all_repos.len() == 1
                     && let Some(project) = Project::find_by_id(pool, pr.project_id).await?
                 {
-                    let needs_dev_script_working_dir = project
-                        .dev_script
-                        .as_ref()
-                        .map(|s| !s.is_empty())
-                        .unwrap_or(false)
-                        && project
-                            .dev_script_working_dir
-                            .as_ref()
-                            .map(|s| s.is_empty())
-                            .unwrap_or(true);
-
                     let needs_default_agent_working_dir = project
                         .default_agent_working_dir
                         .as_ref()
                         .map(|s| s.is_empty())
                         .unwrap_or(true);
 
-                    if needs_dev_script_working_dir || needs_default_agent_working_dir {
+                    if needs_default_agent_working_dir {
                         Project::update(
                             pool,
                             pr.project_id,
                             &UpdateProject {
                                 name: Some(project.name.clone()),
-                                dev_script: project.dev_script.clone(),
-                                dev_script_working_dir: if needs_dev_script_working_dir {
-                                    Some(name.clone())
-                                } else {
-                                    project.dev_script_working_dir.clone()
-                                },
-                                default_agent_working_dir: if needs_default_agent_working_dir {
-                                    Some(name.clone())
-                                } else {
-                                    project.default_agent_working_dir.clone()
-                                },
+                                default_agent_working_dir: Some(name.clone()),
                                 git_auto_commit_enabled: None,
                                 git_commit_title_mode: None,
                                 auto_pr_on_review_enabled: None,
@@ -430,7 +429,7 @@ pub trait ContainerService {
         Ok(())
     }
 
-    fn cleanup_actions_for_repos(&self, repos: &[ProjectRepoWithName]) -> Option<ExecutorAction> {
+    fn cleanup_actions_for_repos(&self, repos: &[RepoWithName]) -> Option<ExecutorAction> {
         let repos_with_cleanup: Vec<_> = repos
             .iter()
             .filter(|r| r.cleanup_script.is_some())
@@ -467,7 +466,7 @@ pub trait ContainerService {
         Some(root_action)
     }
 
-    fn setup_actions_for_repos(&self, repos: &[ProjectRepoWithName]) -> Option<ExecutorAction> {
+    fn setup_actions_for_repos(&self, repos: &[RepoWithName]) -> Option<ExecutorAction> {
         let repos_with_setup: Vec<_> = repos.iter().filter(|r| r.setup_script.is_some()).collect();
 
         if repos_with_setup.is_empty() {
@@ -501,7 +500,7 @@ pub trait ContainerService {
         Some(root_action)
     }
 
-    fn setup_action_for_repo(repo: &ProjectRepoWithName) -> Option<ExecutorAction> {
+    fn setup_action_for_repo(repo: &RepoWithName) -> Option<ExecutorAction> {
         repo.setup_script.as_ref().map(|script| {
             ExecutorAction::new(
                 ExecutorActionType::ScriptRequest(ScriptRequest {
@@ -516,7 +515,7 @@ pub trait ContainerService {
     }
 
     fn build_sequential_setup_chain(
-        repos: &[&ProjectRepoWithName],
+        repos: &[&RepoWithName],
         next_action: ExecutorAction,
     ) -> ExecutorAction {
         let mut chained = next_action;
@@ -906,8 +905,14 @@ pub trait ContainerService {
             .await?
             .ok_or(SqlxError::RowNotFound)?;
 
-        let project_repos =
-            ProjectRepo::find_by_project_id_with_names(&self.db().pool, project.id).await?;
+        let project_repos_raw =
+            ProjectRepo::find_repos_for_project(&self.db().pool, project.id).await?;
+
+        // convertir de Repo a RepoWithName
+        let project_repos: Vec<RepoWithName> = project_repos_raw
+            .iter()
+            .map(RepoWithName::from)
+            .collect();
 
         let workspace = Workspace::find_by_id(&self.db().pool, workspace.id)
             .await?
@@ -1196,6 +1201,8 @@ pub trait ContainerService {
                 ExecutorActionType::CodingAgentFollowUpRequest(_)
                 | ExecutorActionType::CodingAgentInitialRequest(_),
             ) => ExecutionProcessRunReason::CodingAgent,
+            (_, ExecutorActionType::ReviewRequest(_)) => ExecutionProcessRunReason::CodingAgent,
+            (ExecutorActionType::ReviewRequest(_), _) => ExecutionProcessRunReason::CodingAgent,
         };
 
         self.start_execution(&ctx.workspace, &ctx.session, next_action, &next_run_reason)

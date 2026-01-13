@@ -129,8 +129,6 @@ impl ProjectService {
                 project.id,
                 &UpdateProject {
                     name: None,
-                    dev_script: None,
-                    dev_script_working_dir: None,
                     default_agent_working_dir: Some(repo.name),
                     git_auto_commit_enabled: None,
                     git_commit_title_mode: None,
@@ -235,7 +233,21 @@ impl ProjectService {
 
         // If project just went from 1 to 2 repos, clear default_agent_working_dir
         if repo_count_before == 1 {
-            Project::clear_default_agent_working_dir(pool, project_id).await?;
+            Project::update(
+                pool,
+                project_id,
+                &UpdateProject {
+                    name: None,
+                    default_agent_working_dir: Some(String::new()),
+                    git_auto_commit_enabled: None,
+                    git_commit_title_mode: None,
+                    auto_pr_on_review_enabled: None,
+                    auto_pr_draft: None,
+                    redirect_to_attempt_on_create: None,
+                    git_auto_push_mode: None,
+                },
+            )
+            .await?;
         }
 
         tracing::info!(

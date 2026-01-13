@@ -184,7 +184,12 @@ pub async fn follow_up(
 
     let prompt = payload.prompt;
 
-    let repos = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let repos_raw = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+
+    // convertir de Repo a RepoWithName
+    use services::services::container::RepoWithName;
+    let repos: Vec<_> = repos_raw.iter().map(RepoWithName::from).collect();
+
     let cleanup_action = deployment.container().cleanup_actions_for_repos(&repos);
 
     let working_dir = workspace

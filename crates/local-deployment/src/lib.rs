@@ -160,6 +160,7 @@ impl Deployment for LocalDeployment {
             config.clone(),
             git.clone(),
             image.clone(),
+            None, // analytics was removed
             approvals.clone(),
             queued_message_service.clone(),
             share_publisher.clone(),
@@ -261,6 +262,11 @@ impl Deployment for LocalDeployment {
 }
 
 impl LocalDeployment {
+    // stub para track_if_analytics_allowed (analytics fue removido)
+    pub async fn track_if_analytics_allowed(&self, _event_name: &str, _data: serde_json::Value) {
+        // analytics removido - este método no hace nada
+    }
+
     pub fn remote_client(&self) -> Result<RemoteClient, RemoteClientNotConfigured> {
         self.remote_client.clone()
     }

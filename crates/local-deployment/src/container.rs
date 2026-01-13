@@ -521,8 +521,7 @@ impl LocalContainerService {
                 }
 
                 // Fire analytics event when CodingAgent execution has finished
-                if config.read().await.analytics_enabled
-                    && matches!(
+                if matches!(
                         &ctx.execution_process.run_reason,
                         ExecutionProcessRunReason::CodingAgent
                     )
@@ -827,8 +826,13 @@ impl LocalContainerService {
         )
         .await?;
 
-        let repos =
+        let repos_raw =
             WorkspaceRepo::find_repos_for_workspace(&self.db.pool, ctx.workspace.id).await?;
+
+        // convertir de Repo a RepoWithName (importado de services)
+        use services::services::container::RepoWithName;
+        let repos: Vec<_> = repos_raw.iter().map(RepoWithName::from).collect();
+
         let cleanup_action = self.cleanup_actions_for_repos(&repos);
 
         let working_dir = ctx

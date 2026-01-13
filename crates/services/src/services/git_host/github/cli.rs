@@ -23,8 +23,44 @@ use crate::services::git_host::types::{
 
 #[derive(Debug, Clone)]
 pub struct GitHubRepoInfo {
+
     pub owner: String,
+
     pub repo_name: String,
+
+}
+
+
+impl GitHubRepoInfo {
+    /// Parse GitHub repo info from a remote URL
+    pub fn from_remote_url(url: &str) -> Option<Self> {
+        // Handle various GitHub URL formats:
+        // - https://github.com/owner/repo.git
+        // - git@github.com:owner/repo.git
+        // - https://github.com/owner/repo
+        
+        let url = url.trim_end_matches('/').trim_end_matches(".git");
+        
+        if let Some(https_part) = url.strip_prefix("https://github.com/") {
+            let parts: Vec<&str> = https_part.split('/').collect();
+            if parts.len() >= 2 {
+                return Some(GitHubRepoInfo {
+                    owner: parts[0].to_string(),
+                    repo_name: parts[1].to_string(),
+                });
+            }
+        } else if let Some(ssh_part) = url.strip_prefix("git@github.com:") {
+            let parts: Vec<&str> = ssh_part.split('/').collect();
+            if parts.len() >= 2 {
+                return Some(GitHubRepoInfo {
+                    owner: parts[0].to_string(),
+                    repo_name: parts[1].to_string(),
+                });
+            }
+        }
+        
+        None
+    }
 }
 
 #[derive(Deserialize)]

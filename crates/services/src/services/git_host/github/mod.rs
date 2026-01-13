@@ -6,8 +6,8 @@ use std::{path::Path, time::Duration};
 
 use async_trait::async_trait;
 use backon::{ExponentialBuilder, Retryable};
-pub use cli::GhCli;
-use cli::{GhCliError, GitHubRepoInfo};
+pub use cli::{GhCli, GitHubRepoInfo};
+use cli::GhCliError;
 use db::models::merge::PullRequestInfo;
 use tokio::task;
 use tracing::info;

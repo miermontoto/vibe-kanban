@@ -11,6 +11,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use services::services::container::RepoWithName;
+
 use axum::{
     Extension, Json, Router,
     extract::{
@@ -1380,7 +1382,8 @@ pub async fn run_setup_script(
         .await?
         .ok_or(SqlxError::RowNotFound)?;
 
-    let repos = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let repos_raw = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let repos: Vec<_> = repos_raw.iter().map(RepoWithName::from).collect();
     let executor_action = match deployment.container().setup_actions_for_repos(&repos) {
         Some(action) => action,
         None => {
@@ -1461,7 +1464,8 @@ pub async fn run_cleanup_script(
         .await?
         .ok_or(SqlxError::RowNotFound)?;
 
-    let repos = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let repos_raw = WorkspaceRepo::find_repos_for_workspace(pool, workspace.id).await?;
+    let repos: Vec<_> = repos_raw.iter().map(RepoWithName::from).collect();
     let executor_action = match deployment.container().cleanup_actions_for_repos(&repos) {
         Some(action) => action,
         None => {
