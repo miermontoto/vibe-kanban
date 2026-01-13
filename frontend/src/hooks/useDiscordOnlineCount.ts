@@ -31,10 +31,12 @@ export function useDiscordOnlineCount(enabled: boolean = true) {
     queryKey: ['discord-online-count'],
     queryFn: fetchDiscordOnlineCount,
     refetchInterval: enabled ? 10 * 60 * 1000 : false,
-    staleTime: 10 * 60 * 1000,
+    staleTime: enabled ? 10 * 60 * 1000 : 0,
     retry: false,
-    refetchOnMount: false,
-    placeholderData: (previousData) => previousData,
+    refetchOnMount: enabled,
+    refetchOnWindowFocus: enabled,
+    refetchOnReconnect: enabled,
+    placeholderData: enabled ? (previousData) => previousData : undefined,
     enabled, // no se ejecuta el query si enabled es false
   });
 }
