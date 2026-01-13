@@ -18,7 +18,7 @@ use db::models::{
     repo::Repo,
 };
 use deployment::Deployment;
-use futures_util::{SinkExt, StreamExt, TryStreamExt};
+use futures_util::TryStreamExt;
 use serde::Deserialize;
 use services::services::{
     file_search_cache::SearchQuery, git::GitRemote, project::ProjectServiceError,
@@ -31,7 +31,7 @@ use utils::{
 };
 use uuid::Uuid;
 
-use crate::{DeploymentImpl, error::ApiError, middleware::load_project_middleware};
+use crate::{DeploymentImpl, error::ApiError, middleware::load_project_middleware, ws_utils::stream_with_heartbeat};
 
 #[derive(Deserialize, TS)]
 pub struct LinkToExistingRequest {
@@ -63,34 +63,14 @@ pub async fn stream_projects_ws(
 }
 
 async fn handle_projects_ws(socket: WebSocket, deployment: DeploymentImpl) -> anyhow::Result<()> {
-    let mut stream = deployment
+    let stream = deployment
         .events()
         .stream_projects_raw()
         .await?
-        .map_ok(|msg| msg.to_ws_message_unchecked());
+        .map_ok(|msg| msg.to_ws_message_unchecked())
+        .map_err(|e| anyhow::anyhow!("{}", e));
 
-    // Split socket into sender and receiver
-    let (mut sender, mut receiver) = socket.split();
-
-    // Drain (and ignore) any client->server messages so pings/pongs work
-    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
-
-    // Forward server messages
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(msg) => {
-                if sender.send(msg).await.is_err() {
-                    break; // client disconnected
-                }
-            }
-            Err(e) => {
-                tracing::error!("stream error: {}", e);
-                break;
-            }
-        }
-    }
-
-    Ok(())
+    stream_with_heartbeat(socket, stream).await
 }
 
 pub async fn get_project(

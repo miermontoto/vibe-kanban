@@ -59,37 +59,5 @@ pnpm i
 ### Running the dev server
 
 ```bash
-pnpm run dev
+sh run.sh
 ```
-
-This will start the backend. A blank DB will be copied from the `dev_assets_seed` folder.
-
-### Building the frontend
-
-To build just the frontend:
-
-```bash
-cd frontend
-pnpm build
-```
-
-### Build from source (macOS)
-
-1. Run `./local-build.sh`
-2. Test with `cd npx-cli && node bin/cli.js`
-
-### Environment Variables
-
-The following environment variables can be configured at build time or runtime:
-
-| Variable                          | Type       | Default           | Description                                                               |
-| --------------------------------- | ---------- | ----------------- | ------------------------------------------------------------------------- |
-| `POSTHOG_API_KEY`                 | Build-time | Empty             | PostHog analytics API key (disables analytics if empty)                   |
-| `POSTHOG_API_ENDPOINT`            | Build-time | Empty             | PostHog analytics endpoint (disables analytics if empty)                  |
-| `PORT`                            | Runtime    | Auto-assign       | **Production**: Server port. **Dev**: Frontend port (backend uses PORT+1) |
-| `BACKEND_PORT`                    | Runtime    | `0` (auto-assign) | Backend server port (dev mode only, overrides PORT+1)                     |
-| `FRONTEND_PORT`                   | Runtime    | `3000`            | Frontend dev server port (dev mode only, overrides PORT)                  |
-| `HOST`                            | Runtime    | `127.0.0.1`       | Backend server host                                                       |
-| `DISABLE_WORKTREE_ORPHAN_CLEANUP` | Runtime    | Not set           | Disable git worktree cleanup (for debugging)                              |
-
-**Build-time variables** must be set when running `pnpm run build`. **Runtime variables** are read when the application starts.

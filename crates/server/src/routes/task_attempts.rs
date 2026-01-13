@@ -57,7 +57,7 @@ use uuid::Uuid;
 
 use crate::{
     DeploymentImpl, error::ApiError, middleware::load_workspace_middleware,
-    routes::task_attempts::gh_cli_setup::GhCliSetupError,
+    routes::task_attempts::gh_cli_setup::GhCliSetupError, ws_utils::stream_with_heartbeat,
 };
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -273,44 +273,17 @@ async fn handle_task_attempt_diff_ws(
     workspace: Workspace,
     stats_only: bool,
 ) -> anyhow::Result<()> {
-    use futures_util::{SinkExt, StreamExt, TryStreamExt};
+    use futures_util::TryStreamExt;
     use utils::log_msg::LogMsg;
 
     let stream = deployment
         .container()
         .stream_diff(&workspace, stats_only)
-        .await?;
+        .await?
+        .map_ok(|msg: LogMsg| msg.to_ws_message_unchecked())
+        .map_err(|e| anyhow::anyhow!("{}", e));
 
-    let mut stream = stream.map_ok(|msg: LogMsg| msg.to_ws_message_unchecked());
-
-    let (mut sender, mut receiver) = socket.split();
-
-    loop {
-        tokio::select! {
-            // Wait for next stream item
-            item = stream.next() => {
-                match item {
-                    Some(Ok(msg)) => {
-                        if sender.send(msg).await.is_err() {
-                            break;
-                        }
-                    }
-                    Some(Err(e)) => {
-                        tracing::error!("stream error: {}", e);
-                        break;
-                    }
-                    None => break,
-                }
-            }
-            // Detect client disconnection
-            msg = receiver.next() => {
-                if msg.is_none() {
-                    break;
-                }
-            }
-        }
-    }
-    Ok(())
+    stream_with_heartbeat(socket, stream).await
 }
 
 pub async fn stream_workspaces_ws(
@@ -332,40 +305,16 @@ async fn handle_workspaces_ws(
     archived: Option<bool>,
     limit: Option<i64>,
 ) -> anyhow::Result<()> {
-    use futures_util::{SinkExt, StreamExt, TryStreamExt};
+    use futures_util::TryStreamExt;
 
-    let mut stream = deployment
+    let stream = deployment
         .events()
         .stream_workspaces_raw(archived, limit)
         .await?
-        .map_ok(|msg| msg.to_ws_message_unchecked());
+        .map_ok(|msg| msg.to_ws_message_unchecked())
+        .map_err(|e| anyhow::anyhow!("{}", e));
 
-    let (mut sender, mut receiver) = socket.split();
-
-    loop {
-        tokio::select! {
-            item = stream.next() => {
-                match item {
-                    Some(Ok(msg)) => {
-                        if sender.send(msg).await.is_err() {
-                            break;
-                        }
-                    }
-                    Some(Err(e)) => {
-                        tracing::error!("stream error: {}", e);
-                        break;
-                    }
-                    None => break,
-                }
-            }
-            msg = receiver.next() => {
-                if msg.is_none() {
-                    break;
-                }
-            }
-        }
-    }
-    Ok(())
+    stream_with_heartbeat(socket, stream).await
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

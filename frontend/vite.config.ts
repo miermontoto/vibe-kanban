@@ -53,6 +53,10 @@ export default defineConfig({
     react(),
     executorSchemasPlugin(),
   ],
+  define: {
+    // Exponer puerto del backend al cliente para conexiones WebSocket directas
+    'import.meta.env.VITE_BACKEND_PORT': JSON.stringify(process.env.BACKEND_PORT || "3001"),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -67,14 +71,23 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
         configure: (proxy) => {
+          console.log(`[vite proxy] Configured for backend on port ${process.env.BACKEND_PORT || "3001"}`);
+
           // silencia errores de conexión esperados durante reinicios del backend
           proxy.on("error", (err) => {
             const code = (err as NodeJS.ErrnoException).code;
             const name = err.name;
+            console.log("[vite proxy] Error:", { code, name, message: err.message });
             // ignora errores de conexión comunes durante reinicios
             if (code === "ECONNRESET" || code === "ECONNREFUSED") return;
             if (name === "AggregateError") return; // múltiples errores de conexión
             console.error("[vite proxy]", err.message);
+          });
+
+          proxy.on("proxyReq", (proxyReq, req) => {
+            if (req.url?.includes("/ws")) {
+              console.log("[vite proxy] WebSocket upgrade request:", req.url);
+            }
           });
         },
       },

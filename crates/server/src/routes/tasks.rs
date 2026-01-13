@@ -23,7 +23,7 @@ use db::models::{
 };
 use deployment::Deployment;
 use executors::profile::ExecutorProfileId;
-use futures_util::{SinkExt, StreamExt, TryStreamExt};
+use futures_util::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use services::services::{
     container::ContainerService, share::ShareError, workspace_manager::WorkspaceManager,
@@ -41,6 +41,7 @@ use crate::{
         WorkspaceRepoInput,
         pr::{AutoPrResult, auto_create_prs_for_workspace},
     },
+    ws_utils::stream_with_heartbeat,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,34 +77,14 @@ async fn handle_tasks_ws(
     deployment: DeploymentImpl,
     project_id: Uuid,
 ) -> anyhow::Result<()> {
-    // Get the raw stream and convert LogMsg to WebSocket messages
-    let mut stream = deployment
+    let stream = deployment
         .events()
         .stream_tasks_raw(project_id)
         .await?
-        .map_ok(|msg| msg.to_ws_message_unchecked());
+        .map_ok(|msg| msg.to_ws_message_unchecked())
+        .map_err(|e| anyhow::anyhow!("{}", e));
 
-    // Split socket into sender and receiver
-    let (mut sender, mut receiver) = socket.split();
-
-    // Drain (and ignore) any client->server messages so pings/pongs work
-    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
-
-    // Forward server messages
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(msg) => {
-                if sender.send(msg).await.is_err() {
-                    break; // client disconnected
-                }
-            }
-            Err(e) => {
-                tracing::error!("stream error: {}", e);
-                break;
-            }
-        }
-    }
-    Ok(())
+    stream_with_heartbeat(socket, stream).await
 }
 
 pub async fn get_task(

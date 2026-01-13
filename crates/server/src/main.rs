@@ -97,7 +97,23 @@ async fn main() -> Result<(), VibeKanbanError> {
         }); // Use 0 to find free port if no specific port provided
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
+
+    // Crear listener con backlog aumentado para manejar múltiples conexiones WebSocket simultáneas
+    // El valor por defecto (~128) puede saturarse cuando la página carga 6+ WebSockets a la vez
+    let addr: std::net::SocketAddr = format!("{host}:{port}")
+        .parse()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    let socket = socket2::Socket::new(
+        socket2::Domain::for_address(addr),
+        socket2::Type::STREAM,
+        Some(socket2::Protocol::TCP),
+    )?;
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(1024)?; // Backlog de 1024 conexiones pendientes (vs ~128 por defecto)
+
+    let listener = tokio::net::TcpListener::from_std(socket.into())?;
     let actual_port = listener.local_addr()?.port(); // get → 53427 (example)
 
     // Write port file for discovery if prod, warn on fail

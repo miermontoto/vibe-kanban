@@ -1,9 +1,11 @@
 # Repository Guidelines
 
 ## Project Identity
+
 **vkm** - An independent fork of BloopAI/vibe-kanban with additional features and customizations.
 
 ## Git Workflow & Repository Management
+
 - **Primary repository**: https://github.com/miermontoto/vibe-kanban
 - This is a fork that has diverged significantly from upstream
 - Maintain independence from upstream - do not automatically sync or create PRs to upstream
@@ -12,6 +14,7 @@
   - `upstream`: https://github.com/BloopAI/vibe-kanban.git (reference only)
 
 ## Project Structure & Module Organization
+
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.
 - `frontend/`: React + TypeScript app (Vite, Tailwind). Source in `frontend/src`.
 - `frontend/src/components/dialogs`: Dialog components for the frontend.
@@ -29,6 +32,7 @@ When making changes to the types, you can regenerate them using `pnpm run genera
 Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generate_types.rs
 
 ## Build, Test, and Development Commands
+
 - Install: `pnpm i`
 - Run dev (frontend + backend with ports auto-assigned): `pnpm run dev` or `./dev.sh`
 - Backend (watch): `pnpm run backend:dev:watch`
@@ -41,6 +45,7 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 - Local NPX build: `./local-build.sh` (builds binaries: vkm, vkm-mcp, vkm-review)
 
 ## Package and Binary Names
+
 - NPM package: `@miermontoto/vkm`
 - Main binary: `vkm` (formerly `server`)
 - MCP server binary: `vkm-mcp` (formerly `mcp_task_server`)
@@ -49,15 +54,18 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 - Cache directory: `~/.vkm/bin`
 
 ## Coding Style & Naming Conventions
+
 - Rust: `rustfmt` enforced (`rustfmt.toml`); group imports by crate; snake_case modules, PascalCase types.
 - TypeScript/React: ESLint + Prettier (2 spaces, single quotes, 80 cols). PascalCase components, camelCase vars/functions, kebab-case file names where practical.
 - Keep functions small, add `Debug`/`Serialize`/`Deserialize` where useful.
 
 ## Testing Guidelines
+
 - Rust: prefer unit tests alongside code (`#[cfg(test)]`), run `cargo test --workspace`. Add tests for new logic and edge cases.
 - Frontend: ensure `pnpm run check` and `pnpm run lint` pass. If adding runtime logic, include lightweight tests (e.g., Vitest) in the same directory.
 
 ## Security & Config Tips
+
 - Use `.env` for local overrides; never commit secrets. Key envs: `FRONTEND_PORT`, `BACKEND_PORT`, `HOST`
 - Dev ports and assets are managed by `scripts/setup-dev-environment.js`.
 
@@ -66,6 +74,7 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 vkm uses a simplified, single-workflow release system based on semantic versioning.
 
 ### Quick Release
+
 ```bash
 # Using the helper script (recommended)
 ./scripts/release.sh patch   # 0.0.147 → 0.0.148
@@ -75,6 +84,7 @@ vkm uses a simplified, single-workflow release system based on semantic versioni
 ```
 
 ### Manual Release
+
 ```bash
 # 1. Bump version (updates all package.json and Cargo.toml files)
 pnpm version patch  # or minor, major, prerelease
@@ -97,6 +107,7 @@ git push && git push --tags
 ### What Happens After Push
 
 The `release.yml` workflow automatically:
+
 1. ✅ Runs all tests (fails fast if tests don't pass)
 2. 🏗️ Builds frontend with optimizations
 3. 🦀 Builds Rust binaries for 6 platforms (parallel):
@@ -136,6 +147,7 @@ The `release.yml` workflow automatically:
 The NPM package (`@miermontoto/vkm`) is a lightweight wrapper (~6KB) that downloads platform-specific binaries from GitHub Releases at runtime:
 
 **How it works:**
+
 1. User runs `npx @miermontoto/vkm@1.0.1`
 2. NPM downloads the wrapper package from npm registry
 3. `npx-cli/bin/cli.js` detects platform (linux-x64, macos-arm64, etc.)
@@ -145,6 +157,7 @@ The NPM package (`@miermontoto/vkm`) is a lightweight wrapper (~6KB) that downlo
 5. Binary is extracted and executed
 
 **Why this architecture:**
+
 - NPM has package size limits (~200MB)
 - All platform binaries together = ~150MB
 - Wrapper + runtime download = only download what you need (~27MB per platform)
@@ -158,6 +171,7 @@ The NPM package (`@miermontoto/vkm`) is a lightweight wrapper (~6KB) that downlo
 **Cause:** First release to a scoped package (`@miermontoto/vkm`) requires manual publish to establish the scope on npm registry.
 
 **Fix:**
+
 ```bash
 # Download the package from GitHub Release
 cd /tmp
@@ -183,6 +197,7 @@ npx @miermontoto/vkm@1.0.1 --version
 ```
 
 **Expected behavior:**
+
 ```
 Starting vkm v1.0.1...
 Downloading vkm...
@@ -191,6 +206,7 @@ Downloading vkm...
 ```
 
 **If download fails with 404:**
+
 - Check that `npx-cli/bin/download.js` uses correct GitHub Release URLs
 - Verify binaries exist in GitHub Release with correct naming: `vkm-{platform}.zip`
 - Test URL manually: `curl -I https://github.com/miermontoto/vkm/releases/download/v1.0.1/vkm-linux-x64.zip`
@@ -200,6 +216,7 @@ Downloading vkm...
 **Symptom:** Windows builds fail with "failed to compile cargo-xwin" or "xwin version yanked"
 
 **Fix:** Use `--locked` flag in workflow (already applied):
+
 ```yaml
 cargo install --locked cargo-xwin@0.20.2
 ```
@@ -218,11 +235,13 @@ Windows ARM64 builds may fail due to aws-lc-sys cross-compilation issues. This i
 The NPM package now correctly downloads binaries from GitHub Releases at runtime. Previously failed with 404 errors due to expecting an R2/Cloudflare storage structure with manifest.json.
 
 **Fix details:**
+
 - Changed URL format from `/binaries/{tag}/{platform}/{binary}.zip` to `/{tag}/{binary}-{platform}.zip`
 - Removed manifest.json dependency and SHA256 validation
 - Updated getLatestVersion() to use GitHub API instead of manifest
 
 **Verified working:**
+
 ```bash
 npx @miermontoto/vkm@1.0.1
 # ✅ Downloads binary from GitHub Releases
@@ -238,12 +257,14 @@ npx @miermontoto/vkm@1.0.1
 The release workflow successfully created the GitHub Release with all binaries, but the NPM package was non-functional due to download.js expecting a different URL structure. Users should use v1.0.1 or later.
 
 **Builds:**
+
 - ✅ Linux x64/ARM64 (musl)
 - ✅ macOS x64/ARM64
 - ✅ Windows x64
 - ❌ Windows ARM64 (experimental, aws-lc-sys cross-compilation issues)
 
 **Lessons learned:**
+
 1. Always test NPM package end-to-end after publishing
 2. cargo-xwin requires `--locked` flag to avoid yanked dependency issues
 3. First scoped package publish requires manual `npm publish` to establish scope
