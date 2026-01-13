@@ -56,8 +56,6 @@ export const useJsonPatchWsStream = <T extends object>(
   const retryAttemptsRef = useRef<number>(0);
   const [retryNonce, setRetryNonce] = useState(0);
   const finishedRef = useRef<boolean>(false);
-  const lastPingRef = useRef<number>(Date.now());
-  const idleCheckIntervalRef = useRef<number | null>(null);
 
   const injectInitialEntry = options?.injectInitialEntry;
   const deduplicatePatches = options?.deduplicatePatches;
@@ -91,10 +89,6 @@ export const useJsonPatchWsStream = <T extends object>(
       if (retryTimerRef.current) {
         window.clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
-      }
-      if (idleCheckIntervalRef.current) {
-        window.clearInterval(idleCheckIntervalRef.current);
-        idleCheckIntervalRef.current = null;
       }
       retryAttemptsRef.current = 0;
       finishedRef.current = false;
@@ -138,28 +132,10 @@ export const useJsonPatchWsStream = <T extends object>(
           window.clearTimeout(retryTimerRef.current);
           retryTimerRef.current = null;
         }
-        // Reset idle detection
-        lastPingRef.current = Date.now();
-
-        // Check for idle connection every 10 seconds
-        // si no recibimos mensajes en 45s, asumimos que la conexión está muerta
-        if (idleCheckIntervalRef.current) {
-          window.clearInterval(idleCheckIntervalRef.current);
-        }
-        idleCheckIntervalRef.current = window.setInterval(() => {
-          const timeSinceLastMessage = Date.now() - lastPingRef.current;
-          if (timeSinceLastMessage > 45000 && wsRef.current) {
-            console.warn('WebSocket idle for 45s, reconnecting...');
-            wsRef.current.close();
-          }
-        }, 10000);
       };
 
       ws.onmessage = (event) => {
         try {
-          // Update last message time for idle detection
-          lastPingRef.current = Date.now();
-
           const msg: WsMsg = JSON.parse(event.data);
 
           // Handle JsonPatch messages (same as SSE json_patch event)
@@ -197,10 +173,6 @@ export const useJsonPatchWsStream = <T extends object>(
             ws.close(1000, 'finished');
             wsRef.current = null;
             setIsConnected(false);
-            if (idleCheckIntervalRef.current) {
-              window.clearInterval(idleCheckIntervalRef.current);
-              idleCheckIntervalRef.current = null;
-            }
           }
         } catch (err) {
           console.error('Failed to process WebSocket message:', err);
@@ -257,10 +229,6 @@ export const useJsonPatchWsStream = <T extends object>(
       if (retryTimerRef.current) {
         window.clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
-      }
-      if (idleCheckIntervalRef.current) {
-        window.clearInterval(idleCheckIntervalRef.current);
-        idleCheckIntervalRef.current = null;
       }
       finishedRef.current = false;
       dataRef.current = undefined;
