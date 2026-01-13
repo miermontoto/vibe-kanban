@@ -89,6 +89,22 @@ function useDiffData(input: DiffInput): DiffData {
         };
       }
 
+      // adicional comprobación de tamaño para evitar fallos de parseo
+      const MAX_CLIENT_DIFF_CHARS = 1_000_000; // ~1MB de texto
+      const totalContentSize = oldContent.length + newContent.length;
+      if (totalContentSize > MAX_CLIENT_DIFF_CHARS) {
+        console.warn(`Diff too large to render: ${filePath} (${totalContentSize} chars)`);
+        return {
+          diffFile: null,
+          diffData: null,
+          additions: 0,
+          deletions: 0,
+          filePath,
+          isValid: false,
+          hideLineNumbers: false,
+        };
+      }
+
       try {
         const file = generateDiffFile(
           input.oldPath || filePath,

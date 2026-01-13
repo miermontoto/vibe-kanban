@@ -102,13 +102,21 @@ export default function DiffCard({
   const newContentSafe = diff.newContent || '';
   const isContentEqual = oldContentSafe === newContentSafe;
 
+  // Check if content is too large for safe diff rendering (client-side limit)
+  // This is an additional safeguard beyond the server-side MAX_INLINE_DIFF_BYTES check
+  const MAX_CLIENT_DIFF_CHARS = 1_000_000; // ~1MB of text
+  const totalContentSize = oldContentSafe.length + newContentSafe.length;
+  const isContentTooLarge = totalContentSize > MAX_CLIENT_DIFF_CHARS;
+
   const diffOptions = useMemo(
     () => (ignoreWhitespace ? { ignoreWhitespace: true as const } : undefined),
     [ignoreWhitespace]
   );
 
   const diffFile = useMemo(() => {
-    if (isContentEqual || isOmitted) return null;
+    // Skip diff generation if content is omitted, equal, or too large
+    if (isContentEqual || isOmitted || isContentTooLarge) return null;
+
     try {
       const oldFileName = oldName || newName || 'unknown';
       const newFileName = newName || oldName || 'unknown';
@@ -130,6 +138,7 @@ export default function DiffCard({
   }, [
     isContentEqual,
     isOmitted,
+    isContentTooLarge,
     oldName,
     newName,
     oldLang,
@@ -326,13 +335,15 @@ export default function DiffCard({
         >
           {isOmitted
             ? 'Content omitted due to file size. Open in editor to view.'
-            : isContentEqual
-              ? diff.change === 'renamed'
-                ? 'File renamed with no content changes.'
-                : diff.change === 'permissionChange'
-                  ? 'File permission changed.'
-                  : 'No content changes to display.'
-              : 'Failed to render diff for this file.'}
+            : isContentTooLarge
+              ? `Diff too large to display (${(totalContentSize / 1024).toFixed(0)}KB). Open in editor to view.`
+              : isContentEqual
+                ? diff.change === 'renamed'
+                  ? 'File renamed with no content changes.'
+                  : diff.change === 'permissionChange'
+                    ? 'File permission changed.'
+                    : 'No content changes to display.'
+                : 'Failed to render diff for this file.'}
         </div>
       )}
     </div>
