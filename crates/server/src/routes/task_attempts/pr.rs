@@ -43,6 +43,13 @@ pub struct CreateGitHubPrRequest {
     pub repo_id: Uuid,
     #[serde(default)]
     pub auto_generate_description: bool,
+    /// si es true, abre el PR en el navegador después de crearlo
+    #[serde(default = "default_open_in_browser")]
+    pub open_in_browser: bool,
+}
+
+fn default_open_in_browser() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
@@ -350,10 +357,14 @@ pub async fn create_github_pr(
                 tracing::error!("Failed to update workspace PR status: {}", e);
             }
 
-            // Auto-open PR in browser
-            if let Err(e) = utils::browser::open_browser(&pr_info.url).await {
-                tracing::warn!("Failed to open PR in browser: {}", e);
-            } // Trigger auto-description follow-up if enabled
+            // auto-open PR in browser si está habilitado
+            if request.open_in_browser {
+                if let Err(e) = utils::browser::open_browser(&pr_info.url).await {
+                    tracing::warn!("Failed to open PR in browser: {}", e);
+                }
+            }
+
+            // Trigger auto-description follow-up if enabled
             if request.auto_generate_description
                 && let Err(e) = trigger_pr_description_follow_up(
                     &deployment,

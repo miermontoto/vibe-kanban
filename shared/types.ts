@@ -335,7 +335,11 @@ export type ShareTaskResponse = { shared_task_id: string, };
 
 export type CreateTaskAndStartRequest = { task: CreateTask, repos: Array<WorkspaceRepoInput>, custom_branch_name: string | null, executor_profile_id: ExecutorProfileId, };
 
-export type CreateGitHubPrRequest = { title: string, body: string | null, target_branch: string | null, draft: boolean | null, repo_id: string, auto_generate_description: boolean, };
+export type CreateGitHubPrRequest = { title: string, body: string | null, target_branch: string | null, draft: boolean | null, repo_id: string, auto_generate_description: boolean, 
+/**
+ * si es true, abre el PR en el navegador después de crearlo
+ */
+open_in_browser: boolean, };
 
 export type ImageResponse = { id: string, file_path: string, original_name: string, mime_type: string | null, size_bytes: bigint, hash: string, created_at: string, updated_at: string, };
 
@@ -507,7 +511,11 @@ redirect_to_attempt_on_create: boolean,
 /**
  * modo de auto-push después de commits exitosos
  */
-git_auto_push_mode: GitAutoPushMode, };
+git_auto_push_mode: GitAutoPushMode, 
+/**
+ * cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
+ */
+open_pr_in_browser: boolean, };
 
 export type NotificationConfig = { sound_enabled: boolean, push_enabled: boolean, sound_file: SoundFile, };
 

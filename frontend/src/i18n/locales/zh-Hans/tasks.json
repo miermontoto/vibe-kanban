@@ -465,6 +465,7 @@
     "loadingBranches": "加载分支中...",
     "selectBaseBranch": "选择基础分支",
     "draftLabel": "创建为草稿",
+    "openInBrowserLabel": "创建后在浏览器中打开PR",
     "autoGenerateLabel": "请求AI代理生成更好的PR描述",
     "creating": "创建中...",
     "createButton": "创建 PR",
