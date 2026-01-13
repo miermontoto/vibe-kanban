@@ -17,6 +17,13 @@ function FileContentView({ content, lang, theme }: Props) {
   // Uses the syntax highlighter from @git-diff-view/react without any diff-related features.
   // This allows uniform styling with EditDiffRenderer.
   const diffFile = useMemo(() => {
+    // comprobación de tamaño para evitar fallos de parseo con archivos grandes
+    const MAX_FILE_SIZE_CHARS = 1_000_000; // ~1MB de texto
+    if (content.length > MAX_FILE_SIZE_CHARS) {
+      console.warn(`File too large for syntax highlighting: ${content.length} chars`);
+      return null;
+    }
+
     try {
       const instance = generateDiffFile(
         '', // old file
@@ -28,7 +35,8 @@ function FileContentView({ content, lang, theme }: Props) {
       );
       instance.initRaw();
       return instance;
-    } catch {
+    } catch (e) {
+      console.error('Failed to generate syntax highlighted view:', e);
       return null;
     }
   }, [content, lang]);
