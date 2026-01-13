@@ -22,7 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useProjectMutations } from '@/hooks/useProjectMutations';
@@ -30,7 +29,7 @@ import { useScriptPlaceholders } from '@/hooks/useScriptPlaceholders';
 import { CopyFilesField } from '@/components/projects/CopyFilesField';
 import { AutoExpandingTextarea } from '@/components/ui/auto-expanding-textarea';
 import { RepoPickerDialog } from '@/components/dialogs/shared/RepoPickerDialog';
-import { TriStateToggle } from '@/components/settings/TriStateToggle';
+import { GitProjectSettings } from '@/components/settings/GitProjectSettings';
 import { projectsApi } from '@/lib/api';
 import { repoBranchKeys } from '@/hooks/useRepoBranches';
 import type { Project, ProjectRepo, Repo, UpdateProject } from 'shared/types';
@@ -647,140 +646,6 @@ export function ProjectSettings() {
                 </p>
               </div>
 
-              <TriStateToggle
-                label={t('settings.projects.git.autoCommit.label')}
-                helper={t('settings.projects.git.autoCommit.helper')}
-                value={draft.git_auto_commit_enabled}
-                onChange={(value) =>
-                  updateDraft({ git_auto_commit_enabled: value })
-                }
-                options={[
-                  {
-                    value: null,
-                    label: t('settings.projects.git.autoCommit.useGlobal'),
-                  },
-                  {
-                    value: true,
-                    label: t('settings.projects.git.autoCommit.enabled'),
-                  },
-                  {
-                    value: false,
-                    label: t('settings.projects.git.autoCommit.disabled'),
-                  },
-                ]}
-              />
-
-              <TriStateToggle
-                label={t('settings.projects.git.commitTitleMode.label')}
-                helper={t('settings.projects.git.commitTitleMode.helper')}
-                value={draft.git_commit_title_mode}
-                onChange={(value) =>
-                  updateDraft({ git_commit_title_mode: value })
-                }
-                options={[
-                  {
-                    value: null,
-                    label: t('settings.projects.git.commitTitleMode.useGlobal'),
-                  },
-                  {
-                    value: 'AgentSummary',
-                    label: t(
-                      'settings.projects.git.commitTitleMode.agentSummary'
-                    ),
-                  },
-                  {
-                    value: 'AiGenerated',
-                    label: t(
-                      'settings.projects.git.commitTitleMode.aiGenerated'
-                    ),
-                    badge: (
-                      <Badge variant="outline" className="text-xs">
-                        {t(
-                          'settings.general.git.commitTitleMode.notImplemented'
-                        )}
-                      </Badge>
-                    ),
-                  },
-                  {
-                    value: 'Manual',
-                    label: t('settings.projects.git.commitTitleMode.manual'),
-                  },
-                ]}
-              />
-
-              <TriStateToggle
-                label={t('settings.projects.autoPr.label')}
-                helper={t('settings.projects.autoPr.helper')}
-                value={draft.auto_pr_on_review_enabled}
-                onChange={(value) =>
-                  updateDraft({ auto_pr_on_review_enabled: value })
-                }
-                options={[
-                  {
-                    value: null,
-                    label: t('settings.projects.autoPr.useGlobal'),
-                  },
-                  {
-                    value: true,
-                    label: t('settings.projects.autoPr.enabled'),
-                  },
-                  {
-                    value: false,
-                    label: t('settings.projects.autoPr.disabled'),
-                  },
-                ]}
-              />
-
-              <TriStateToggle
-                label={t('settings.projects.autoPrDraft.label')}
-                helper={t('settings.projects.autoPrDraft.helper')}
-                value={draft.auto_pr_draft}
-                onChange={(value) => updateDraft({ auto_pr_draft: value })}
-                options={[
-                  {
-                    value: null,
-                    label: t('settings.projects.autoPrDraft.useGlobal'),
-                  },
-                  {
-                    value: true,
-                    label: t('settings.projects.autoPrDraft.enabled'),
-                  },
-                  {
-                    value: false,
-                    label: t('settings.projects.autoPrDraft.disabled'),
-                  },
-                ]}
-              />
-
-              <TriStateToggle
-                label={t('settings.projects.tasks.redirectToAttempt.label')}
-                helper={t('settings.projects.tasks.redirectToAttempt.helper')}
-                value={draft.redirect_to_attempt_on_create}
-                onChange={(value) =>
-                  updateDraft({ redirect_to_attempt_on_create: value })
-                }
-                options={[
-                  {
-                    value: null,
-                    label: t(
-                      'settings.projects.tasks.redirectToAttempt.useGlobal'
-                    ),
-                  },
-                  {
-                    value: true,
-                    label: t(
-                      'settings.projects.tasks.redirectToAttempt.enabled'
-                    ),
-                  },
-                  {
-                    value: false,
-                    label: t(
-                      'settings.projects.tasks.redirectToAttempt.disabled'
-                    ),
-                  },
-                ]}
-              />
-
               {/* Save Button */}
               <div className="flex items-center justify-between pt-4 border-t">
                 {hasUnsavedProjectChanges ? (
@@ -827,6 +692,16 @@ export function ProjectSettings() {
               )}
             </CardContent>
           </Card>
+
+          {/* Git Settings Section */}
+          <GitProjectSettings
+            gitAutoCommitEnabled={draft.git_auto_commit_enabled}
+            gitCommitTitleMode={draft.git_commit_title_mode}
+            autoPrOnReviewEnabled={draft.auto_pr_on_review_enabled}
+            autoPrDraft={draft.auto_pr_draft}
+            redirectToAttemptOnCreate={draft.redirect_to_attempt_on_create}
+            onChange={updateDraft}
+          />
 
           {/* Repositories Section */}
           <Card>
