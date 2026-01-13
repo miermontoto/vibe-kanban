@@ -5,6 +5,7 @@ import { paths } from '@/lib/paths';
 import { taskRelationshipsKeys } from '@/hooks/useTaskRelationships';
 import { workspaceSummaryKeys } from '@/components/ui-new/hooks/useWorkspaces';
 import type {
+  AutoPrResult,
   CreateTask,
   CreateTaskAndStartRequest,
   Task,
@@ -14,6 +15,31 @@ import type {
   SharedTaskDetails,
 } from 'shared/types';
 import { taskKeys } from './useTask';
+
+/**
+ * procesa los resultados de auto-PR y los logea a la consola
+ * @param results - array de resultados de auto-PR del backend
+ */
+export function logAutoPrResults(results: AutoPrResult[] | null): void {
+  if (!results || results.length === 0) return;
+
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
+
+  if (successful.length > 0) {
+    console.info(
+      `Auto-PR created for ${successful.length} repo(s):`,
+      successful.map((r) => r.pr_url)
+    );
+  }
+
+  if (failed.length > 0) {
+    console.warn(
+      `Auto-PR failed for ${failed.length} repo(s):`,
+      failed.map((r) => ({ repo: r.repo_name, error: r.error }))
+    );
+  }
+}
 
 interface UseTaskMutationsOptions {
   /** cuando es false, no redirige al intento después de crear la tarea */
@@ -83,26 +109,7 @@ export function useTaskMutations(
       tasksApi.update(taskId, data),
     onSuccess: (response: TaskUpdateResponse) => {
       invalidateQueries(response.id);
-
-      // procesar resultados de auto-PR si existen
-      if (response.auto_pr_results && response.auto_pr_results.length > 0) {
-        const successful = response.auto_pr_results.filter((r) => r.success);
-        const failed = response.auto_pr_results.filter((r) => !r.success);
-
-        if (successful.length > 0) {
-          console.info(
-            `Auto-PR created for ${successful.length} repo(s):`,
-            successful.map((r) => r.pr_url)
-          );
-        }
-
-        if (failed.length > 0) {
-          console.warn(
-            `Auto-PR failed for ${failed.length} repo(s):`,
-            failed.map((r) => ({ repo: r.repo_name, error: r.error }))
-          );
-        }
-      }
+      logAutoPrResults(response.auto_pr_results);
     },
     onError: (err) => {
       console.error('Failed to update task:', err);
