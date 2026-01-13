@@ -125,6 +125,83 @@ If a release failed and needs to be retried after fixes:
    git push --tags
    ```
 
+## Background Monitoring
+
+You can start a background task that polls the release workflow and notifies when complete.
+
+### Start Background Monitor
+
+Use the Bash tool with `run_in_background: true` to start an async monitor:
+
+```bash
+# Monitor a specific workflow run until completion
+RUN_ID=$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+while true; do
+  STATUS=$(gh run view $RUN_ID --json status,conclusion --jq '.status + " " + (.conclusion // "pending")')
+  echo "$(date '+%H:%M:%S') - Release status: $STATUS"
+  if [[ "$STATUS" == "completed"* ]]; then
+    CONCLUSION=$(echo "$STATUS" | cut -d' ' -f2)
+    if [[ "$CONCLUSION" == "success" ]]; then
+      echo "✅ Release completed successfully!"
+      gh release view --json tagName,url --jq '"Release: " + .tagName + " - " + .url'
+    else
+      echo "❌ Release failed with: $CONCLUSION"
+      echo "Run: gh run view $RUN_ID --log-failed"
+    fi
+    break
+  fi
+  sleep 30
+done
+```
+
+### Agent Instructions for Background Monitoring
+
+When the user wants to monitor a release in the background:
+
+1. Get the latest workflow run ID:
+```bash
+gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId'
+```
+
+2. Start the background monitor using the Bash tool with `run_in_background: true`
+
+3. Tell the user:
+   - The monitor is running in the background
+   - They can continue working on other tasks
+   - Use `TaskOutput` tool to check the monitor's output
+   - Or use `/tasks` to see the background task ID
+
+4. When the user asks for status or the task completes:
+   - Use `TaskOutput` to retrieve the final status
+   - Provide the release URL if successful
+   - Provide troubleshooting steps if failed
+
+### Example Background Monitor Command
+
+```bash
+# Single command for background monitoring (use with run_in_background: true)
+RUN_ID=$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId') && \
+echo "Monitoring release workflow: $RUN_ID" && \
+echo "Started at: $(date)" && \
+while true; do \
+  STATUS=$(gh run view $RUN_ID --json status,conclusion --jq '.status + " " + (.conclusion // "pending")') && \
+  echo "$(date '+%H:%M:%S') - $STATUS" && \
+  if [[ "$STATUS" == "completed"* ]]; then \
+    CONCLUSION=$(echo "$STATUS" | cut -d' ' -f2) && \
+    if [[ "$CONCLUSION" == "success" ]]; then \
+      echo "✅ RELEASE SUCCESSFUL" && \
+      gh release view --json tagName,url --jq '"Tag: " + .tagName + "\nURL: " + .url' && \
+      npm view @miermontoto/vkm version 2>/dev/null && echo "(NPM may take a few minutes to update)"; \
+    else \
+      echo "❌ RELEASE FAILED: $CONCLUSION" && \
+      echo "View logs: gh run view $RUN_ID --log-failed"; \
+    fi && \
+    break; \
+  fi && \
+  sleep 30; \
+done
+```
+
 ## Useful Links
 
 Always provide these links in the response:

@@ -68,6 +68,57 @@ After pushing the tag, the GitHub Actions workflow will:
 
 Monitor progress at: https://github.com/miermontoto/vkm/actions
 
+### 3b. Background Monitoring (Optional)
+
+After pushing the tag, you can optionally start a background monitor that will notify when the release completes.
+
+**Agent Instructions:**
+
+After pushing the tag, ask the user if they want background monitoring:
+- "Would you like me to monitor the release in the background? You can continue working while I track the workflow."
+
+If yes, start the background monitor:
+
+```bash
+# Use with run_in_background: true
+RUN_ID=$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId') && \
+VERSION=$(node -p "require('./package.json').version") && \
+echo "🚀 Monitoring release v$VERSION (workflow: $RUN_ID)" && \
+echo "Started at: $(date)" && \
+while true; do \
+  STATUS=$(gh run view $RUN_ID --json status,conclusion --jq '.status + " " + (.conclusion // "pending")') && \
+  echo "$(date '+%H:%M:%S') - $STATUS" && \
+  if [[ "$STATUS" == "completed"* ]]; then \
+    CONCLUSION=$(echo "$STATUS" | cut -d' ' -f2) && \
+    if [[ "$CONCLUSION" == "success" ]]; then \
+      echo "" && \
+      echo "═══════════════════════════════════════════" && \
+      echo "✅ RELEASE v$VERSION SUCCESSFUL!" && \
+      echo "═══════════════════════════════════════════" && \
+      gh release view --json tagName,url --jq '"GitHub: " + .url' && \
+      echo "NPM: https://www.npmjs.com/package/@miermontoto/vkm" && \
+      echo "" && \
+      echo "Test with: npx @miermontoto/vkm@$VERSION --version"; \
+    else \
+      echo "" && \
+      echo "═══════════════════════════════════════════" && \
+      echo "❌ RELEASE v$VERSION FAILED: $CONCLUSION" && \
+      echo "═══════════════════════════════════════════" && \
+      echo "View logs: gh run view $RUN_ID" && \
+      echo "Fix with: /fix-ci, then retag and push"; \
+    fi && \
+    break; \
+  fi && \
+  sleep 30; \
+done
+```
+
+**After starting background monitor, tell the user:**
+- The monitor is running in the background (task ID will be shown)
+- They can continue working on other tasks
+- Use `/tasks` to see background task status
+- The monitor will complete when the workflow finishes (~15-25 min)
+
 ### 4. If Workflow Fails
 If the workflow fails due to linting/formatting:
 1. Run `/fix-ci` to fix all issues

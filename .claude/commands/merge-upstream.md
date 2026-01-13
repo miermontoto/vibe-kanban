@@ -156,6 +156,7 @@ git add crates/db/.sqlx/
 
 **3. Translation Files (i18n)**
 - **Resolution:** Merge both sides - combine translation keys
+- ⚠️ **CRITICAL:** Run `pnpm run format` after resolving JSON conflicts to fix indentation
 
 ```bash
 # For each conflicted translation file:
@@ -163,7 +164,18 @@ git add crates/db/.sqlx/
 # 2. Combine keys from both <<< HEAD and >>> upstream
 # 3. Remove conflict markers
 # 4. Ensure valid JSON
+# 5. IMPORTANT: Run formatter to fix whitespace issues
+
+# After resolving all i18n conflicts:
+cd frontend && pnpm run format
+
+# Verify formatting passes (this is checked in CI!)
+pnpm run format:check
 ```
+
+**Common Issue:** When manually editing JSON during conflict resolution, leading whitespace
+can be accidentally stripped. This causes CI to fail with "Format check frontend" error.
+Always run Prettier after editing JSON files.
 
 **4. Source Code Conflicts**
 - **Resolution:** Carefully merge, preserving custom features
@@ -279,17 +291,23 @@ pnpm run check
 
 ### 5. Fix Formatting
 
+⚠️ **CRITICAL:** This step is essential after resolving i18n JSON conflicts!
+Manually edited JSON files often have whitespace issues that will fail CI.
+
 ```bash
 # Auto-fix Rust formatting
 cargo fmt --all
 
-# Auto-fix frontend formatting
+# Auto-fix frontend formatting (MUST run after i18n conflict resolution!)
 cd frontend && pnpm run format
 
-# Verify
+# Verify both pass (these are checked in CI)
 cargo fmt --all -- --check
 cd frontend && pnpm run format:check
 ```
+
+**Note:** If `format:check` fails, the release workflow will fail at "Format check frontend".
+Always run `pnpm run format` before committing merge results.
 
 ### 6. Run All CI Checks
 
