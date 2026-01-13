@@ -39,6 +39,7 @@ impl From<InternalSlashCommand> for SlashCommand {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 #[ts(export)]
+#[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum CommandCategory {
     #[ts(rename = "global")]
