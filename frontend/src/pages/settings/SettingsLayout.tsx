@@ -76,7 +76,7 @@ export function SettingsLayout() {
                   return (
                     <NavLink
                       key={item.path}
-                      to={`${item.path}${location.search}`}
+                      to={`/settings/${item.path}${location.search}`}
                       end
                       className={({ isActive }) =>
                         cn(

@@ -119,7 +119,17 @@ export const useJsonPatchWsStream = <T extends object>(
       finishedRef.current = false;
 
       // Convert HTTP endpoint to WebSocket endpoint
-      const wsEndpoint = endpoint.replace(/^http/, 'ws');
+      // En desarrollo, conectar directamente al backend para evitar bug del proxy de Vite
+      // con WebSockets (https://github.com/vitejs/vite/issues/20223)
+      let wsEndpoint: string;
+      if (import.meta.env.DEV && endpoint.startsWith('/api/')) {
+        // En desarrollo, construir URL absoluta al puerto del backend
+        const backendPort = import.meta.env.VITE_BACKEND_PORT || '3001';
+        wsEndpoint = `ws://localhost:${backendPort}${endpoint}`;
+      } else {
+        // En producción o para URLs absolutas, reemplazar protocolo
+        wsEndpoint = endpoint.replace(/^http/, 'ws');
+      }
       const ws = new WebSocket(wsEndpoint);
 
       ws.onopen = () => {
@@ -236,6 +246,14 @@ export const useJsonPatchWsStream = <T extends object>(
     return () => {
       if (wsRef.current) {
         const ws = wsRef.current;
+
+        // En React Strict Mode (dev), los efectos se montan/desmontan/remontan inmediatamente
+        // para detectar bugs. Si cerramos un WebSocket que aún está en CONNECTING,
+        // falla con "closed before connection established". Ignorar el primer cleanup.
+        if (import.meta.env.DEV && ws.readyState === WebSocket.CONNECTING) {
+          // No cerrar WebSockets que aún están conectándose en dev (Strict Mode)
+          return;
+        }
 
         // Clear all event handlers first to prevent callbacks after cleanup
         ws.onopen = null;
