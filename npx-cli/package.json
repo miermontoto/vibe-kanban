@@ -10,11 +10,23 @@
     "kanban",
     "project-management",
     "task-management",
-    "developer-tools"
+    "developer-tools",
+    "ai-agents",
+    "claude",
+    "git",
+    "worktree"
   ],
   "author": "Juan Mier",
-  "license": "",
-  "description": "NPX wrapper around vkm and vkm-mcp",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/miermontoto/vkm.git"
+  },
+  "homepage": "https://github.com/miermontoto/vkm",
+  "bugs": {
+    "url": "https://github.com/miermontoto/vkm/issues"
+  },
+  "description": "Visual kanban project management for developers with AI coding agent integration",
   "dependencies": {
     "adm-zip": "^0.5.16"
   },
