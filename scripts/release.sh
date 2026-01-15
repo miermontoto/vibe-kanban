@@ -64,6 +64,21 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
+# verificar que el lockfile está sincronizado con package.json
+info "Verificando que pnpm-lock.yaml está sincronizado..."
+if ! pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null; then
+    error "pnpm-lock.yaml no está sincronizado con package.json"
+    echo ""
+    info "Para arreglar esto, ejecuta:"
+    echo "  pnpm install"
+    echo "  git add pnpm-lock.yaml"
+    echo "  git commit -m 'fix: sync lockfile'"
+    echo ""
+    info "Esto suele pasar después de mergear cambios upstream que modifican dependencias."
+    exit 1
+fi
+success "Lockfile sincronizado"
+
 # obtener versión actual
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 info "Versión actual: v$CURRENT_VERSION"

@@ -24,6 +24,7 @@ The user should specify the version bump type:
 Before bumping version, ensure everything is clean:
 - Run `/fix-ci` to fix all linting, formatting, and type errors
 - Verify all tests pass with `cargo test --workspace`
+- Ensure lockfile is in sync: `pnpm install` (especially after merging upstream changes)
 - Ensure working directory is clean: `git status` should show no uncommitted changes
 
 ### 2. Version Bump
@@ -147,6 +148,20 @@ Once complete:
 - The release workflow has Sentry and PostHog removed as of v1.0.0
 
 ## Troubleshooting
+
+### Lockfile Out of Sync (ERR_PNPM_OUTDATED_LOCKFILE)
+If the workflow fails with "pnpm-lock.yaml is not up to date with package.json":
+1. Run `pnpm install` to regenerate the lockfile
+2. Commit the updated lockfile: `git add pnpm-lock.yaml && git commit -m "fix(release): regenerate lockfile"`
+3. Delete and recreate the tag pointing to the new commit:
+   ```bash
+   git tag -d v[VERSION]
+   git tag -a "v[VERSION]" -m "Release v[VERSION]"
+   git push && git push origin v[VERSION] --force
+   ```
+
+**Common cause:** This happens after merging upstream changes that add/remove/modify
+dependencies in `package.json`. Always run `pnpm install` after a merge.
 
 ### NPM Token Not Set
 If NPM publish fails with authentication error:

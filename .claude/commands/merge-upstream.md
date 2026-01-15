@@ -239,7 +239,23 @@ EOF
 
 After completing the merge, several regeneration steps are required:
 
-### 1. Regenerate SQLx Prepared Queries
+### 1. Regenerate pnpm Lockfile
+
+If the merge included changes to `package.json` dependencies:
+
+```bash
+# CRITICAL: Regenerate lockfile to match package.json changes
+pnpm install
+
+# Verify lockfile is now in sync (this is what CI checks!)
+# If this fails, CI will fail with ERR_PNPM_OUTDATED_LOCKFILE
+```
+
+**Why this matters:** CI runs with `--frozen-lockfile` by default, which requires
+the lockfile to exactly match `package.json`. If upstream added/removed/changed
+dependencies, you MUST run `pnpm install` before committing.
+
+### 2. Regenerate SQLx Prepared Queries
 
 ```bash
 # This is CRITICAL after merge - SQLx queries must be regenerated
@@ -249,7 +265,7 @@ pnpm run prepare-db
 ls -la crates/db/.sqlx/query-*.json
 ```
 
-### 2. Regenerate TypeScript Types
+### 3. Regenerate TypeScript Types
 
 ```bash
 # Regenerate types from Rust structs
@@ -259,7 +275,7 @@ pnpm run generate-types
 pnpm run generate-types:check
 ```
 
-### 3. Fix Rust Compilation Errors
+### 4. Fix Rust Compilation Errors
 
 ```bash
 # Check for compilation errors
@@ -274,7 +290,7 @@ cargo check --workspace
 # Fix each error systematically
 ```
 
-### 4. Fix TypeScript Compilation Errors
+### 5. Fix TypeScript Compilation Errors
 
 ```bash
 # Check TypeScript compilation
@@ -289,7 +305,7 @@ pnpm run check
 # Fix each error
 ```
 
-### 5. Fix Formatting
+### 6. Fix Formatting
 
 ⚠️ **CRITICAL:** This step is essential after resolving i18n JSON conflicts!
 Manually edited JSON files often have whitespace issues that will fail CI.
@@ -309,7 +325,7 @@ cd frontend && pnpm run format:check
 **Note:** If `format:check` fails, the release workflow will fail at "Format check frontend".
 Always run `pnpm run format` before committing merge results.
 
-### 6. Run All CI Checks
+### 7. Run All CI Checks
 
 ```bash
 # TypeScript
@@ -480,6 +496,7 @@ git add -A
 git commit -m "merge: integrate 57 upstream commits"
 
 # 6. Post-merge fixes
+pnpm install             # CRITICAL: sync lockfile with any dependency changes
 pnpm run prepare-db
 pnpm run generate-types
 cargo fmt --all
