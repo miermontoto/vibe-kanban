@@ -1,4 +1,5 @@
-import type { Icon } from '@phosphor-icons/react';
+import { forwardRef, createElement } from 'react';
+import type { Icon, IconProps } from '@phosphor-icons/react';
 import type { NavigateFunction } from 'react-router-dom';
 import type { QueryClient } from '@tanstack/react-query';
 import type { EditorType, ExecutionProcess, Workspace } from 'shared/types';
@@ -32,10 +33,16 @@ import {
   PencilSimpleIcon,
   ArrowUpIcon,
   HighlighterIcon,
+  ListIcon,
+  MegaphoneIcon,
+  QuestionIcon,
 } from '@phosphor-icons/react';
 import { useDiffViewStore } from '@/stores/useDiffViewStore';
-import { useUiPreferencesStore } from '@/stores/useUiPreferencesStore';
-import { useLayoutStore } from '@/stores/useLayoutStore';
+import {
+  useUiPreferencesStore,
+  RIGHT_MAIN_PANEL_MODES,
+} from '@/stores/useUiPreferencesStore';
+
 import { attemptsApi, tasksApi, repoApi } from '@/lib/api';
 import { attemptKeys } from '@/hooks/useAttempt';
 import { taskKeys } from '@/hooks/useTask';
@@ -49,6 +56,19 @@ import { CreatePRDialog } from '@/components/dialogs/tasks/CreatePRDialog';
 import { getIdeName } from '@/components/ide/IdeIcon';
 import { EditorSelectionDialog } from '@/components/dialogs/tasks/EditorSelectionDialog';
 import { StartReviewDialog } from '@/components/dialogs/tasks/StartReviewDialog';
+import posthog from 'posthog-js';
+import { WorkspacesGuideDialog } from '@/components/ui-new/dialogs/WorkspacesGuideDialog';
+
+// Mirrored sidebar icon for right sidebar toggle
+const RightSidebarIcon: Icon = forwardRef<SVGSVGElement, IconProps>(
+  (props, ref) =>
+    createElement(SidebarSimpleIcon, {
+      ref,
+      ...props,
+      style: { transform: 'scaleX(-1)', ...props.style },
+    })
+);
+RightSidebarIcon.displayName = 'RightSidebarIcon';
 
 // Special icon types for ContextBar
 export type SpecialIconType = 'ide-icon' | 'copy-icon';
@@ -78,12 +98,12 @@ export interface ActionExecutorContext {
 // Context for evaluating action visibility and state conditions
 export interface ActionVisibilityContext {
   // Layout state
-  isChangesMode: boolean;
-  isLogsMode: boolean;
-  isPreviewMode: boolean;
-  isSidebarVisible: boolean;
-  isMainPanelVisible: boolean;
-  isGitPanelVisible: boolean;
+  rightMainPanelMode:
+    | (typeof RIGHT_MAIN_PANEL_MODES)[keyof typeof RIGHT_MAIN_PANEL_MODES]
+    | null;
+  isLeftSidebarVisible: boolean;
+  isLeftMainPanelVisible: boolean;
+  isRightSidebarVisible: boolean;
   isCreateMode: boolean;
 
   // Workspace state
@@ -355,6 +375,40 @@ export const Actions = {
     },
   },
 
+  Feedback: {
+    id: 'feedback',
+    label: 'Give Feedback',
+    icon: MegaphoneIcon,
+    requiresTarget: false,
+    execute: () => {
+      posthog.displaySurvey('019bb6e8-3d36-0000-1806-7330cd3c727e');
+    },
+  },
+
+  WorkspacesGuide: {
+    id: 'workspaces-guide',
+    label: 'Workspaces Guide',
+    icon: QuestionIcon,
+    requiresTarget: false,
+    execute: async () => {
+      await WorkspacesGuideDialog.show();
+    },
+  },
+
+  OpenCommandBar: {
+    id: 'open-command-bar',
+    label: 'Open Command Bar',
+    icon: ListIcon,
+    requiresTarget: false,
+    execute: async () => {
+      // Dynamic import to avoid circular dependency (pages.ts imports Actions)
+      const { CommandBarDialog } = await import(
+        '@/components/ui-new/dialogs/CommandBarDialog'
+      );
+      CommandBarDialog.show();
+    },
+  },
+
   // === Diff View Actions ===
   ToggleDiffViewMode: {
     id: 'toggle-diff-view-mode',
@@ -364,7 +418,8 @@ export const Actions = {
         : 'Switch to Inline View',
     icon: ColumnsIcon,
     requiresTarget: false,
-    isVisible: (ctx) => ctx.isChangesMode,
+    isVisible: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.CHANGES,
     isActive: (ctx) => ctx.diffViewMode === 'split',
     getIcon: (ctx) => (ctx.diffViewMode === 'split' ? ColumnsIcon : RowsIcon),
     getTooltip: (ctx) =>
@@ -382,7 +437,8 @@ export const Actions = {
         : 'Ignore Whitespace Changes',
     icon: EyeSlashIcon,
     requiresTarget: false,
-    isVisible: (ctx) => ctx.isChangesMode,
+    isVisible: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.CHANGES,
     execute: () => {
       const store = useDiffViewStore.getState();
       store.setIgnoreWhitespace(!store.ignoreWhitespace);
@@ -397,7 +453,8 @@ export const Actions = {
         : 'Enable Line Wrapping',
     icon: TextAlignLeftIcon,
     requiresTarget: false,
-    isVisible: (ctx) => ctx.isChangesMode,
+    isVisible: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.CHANGES,
     execute: () => {
       const store = useDiffViewStore.getState();
       store.setWrapText(!store.wrapText);
@@ -405,94 +462,106 @@ export const Actions = {
   },
 
   // === Layout Panel Actions ===
-  ToggleSidebar: {
-    id: 'toggle-sidebar',
+  ToggleLeftSidebar: {
+    id: 'toggle-left-sidebar',
     label: () =>
-      useLayoutStore.getState().isSidebarVisible
-        ? 'Hide Sidebar'
-        : 'Show Sidebar',
+      useUiPreferencesStore.getState().isLeftSidebarVisible
+        ? 'Hide Left Sidebar'
+        : 'Show Left Sidebar',
     icon: SidebarSimpleIcon,
     requiresTarget: false,
-    isActive: (ctx) => ctx.isSidebarVisible,
+    isActive: (ctx) => ctx.isLeftSidebarVisible,
     execute: () => {
-      useLayoutStore.getState().toggleSidebar();
+      useUiPreferencesStore.getState().toggleLeftSidebar();
     },
   },
 
-  ToggleMainPanel: {
-    id: 'toggle-main-panel',
+  ToggleLeftMainPanel: {
+    id: 'toggle-left-main-panel',
     label: () =>
-      useLayoutStore.getState().isMainPanelVisible
+      useUiPreferencesStore.getState().isLeftMainPanelVisible
         ? 'Hide Chat Panel'
         : 'Show Chat Panel',
     icon: ChatsTeardropIcon,
     requiresTarget: false,
-    isActive: (ctx) => ctx.isMainPanelVisible,
-    isEnabled: (ctx) => !(ctx.isMainPanelVisible && !ctx.isChangesMode),
+    isActive: (ctx) => ctx.isLeftMainPanelVisible,
+    isEnabled: (ctx) =>
+      !(ctx.isLeftMainPanelVisible && ctx.rightMainPanelMode === null),
     execute: () => {
-      useLayoutStore.getState().toggleMainPanel();
+      useUiPreferencesStore.getState().toggleLeftMainPanel();
     },
   },
 
-  ToggleGitPanel: {
-    id: 'toggle-git-panel',
+  ToggleRightSidebar: {
+    id: 'toggle-right-sidebar',
     label: () =>
-      useLayoutStore.getState().isGitPanelVisible
-        ? 'Hide Git Panel'
-        : 'Show Git Panel',
-    icon: SidebarSimpleIcon,
+      useUiPreferencesStore.getState().isRightSidebarVisible
+        ? 'Hide Right Sidebar'
+        : 'Show Right Sidebar',
+    icon: RightSidebarIcon,
     requiresTarget: false,
-    isActive: (ctx) => ctx.isGitPanelVisible,
+    isActive: (ctx) => ctx.isRightSidebarVisible,
     execute: () => {
-      useLayoutStore.getState().toggleGitPanel();
+      useUiPreferencesStore.getState().toggleRightSidebar();
     },
   },
 
   ToggleChangesMode: {
     id: 'toggle-changes-mode',
     label: () =>
-      useLayoutStore.getState().isChangesMode
+      useUiPreferencesStore.getState().rightMainPanelMode ===
+      RIGHT_MAIN_PANEL_MODES.CHANGES
         ? 'Hide Changes Panel'
         : 'Show Changes Panel',
     icon: GitDiffIcon,
     requiresTarget: false,
     isVisible: (ctx) => !ctx.isCreateMode,
-    isActive: (ctx) => ctx.isChangesMode,
+    isActive: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.CHANGES,
     isEnabled: (ctx) => !ctx.isCreateMode,
     execute: () => {
-      useLayoutStore.getState().toggleChangesMode();
+      useUiPreferencesStore
+        .getState()
+        .toggleRightMainPanelMode(RIGHT_MAIN_PANEL_MODES.CHANGES);
     },
   },
 
   ToggleLogsMode: {
     id: 'toggle-logs-mode',
     label: () =>
-      useLayoutStore.getState().isLogsMode
+      useUiPreferencesStore.getState().rightMainPanelMode ===
+      RIGHT_MAIN_PANEL_MODES.LOGS
         ? 'Hide Logs Panel'
         : 'Show Logs Panel',
     icon: TerminalIcon,
     requiresTarget: false,
     isVisible: (ctx) => !ctx.isCreateMode,
-    isActive: (ctx) => ctx.isLogsMode,
+    isActive: (ctx) => ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.LOGS,
     isEnabled: (ctx) => !ctx.isCreateMode,
     execute: () => {
-      useLayoutStore.getState().toggleLogsMode();
+      useUiPreferencesStore
+        .getState()
+        .toggleRightMainPanelMode(RIGHT_MAIN_PANEL_MODES.LOGS);
     },
   },
 
   TogglePreviewMode: {
     id: 'toggle-preview-mode',
     label: () =>
-      useLayoutStore.getState().isPreviewMode
+      useUiPreferencesStore.getState().rightMainPanelMode ===
+      RIGHT_MAIN_PANEL_MODES.PREVIEW
         ? 'Hide Preview Panel'
         : 'Show Preview Panel',
     icon: DesktopIcon,
     requiresTarget: false,
     isVisible: (ctx) => !ctx.isCreateMode,
-    isActive: (ctx) => ctx.isPreviewMode,
+    isActive: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.PREVIEW,
     isEnabled: (ctx) => !ctx.isCreateMode,
     execute: () => {
-      useLayoutStore.getState().togglePreviewMode();
+      useUiPreferencesStore
+        .getState()
+        .toggleRightMainPanelMode(RIGHT_MAIN_PANEL_MODES.PREVIEW);
     },
   },
 
@@ -521,9 +590,7 @@ export const Actions = {
       // Fetch task lazily to get project_id
       const task = await tasksApi.getById(workspace.task_id);
       if (task?.project_id) {
-        ctx.navigate(
-          `/projects/${task.project_id}/tasks/${workspace.task_id}/attempts/${workspace.id}`
-        );
+        ctx.navigate(`/projects/${task.project_id}/tasks/${workspace.task_id}`);
       } else {
         ctx.navigate('/');
       }
@@ -543,7 +610,8 @@ export const Actions = {
     },
     icon: CaretDoubleUpIcon,
     requiresTarget: false,
-    isVisible: (ctx) => ctx.isChangesMode,
+    isVisible: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.CHANGES,
     getIcon: (ctx) =>
       ctx.isAllDiffsExpanded ? CaretDoubleUpIcon : CaretDoubleDownIcon,
     getTooltip: (ctx) =>
@@ -637,7 +705,9 @@ export const Actions = {
       } else {
         ctx.startDevServer();
         // Auto-open preview mode when starting dev server
-        useLayoutStore.getState().setPreviewMode(true);
+        useUiPreferencesStore
+          .getState()
+          .setRightMainPanelMode(RIGHT_MAIN_PANEL_MODES.PREVIEW);
       }
     },
   },
@@ -902,12 +972,17 @@ export const NavbarActionGroups = {
     Actions.ToggleDiffViewMode,
     Actions.ToggleAllDiffs,
     NavbarDivider,
-    Actions.ToggleSidebar,
-    Actions.ToggleMainPanel,
+    Actions.ToggleLeftSidebar,
+    Actions.ToggleLeftMainPanel,
     Actions.ToggleChangesMode,
     Actions.ToggleLogsMode,
     Actions.TogglePreviewMode,
-    Actions.ToggleGitPanel,
+    Actions.ToggleRightSidebar,
+    NavbarDivider,
+    Actions.OpenCommandBar,
+    Actions.Feedback,
+    Actions.WorkspacesGuide,
+    Actions.Settings,
   ] as NavbarItem[],
 };
 

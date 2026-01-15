@@ -1,6 +1,7 @@
 import type { Icon } from '@phosphor-icons/react';
 import { type ActionDefinition, type ActionVisibilityContext } from './index';
 import { Actions } from './index';
+import { RIGHT_MAIN_PANEL_MODES } from '@/stores/useUiPreferencesStore';
 
 // Define page IDs first to avoid circular reference
 export type PageId =
@@ -69,7 +70,7 @@ export const Pages: Record<StaticPageId, CommandBarPage> = {
           { type: 'action', action: Actions.NewWorkspace },
           { type: 'action', action: Actions.OpenInIDE },
           { type: 'action', action: Actions.CopyPath },
-          // { type: 'action', action: Actions.ToggleDevServer },
+          { type: 'action', action: Actions.ToggleDevServer },
           { type: 'action', action: Actions.OpenInOldUI },
           { type: 'childPages', id: 'workspaceActions' },
           { type: 'childPages', id: 'gitActions' },
@@ -86,7 +87,11 @@ export const Pages: Record<StaticPageId, CommandBarPage> = {
       {
         type: 'group',
         label: 'General',
-        items: [{ type: 'action', action: Actions.Settings }],
+        items: [
+          { type: 'action', action: Actions.Feedback },
+          { type: 'action', action: Actions.WorkspacesGuide },
+          { type: 'action', action: Actions.Settings },
+        ],
       },
     ],
   },
@@ -126,7 +131,8 @@ export const Pages: Record<StaticPageId, CommandBarPage> = {
     id: 'diff-options',
     title: 'Diff Options',
     parent: 'root',
-    isVisible: (ctx) => ctx.isChangesMode,
+    isVisible: (ctx) =>
+      ctx.rightMainPanelMode === RIGHT_MAIN_PANEL_MODES.CHANGES,
     items: [
       {
         type: 'group',
@@ -151,9 +157,9 @@ export const Pages: Record<StaticPageId, CommandBarPage> = {
         type: 'group',
         label: 'Panels',
         items: [
-          { type: 'action', action: Actions.ToggleSidebar },
-          { type: 'action', action: Actions.ToggleMainPanel },
-          { type: 'action', action: Actions.ToggleGitPanel },
+          { type: 'action', action: Actions.ToggleLeftSidebar },
+          { type: 'action', action: Actions.ToggleLeftMainPanel },
+          { type: 'action', action: Actions.ToggleRightSidebar },
           { type: 'action', action: Actions.ToggleChangesMode },
           { type: 'action', action: Actions.ToggleLogsMode },
           { type: 'action', action: Actions.TogglePreviewMode },

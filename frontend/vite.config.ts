@@ -50,7 +50,22 @@ export default schemas;
 
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      babel: {
+        plugins: [
+          [
+            "babel-plugin-react-compiler",
+            {
+              target: "18",
+              sources: [path.resolve(__dirname, "src")],
+              environment: {
+                enableResetCacheOnSourceFileChanges: true,
+              },
+            },
+          ],
+        ],
+      },
+    }),
     executorSchemasPlugin(),
   ],
   define: {

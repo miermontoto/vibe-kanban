@@ -77,7 +77,6 @@ interface StatsProps {
   filesChanged?: number;
   linesAdded?: number;
   linesRemoved?: number;
-  onViewCode?: () => void;
   hasConflicts?: boolean;
   conflictedFilesCount?: number;
 }
@@ -129,11 +128,13 @@ interface SessionChatBoxProps {
   reviewComments?: ReviewCommentsProps;
   toolbarActions?: ToolbarActionsProps;
   error?: string | null;
+  workspaceId?: string;
   projectId?: string;
   agent?: BaseCodingAgent | null;
   executor?: ExecutorProps;
   inProgressTodo?: TodoItem | null;
   localImages?: LocalImageMetadata[];
+  onViewCode?: () => void;
 }
 
 /**
@@ -153,11 +154,13 @@ export function SessionChatBox({
   reviewComments,
   toolbarActions,
   error,
+  workspaceId,
   projectId,
   agent,
   executor,
   inProgressTodo,
   localImages,
+  onViewCode,
 }: SessionChatBoxProps) {
   const { t } = useTranslation('tasks');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -488,6 +491,7 @@ export function SessionChatBox({
       placeholder={placeholder}
       onCmdEnter={handleCmdEnter}
       disabled={isDisabled}
+      workspaceId={workspaceId}
       projectId={projectId}
       autoFocus={true}
       focusKey={focusKey}
@@ -551,7 +555,7 @@ export function SessionChatBox({
                       </span>
                     </span>
                   )}
-                  <PrimaryButton variant="tertiary" onClick={stats?.onViewCode}>
+                  <PrimaryButton variant="tertiary" onClick={onViewCode}>
                     <span className="text-sm space-x-half">
                       <span>
                         {t('diff.filesChanged', { count: filesChanged })}

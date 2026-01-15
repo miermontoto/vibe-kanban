@@ -110,23 +110,20 @@ pub enum UnixShell {
 }
 
 impl UnixShell {
-    pub fn path(&self) -> PathBuf {
+    pub fn path(&self) -> &Path {
         match self {
-            UnixShell::Zsh(path) => path.clone(),
-            UnixShell::Bash(path) => path.clone(),
-            UnixShell::Fish(path) => path.clone(),
-            UnixShell::Sh(path) => path.clone(),
-            UnixShell::Other(path) => path.clone(),
+            UnixShell::Zsh(p)
+            | UnixShell::Bash(p)
+            | UnixShell::Fish(p)
+            | UnixShell::Sh(p)
+            | UnixShell::Other(p) => p,
         }
     }
     pub fn login(&self) -> bool {
-        match self {
-            UnixShell::Zsh(_) => true,
-            UnixShell::Bash(_) => true,
-            UnixShell::Fish(_) => true,
-            UnixShell::Sh(_) => false,
-            UnixShell::Other(_) => false,
-        }
+        matches!(
+            self,
+            UnixShell::Zsh(_) | UnixShell::Bash(_) | UnixShell::Fish(_)
+        )
     }
     pub fn config_file(&self) -> Option<PathBuf> {
         let home = dirs::home_dir()?;
@@ -134,16 +131,9 @@ impl UnixShell {
             UnixShell::Zsh(_) => Some(home.join(".zshrc")),
             UnixShell::Bash(_) => Some(home.join(".bashrc")),
             UnixShell::Fish(_) => Some(home.join(".config/fish/config.fish")),
-            UnixShell::Sh(_) => None,
-            UnixShell::Other(_) => None,
+            UnixShell::Sh(_) | UnixShell::Other(_) => None,
         };
-        if let Some(config_file) = config_file
-            && config_file.is_file()
-        {
-            Some(config_file)
-        } else {
-            None
-        }
+        config_file.filter(|p| p.is_file())
     }
 
     pub fn source_command(&self) -> Option<String> {
@@ -251,12 +241,11 @@ async fn get_fresh_path() -> Option<String> {
         paths.push(path);
     }
 
-    let shells = vec![
-        UnixShell::Zsh(PathBuf::from("/bin/zsh")),
-        UnixShell::Bash(PathBuf::from("/bin/bash")),
-        UnixShell::Fish(PathBuf::from("/usr/bin/fish")),
-        UnixShell::Sh(PathBuf::from("/bin/sh")),
-    ];
+    // Use from_path to support non-FHS systems (like NixOS) where shells may be in different locations
+    let shells: Vec<UnixShell> = ["/bin/zsh", "/bin/bash", "/usr/bin/fish", "/bin/sh"]
+        .into_iter()
+        .filter_map(|p| UnixShell::from_path(Path::new(p)))
+        .collect();
     for shell in shells {
         if !(shell == current_shell)
             && let Some(path) = run(&shell).await

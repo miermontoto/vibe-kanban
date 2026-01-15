@@ -526,6 +526,12 @@ export const attemptsApi = {
     return handleApiResponse<Workspace[]>(response);
   },
 
+  /** Get total count of workspaces */
+  getCount: async (): Promise<number> => {
+    const response = await makeRequest('/api/task-attempts/count');
+    return handleApiResponse<number>(response);
+  },
+
   get: async (attemptId: string): Promise<Workspace> => {
     const response = await makeRequest(`/api/task-attempts/${attemptId}`);
     return handleApiResponse<Workspace>(response);
@@ -571,6 +577,18 @@ export const attemptsApi = {
       method: 'DELETE',
     });
     return handleApiResponse<void>(response);
+  },
+
+  searchFiles: async (
+    workspaceId: string,
+    query: string,
+    mode?: string
+  ): Promise<SearchResult[]> => {
+    const modeParam = mode ? `&mode=${encodeURIComponent(mode)}` : '';
+    const response = await makeRequest(
+      `/api/task-attempts/${workspaceId}/search?q=${encodeURIComponent(query)}${modeParam}`
+    );
+    return handleApiResponse<SearchResult[]>(response);
   },
 
   runAgentSetup: async (

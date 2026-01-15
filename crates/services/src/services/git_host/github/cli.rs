@@ -61,6 +61,17 @@ impl GitHubRepoInfo {
 }
 
 #[derive(Deserialize)]
+struct GhRepoViewResponse {
+    owner: GhRepoOwner,
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct GhRepoOwner {
+    login: String,
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GhCommentResponse {
     id: String,
@@ -188,26 +199,27 @@ impl GhCli {
         Err(GhCliError::CommandFailed(stderr))
     }
 
-    /// Get repository info (owner and name) from a local repository path.
-    pub fn get_repo_info(&self, repo_path: &Path) -> Result<GitHubRepoInfo, GhCliError> {
+    /// Get repository info (owner and name) from a remote URL.
+    pub fn get_repo_info(
+        &self,
+        remote_url: &str,
+        repo_path: &Path,
+    ) -> Result<GitHubRepoInfo, GhCliError> {
         tracing::info!(
-            "get_repo_info: running 'gh repo view' in {}",
+            "get_repo_info: running 'gh repo view {}' in {}",
+            remote_url,
             repo_path.display()
         );
-        let raw = self.run(["repo", "view", "--json", "owner,name"], Some(repo_path))?;
+        let raw = self.run(
+            ["repo", "view", remote_url, "--json", "owner,name"],
+            Some(repo_path),
+        )?;
         tracing::debug!("get_repo_info: raw response: {}", raw);
+        Self::parse_repo_info_response(&raw)
+    }
 
-        #[derive(Deserialize)]
-        struct Response {
-            owner: Owner,
-            name: String,
-        }
-        #[derive(Deserialize)]
-        struct Owner {
-            login: String,
-        }
-
-        let resp: Response = serde_json::from_str(&raw).map_err(|e| {
+    fn parse_repo_info_response(raw: &str) -> Result<GitHubRepoInfo, GhCliError> {
+        let resp: GhRepoViewResponse = serde_json::from_str(raw).map_err(|e| {
             GhCliError::UnexpectedOutput(format!("Failed to parse gh repo view response: {e}"))
         })?;
 

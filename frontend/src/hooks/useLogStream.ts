@@ -20,17 +20,24 @@ export const useLogStream = (processId: string): UseLogStreamResult => {
   const retryCountRef = useRef<number>(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isIntentionallyClosed = useRef<boolean>(false);
+  // Track current processId to prevent stale WebSocket messages from contaminating logs
+  const currentProcessIdRef = useRef<string>(processId);
 
   useEffect(() => {
     if (!processId) {
       return;
     }
 
+    // Update the ref to track the current processId
+    currentProcessIdRef.current = processId;
+
     // Clear logs when process changes
     setLogs([]);
     setError(null);
 
     const open = () => {
+      // Capture processId at the time of opening the WebSocket
+      const capturedProcessId = processId;
       const endpoint = `/api/execution-processes/${processId}/raw-logs/ws`;
       const wsUrl = buildWebSocketUrl(endpoint);
       const ws = new WebSocket(wsUrl);
@@ -38,6 +45,11 @@ export const useLogStream = (processId: string): UseLogStreamResult => {
       isIntentionallyClosed.current = false;
 
       ws.onopen = () => {
+        // Ignore if processId has changed since WebSocket was opened
+        if (currentProcessIdRef.current !== capturedProcessId) {
+          ws.close();
+          return;
+        }
         setError(null);
         // Reset logs on new connection since server replays history
         setLogs([]);
@@ -45,6 +57,10 @@ export const useLogStream = (processId: string): UseLogStreamResult => {
       };
 
       const addLogEntry = (entry: LogEntry) => {
+        // Only add log entry if this WebSocket is still for the current process
+        if (currentProcessIdRef.current !== capturedProcessId) {
+          return;
+        }
         setLogs((prev) => [...prev, entry]);
       };
 
@@ -80,10 +96,18 @@ export const useLogStream = (processId: string): UseLogStreamResult => {
       };
 
       ws.onerror = () => {
+        // Ignore errors from stale WebSocket connections
+        if (currentProcessIdRef.current !== capturedProcessId) {
+          return;
+        }
         setError('Connection failed');
       };
 
       ws.onclose = (event) => {
+        // Don't retry for stale WebSocket connections
+        if (currentProcessIdRef.current !== capturedProcessId) {
+          return;
+        }
         // Only retry if the close was not intentional and not a normal closure
         if (shouldRetryConnection(event, isIntentionallyClosed.current)) {
           const next = retryCountRef.current + 1;

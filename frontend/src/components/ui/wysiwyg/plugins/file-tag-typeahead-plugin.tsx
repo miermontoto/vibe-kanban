@@ -62,7 +62,13 @@ function getMenuPosition(anchorEl: HTMLElement) {
   return { top, bottom, left };
 }
 
-export function FileTagTypeaheadPlugin({ projectId }: { projectId?: string }) {
+export function FileTagTypeaheadPlugin({
+  workspaceId,
+  projectId,
+}: {
+  workspaceId?: string;
+  projectId?: string;
+}) {
   const [editor] = useLexicalComposerContext();
   const [options, setOptions] = useState<FileTagOption[]>([]);
   const lastMousePositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -77,7 +83,7 @@ export function FileTagTypeaheadPlugin({ projectId }: { projectId?: string }) {
       }
 
       // Here query is a string, including possible empty string ''
-      searchTagsAndFiles(query, projectId)
+      searchTagsAndFiles(query, { workspaceId, projectId })
         .then((results) => {
           setOptions(results.map((r) => new FileTagOption(r)));
         })
@@ -85,7 +91,7 @@ export function FileTagTypeaheadPlugin({ projectId }: { projectId?: string }) {
           console.error('Failed to search tags/files', err);
         });
     },
-    [projectId]
+    [workspaceId, projectId]
   );
 
   return (
@@ -204,10 +210,10 @@ export function FileTagTypeaheadPlugin({ projectId }: { projectId?: string }) {
                       return (
                         <div
                           key={option.key}
-                          className={`px-3 py-2 cursor-pointer text-sm ${
+                          className={`px-3 py-2 cursor-pointer text-sm border-l-2 ${
                             index === selectedIndex
-                              ? 'bg-muted text-foreground text-high'
-                              : 'hover:bg-muted text-muted-foreground'
+                              ? 'bg-muted bg-secondary border-l-brand text-high'
+                              : 'hover:bg-muted border-l-transparent text-muted-foreground'
                           }`}
                           onMouseMove={(e) => {
                             const pos = { x: e.clientX, y: e.clientY };
@@ -248,10 +254,10 @@ export function FileTagTypeaheadPlugin({ projectId }: { projectId?: string }) {
                       return (
                         <div
                           key={option.key}
-                          className={`px-3 py-2 cursor-pointer text-sm ${
+                          className={`px-3 py-2 cursor-pointer text-sm border-l-2 ${
                             index === selectedIndex
-                              ? 'bg-muted text-foreground text-high'
-                              : 'hover:bg-muted text-muted-foreground'
+                              ? 'bg-muted bg-secondary border-l-brand text-high'
+                              : 'hover:bg-muted border-l-transparent text-muted-foreground'
                           }`}
                           onMouseMove={(e) => {
                             const pos = { x: e.clientX, y: e.clientY };
