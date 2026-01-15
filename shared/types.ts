@@ -459,6 +459,8 @@ pr_status: MergeStatus | null, };
 
 export type WorkspaceSummaryResponse = { summaries: Array<WorkspaceSummary>, };
 
+export type DiffStats = { files_changed: number, lines_added: number, lines_removed: number, };
+
 export type DirectoryEntry = { name: string, path: string, is_directory: boolean, is_git_repo: boolean, last_modified: bigint | null, };
 
 export type DirectoryListResponse = { entries: Array<DirectoryEntry>, current_path: string, };
@@ -513,7 +515,15 @@ git_auto_push_mode: GitAutoPushMode,
 /**
  * cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
  */
-open_pr_in_browser: boolean, };
+open_pr_in_browser: boolean, 
+/**
+ * indica si el usuario ha optado por usar la nueva UI de workspaces beta
+ */
+beta_workspaces: boolean, 
+/**
+ * indica si ya se ha mostrado la invitación para beta workspaces
+ */
+beta_workspaces_invitation_sent: boolean, };
 
 export type NotificationConfig = { sound_enabled: boolean, push_enabled: boolean, sound_file: SoundFile, };
 
@@ -521,7 +531,7 @@ export enum ThemeMode { LIGHT = "LIGHT", DARK = "DARK", SYSTEM = "SYSTEM" }
 
 export type EditorConfig = { editor_type: EditorType, custom_command: string | null, remote_ssh_host: string | null, remote_ssh_user: string | null, };
 
-export enum EditorType { VS_CODE = "VS_CODE", CURSOR = "CURSOR", WINDSURF = "WINDSURF", INTELLI_J = "INTELLI_J", ZED = "ZED", XCODE = "XCODE", CUSTOM = "CUSTOM" }
+export enum EditorType { VS_CODE = "VS_CODE", CURSOR = "CURSOR", WINDSURF = "WINDSURF", INTELLI_J = "INTELLI_J", ZED = "ZED", XCODE = "XCODE", GOOGLE_ANTIGRAVITY = "GOOGLE_ANTIGRAVITY", CUSTOM = "CUSTOM" }
 
 export type EditorOpenError = { "type": "executable_not_found", executable: string, editor_type: EditorType, } | { "type": "invalid_command", details: string, editor_type: EditorType, } | { "type": "launch_failed", executable: string, details: string, editor_type: EditorType, };
 

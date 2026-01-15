@@ -56,7 +56,6 @@ import { CreatePRDialog } from '@/components/dialogs/tasks/CreatePRDialog';
 import { getIdeName } from '@/components/ide/IdeIcon';
 import { EditorSelectionDialog } from '@/components/dialogs/tasks/EditorSelectionDialog';
 import { StartReviewDialog } from '@/components/dialogs/tasks/StartReviewDialog';
-import posthog from 'posthog-js';
 import { WorkspacesGuideDialog } from '@/components/ui-new/dialogs/WorkspacesGuideDialog';
 
 // Mirrored sidebar icon for right sidebar toggle
@@ -381,7 +380,11 @@ export const Actions = {
     icon: MegaphoneIcon,
     requiresTarget: false,
     execute: () => {
-      posthog.displaySurvey('019bb6e8-3d36-0000-1806-7330cd3c727e');
+      // abre el repositorio de GitHub para feedback
+      window.open(
+        'https://github.com/miermontoto/vibe-kanban/issues',
+        '_blank'
+      );
     },
   },
 

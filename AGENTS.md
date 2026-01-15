@@ -81,6 +81,52 @@ See `.claude/commands/merge-upstream.md` for detailed instructions.
 
 **All CI checks passing.**
 
+#### Merge 2026-01-15: BloopAI/vibe-kanban upstream sync
+
+**Context:** Merged 27 upstream commits from BloopAI/vibe-kanban. Fork is 294 commits ahead. Merge base: `cdfb081c`.
+
+**Key upstream changes integrated:**
+- **NixOS/non-FHS support**: Shell path detection using `from_path` pattern instead of hardcoded paths
+- **React Compiler**: Babel plugin for automatic memoization optimizations
+- **Database performance**: New composite indexes for query optimization
+- **Workspace file search**: SearchQuery import for workspace search feature
+- **Git worktree improvements**: Better path support for git worktrees
+- **GitHub CLI fork support**: `get_repo_info` now accepts `remote_url` parameter
+- **Beta workspaces system**: New dialog, invitation system, and `useWorkspaceCount` hook
+- **Rustls crypto provider**: TLS initialization for remote server
+- **WebSocket stale connection handling**: Improved process ID capture for cleanup
+
+**Conflicts resolved:**
+- `crates/utils/src/shell.rs`: Merged Fish shell support with NixOS dynamic path detection
+- `crates/remote/src/main.rs`: Added rustls crypto provider (removed Sentry)
+- `crates/server/src/routes/task_attempts.rs`: Combined imports (RepoWithName + SearchQuery)
+- `crates/services/src/services/git_host/github/cli.rs`: Updated `get_repo_info` signature with tracing
+- `frontend/src/hooks/useLogStream.ts`: Merged upstream stale WebSocket handling with our `buildWebSocketUrl` utility
+- `frontend/src/pages/ProjectTasks.tsx`: Added `useWorkspaceCount` (removed PostHog)
+- `frontend/vite.config.ts`: Added React Compiler plugin (removed Sentry)
+- Version files (package.json, Cargo.toml): Kept our versions
+
+**Post-merge fixes applied:**
+- Added `beta_workspaces` and `beta_workspaces_invitation_sent` fields to v14 Config
+- Removed posthog import and replaced with GitHub Issues redirect for feedback
+- Regenerated SQLx queries and TypeScript types
+
+**Custom features preserved:**
+- Package name: `@miermontoto/vkm`
+- Version: 1.1.1
+- Fish shell support in shell.rs
+- `buildWebSocketUrl` utility
+- Sentry and PostHog removed
+- Custom git workflow features (auto-commit, auto-PR, push modes)
+
+**All CI checks passing:**
+1. ✅ TypeScript compilation: `pnpm run check`
+2. ✅ ESLint: `pnpm run lint`
+3. ✅ Rust formatting: `cargo fmt --all -- --check`
+4. ✅ Frontend formatting: `pnpm run format:check`
+5. ✅ Rust linting: `cargo clippy --all --all-targets -- -D warnings`
+6. ✅ Tests: `cargo test --workspace` (207 tests passed)
+
 ## Project Structure & Module Organization
 
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.

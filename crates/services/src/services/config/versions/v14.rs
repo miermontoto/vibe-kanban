@@ -130,6 +130,12 @@ pub struct Config {
     /// cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
     #[serde(default = "default_open_pr_in_browser")]
     pub open_pr_in_browser: bool,
+    /// indica si el usuario ha optado por usar la nueva UI de workspaces beta
+    #[serde(default)]
+    pub beta_workspaces: bool,
+    /// indica si ya se ha mostrado la invitación para beta workspaces
+    #[serde(default)]
+    pub beta_workspaces_invitation_sent: bool,
 }
 
 impl Config {
@@ -162,6 +168,8 @@ impl Config {
             // nuevo campo con valor por defecto
             git_auto_push_mode: default_git_auto_push_mode(),
             open_pr_in_browser: default_open_pr_in_browser(),
+            beta_workspaces: false,
+            beta_workspaces_invitation_sent: false,
         }
     }
 
@@ -221,6 +229,8 @@ impl Default for Config {
             redirect_to_attempt_on_create: false,
             git_auto_push_mode: GitAutoPushMode::default(),
             open_pr_in_browser: true,
+            beta_workspaces: false,
+            beta_workspaces_invitation_sent: false,
         }
     }
 }
