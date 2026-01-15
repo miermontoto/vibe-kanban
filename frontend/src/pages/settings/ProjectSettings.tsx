@@ -25,17 +25,28 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useProjectMutations } from '@/hooks/useProjectMutations';
 import { RepoPickerDialog } from '@/components/dialogs/shared/RepoPickerDialog';
+import { GitProjectSettings } from '@/components/settings/GitProjectSettings';
 import { projectsApi } from '@/lib/api';
 import { repoBranchKeys } from '@/hooks/useRepoBranches';
 import type { Project, Repo, UpdateProject } from 'shared/types';
 
 interface ProjectFormState {
   name: string;
+  git_auto_commit_enabled: boolean | null;
+  git_commit_title_mode: string | null;
+  auto_pr_on_review_enabled: boolean | null;
+  auto_pr_draft: boolean | null;
+  redirect_to_attempt_on_create: boolean | null;
 }
 
 function projectToFormState(project: Project): ProjectFormState {
   return {
     name: project.name,
+    git_auto_commit_enabled: project.git_auto_commit_enabled,
+    git_commit_title_mode: project.git_commit_title_mode,
+    auto_pr_on_review_enabled: project.auto_pr_on_review_enabled,
+    auto_pr_draft: project.auto_pr_draft,
+    redirect_to_attempt_on_create: project.redirect_to_attempt_on_create,
   };
 }
 
@@ -293,6 +304,11 @@ export function ProjectSettings() {
       const updateData: UpdateProject = {
         name: draft.name.trim(),
         default_agent_working_dir: null,
+        git_auto_commit_enabled: draft.git_auto_commit_enabled,
+        git_commit_title_mode: draft.git_commit_title_mode,
+        auto_pr_on_review_enabled: draft.auto_pr_on_review_enabled,
+        auto_pr_draft: draft.auto_pr_draft,
+        redirect_to_attempt_on_create: draft.redirect_to_attempt_on_create,
       };
 
       updateProject.mutate({
@@ -460,6 +476,16 @@ export function ProjectSettings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Git & Workflow Settings */}
+          <GitProjectSettings
+            gitAutoCommitEnabled={draft.git_auto_commit_enabled}
+            gitCommitTitleMode={draft.git_commit_title_mode}
+            autoPrOnReviewEnabled={draft.auto_pr_on_review_enabled}
+            autoPrDraft={draft.auto_pr_draft}
+            redirectToAttemptOnCreate={draft.redirect_to_attempt_on_create}
+            onChange={(updates) => updateDraft(updates)}
+          />
 
           {/* Repositories Section */}
           <Card>
