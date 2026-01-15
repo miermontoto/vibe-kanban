@@ -246,6 +246,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.16
         version: 10.4.21(postcss@8.5.6)
+      babel-plugin-react-compiler:
+        specifier: ^1.0.0
+        version: 1.0.0
       eslint:
         specifier: ^8.55.0
         version: 8.57.1
@@ -282,6 +285,9 @@ importers:
       prettier:
         specifier: ^3.6.1
         version: 3.6.1
+      react-compiler-runtime:
+        specifier: ^1.0.0
+        version: 1.0.0(react@18.3.1)
       tailwindcss:
         specifier: ^3.4.0
         version: 3.4.17

@@ -93,6 +93,7 @@
     "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^8.55.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-check-file": "^2.8.0",
@@ -105,6 +106,7 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "postcss": "^8.4.32",
     "prettier": "^3.6.1",
+    "react-compiler-runtime": "^1.0.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.9.2",
     "vite": "^5.0.8"
