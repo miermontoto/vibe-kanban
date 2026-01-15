@@ -143,6 +143,16 @@ git checkout --ours crates/*/Cargo.toml
 # Then manually verify and fix any non-version changes
 ```
 
+⚠️ **IMPORTANT:** When keeping our `package.json`, check if upstream added new
+dependencies that are used by config files (like `vite.config.ts`). If upstream
+added React Compiler, Babel plugins, or other build tools, you may need to add
+those dependencies manually after the merge:
+
+```bash
+# Example: If vite.config.ts references React Compiler but package.json doesn't have it
+cd frontend && pnpm add -D babel-plugin-react-compiler react-compiler-runtime
+```
+
 **2. SQLx Prepared Queries Conflicts**
 - **Resolution:** Remove all `.sqlx/*.json` files, regenerate after merge
 
