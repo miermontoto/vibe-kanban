@@ -7,8 +7,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { TriStateToggle } from '@/components/settings/TriStateToggle';
-import { GitBranch, GitPullRequest, CheckCircle2 } from 'lucide-react';
+import {
+  GitCommitHorizontal,
+  GitPullRequest,
+  MousePointerClick,
+} from 'lucide-react';
 
 interface GitProjectSettingsProps {
   gitAutoCommitEnabled: boolean | null;
@@ -36,30 +42,21 @@ export function GitProjectSettings({
   const { t } = useTranslation('settings');
 
   return (
-    <Card className="border-2">
-      <CardHeader className="space-y-3 pb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <GitBranch className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-xl">
-              {t('settings.projects.git.title')}
-            </CardTitle>
-            <CardDescription className="mt-1">
-              {t('settings.projects.git.description')}
-            </CardDescription>
-          </div>
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('settings.projects.git.title')}</CardTitle>
+        <CardDescription>
+          {t('settings.projects.git.description')}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Commits Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <GitCommitHorizontal className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">
               {t('settings.projects.git.sections.commits')}
-            </h3>
+            </Label>
           </div>
 
           <TriStateToggle
@@ -133,15 +130,17 @@ export function GitProjectSettings({
               },
             ]}
           />
-        </div>
+        </section>
+
+        <Separator />
 
         {/* Pull Requests Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
             <GitPullRequest className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+            <Label className="text-sm font-medium">
               {t('settings.projects.git.sections.pullRequests')}
-            </h3>
+            </Label>
           </div>
 
           <TriStateToggle
@@ -197,15 +196,17 @@ export function GitProjectSettings({
               },
             ]}
           />
-        </div>
+        </section>
+
+        <Separator />
 
         {/* Task Behavior Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">
               {t('settings.projects.git.sections.taskBehavior')}
-            </h3>
+            </Label>
           </div>
 
           <TriStateToggle
@@ -239,7 +240,7 @@ export function GitProjectSettings({
               },
             ]}
           />
-        </div>
+        </section>
       </CardContent>
     </Card>
   );
