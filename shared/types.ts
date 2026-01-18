@@ -515,15 +515,7 @@ git_auto_push_mode: GitAutoPushMode,
 /**
  * cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
  */
-open_pr_in_browser: boolean, 
-/**
- * indica si el usuario ha optado por usar la nueva UI de workspaces beta
- */
-beta_workspaces: boolean, 
-/**
- * indica si ya se ha mostrado la invitación para beta workspaces
- */
-beta_workspaces_invitation_sent: boolean, };
+open_pr_in_browser: boolean, };
 
 export type NotificationConfig = { sound_enabled: boolean, push_enabled: boolean, sound_file: SoundFile, };
 

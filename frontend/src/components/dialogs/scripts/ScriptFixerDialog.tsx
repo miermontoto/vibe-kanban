@@ -20,8 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AutoExpandingTextarea } from '@/components/ui/auto-expanding-textarea';
-import { VirtualizedProcessLogs } from '@/components/ui-new/VirtualizedProcessLogs';
-import { RunningDots } from '@/components/ui-new/primitives/RunningDots';
+import { VirtualizedProcessLogs } from '@/components/ui/process-logs/virtualized-process-logs';
+import { RunningDots } from '@/components/ui/process-logs/running-dots';
 import { defineModal } from '@/lib/modals';
 import { repoApi, attemptsApi } from '@/lib/api';
 import { useLogStream } from '@/hooks/useLogStream';

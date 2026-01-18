@@ -4,6 +4,22 @@
 
 **vkm** - An independent fork of BloopAI/vibe-kanban with additional features and customizations.
 
+## ⛔ CRITICAL: Features Never To Merge From Upstream
+
+**DO NOT merge any code related to the following features from upstream:**
+
+### Beta Workspaces / New UI (`ui-new`)
+- **Reason:** This feature was completely removed from vkm. The new workspaces UI system adds significant complexity without benefit for this fork's use case.
+- **What to reject:** Any code involving:
+  - `beta_workspaces` or `beta_workspaces_invitation_sent` config fields
+  - `useWorkspaceCount`, `useWorkspaces`, `useCreateWorkspace`, `useWorkspaceMutations` hooks
+  - `WorkspaceContext`, `CreateModeContext`, `ActionsContext`, `ChangesViewContext` contexts
+  - Files in `frontend/src/components/ui-new/` or `frontend/src/pages/ui-new/`
+  - Routes containing `/workspaces`
+  - `BetaWorkspacesDialog`, `WorkspacesGuideDialog`, `RenameWorkspaceDialog`
+  - i18n keys: `workspaces.*`, `betaWorkspaces.*`, `workspacesGuide.*`
+- **If accidentally merged:** Revert the merge or manually remove all related code
+
 ## Git Workflow & Repository Management
 
 - **Primary repository**: https://github.com/miermontoto/vibe-kanban
@@ -126,6 +142,32 @@ See `.claude/commands/merge-upstream.md` for detailed instructions.
 4. ✅ Frontend formatting: `pnpm run format:check`
 5. ✅ Rust linting: `cargo clippy --all --all-targets -- -D warnings`
 6. ✅ Tests: `cargo test --workspace` (207 tests passed)
+
+#### Removal 2026-01-17: Beta Workspaces Feature Nuked ⛔
+
+**Context:** Complete removal of the beta workspaces / new UI feature from the fork.
+
+**What was removed:**
+- Config fields: `beta_workspaces`, `beta_workspaces_invitation_sent` from v14 Config
+- React hooks: `useWorkspaceCount`, `useCreateWorkspace`, `useWorkspaceMutations`, `useWorkspaceSessions`
+- Contexts: `WorkspaceContext`, `CreateModeContext`, `ActionsContext`, `ChangesViewContext`, `LogsPanelContext`
+- UI components: Entire `frontend/src/components/ui-new/` directory (~100 files)
+- Pages: `frontend/src/pages/ui-new/` directory
+- Routes: `/workspaces` route group in App.tsx
+- Dialogs: `BetaWorkspacesDialog`, `WorkspacesGuideDialog`, `RenameWorkspaceDialog`, `StartReviewDialog`
+- Hooks: `useContextBarPosition`, `useGitHubComments`
+- i18n keys: `workspaces.*`, `betaWorkspaces.*`, `workspacesGuide.*` from all 6 locales
+- Assets: `beta-workspaces-preview.png`
+- Stores: `useUiPreferencesStore`
+- Utils: `fileTreeUtils`
+
+**Files preserved (moved to `frontend/src/components/ui/process-logs/`):**
+- `virtualized-process-logs.tsx` - Used by ScriptFixerDialog
+- `running-dots.tsx` - Used by ScriptFixerDialog
+
+**Why removed:** The beta workspaces feature adds significant complexity for a use case not relevant to this fork. It introduces a completely separate UI system (`ui-new`) that duplicates functionality and creates maintenance burden during upstream merges.
+
+**Verification:** All CI checks passing after removal.
 
 ## Project Structure & Module Organization
 

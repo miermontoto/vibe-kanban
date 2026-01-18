@@ -6,7 +6,6 @@ import { Projects } from '@/pages/Projects';
 import { ProjectTasks } from '@/pages/ProjectTasks';
 import { FullAttemptLogsPage } from '@/pages/FullAttemptLogs';
 import { NormalLayout } from '@/components/layout/NormalLayout';
-import { NewDesignLayout } from '@/components/layout/NewDesignLayout';
 import { useAuth } from '@/hooks';
 import { usePreviousPath } from '@/hooks/usePreviousPath';
 
@@ -34,11 +33,6 @@ import { ClickedElementsProvider } from './contexts/ClickedElementsProvider';
 
 // Design scope components
 import { LegacyDesignScope } from '@/components/legacy-design/LegacyDesignScope';
-import { NewDesignScope } from '@/components/ui-new/scope/NewDesignScope';
-
-// New design pages
-import { Workspaces } from '@/pages/ui-new/Workspaces';
-import { WorkspacesLanding } from '@/pages/ui-new/WorkspacesLanding';
 
 function AppContent() {
   const { config, updateAndSaveConfig } = useUserSystem();
@@ -152,20 +146,6 @@ function AppContent() {
                 path="/projects/:projectId/tasks/:taskId/attempts/:attemptId"
                 element={<ProjectTasks />}
               />
-            </Route>
-
-            {/* ========== NEW DESIGN ROUTES ========== */}
-            <Route
-              path="/workspaces"
-              element={
-                <NewDesignScope>
-                  <NewDesignLayout />
-                </NewDesignScope>
-              }
-            >
-              <Route index element={<WorkspacesLanding />} />
-              <Route path="create" element={<Workspaces />} />
-              <Route path=":workspaceId" element={<Workspaces />} />
             </Route>
           </Routes>
         </SearchProvider>
