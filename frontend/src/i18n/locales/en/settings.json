@@ -299,6 +299,10 @@
         "workspaces": {
           "label": "Enable Workspaces Beta",
           "helper": "Use the new workspaces interface when viewing task attempts. Tasks will open in task view first, and attempts will open in the new workspaces view."
+        },
+        "commitReminder": {
+          "label": "Commit reminder",
+          "helper": "Prompt supported agents to commit changes before stopping."
         }
       }
     },
@@ -315,9 +319,7 @@
         "loginDetected": "Recent Usage Detected",
         "loginDetectedTooltip": "Recent authentication credentials found for this agent",
         "installationFound": "Previous Usage Detected",
-        "installationFoundTooltip": "Agent configuration found. You may need to log in to use it.",
-        "notFound": "Unknown",
-        "notFoundTooltip": "We couldn't verify this agent is set up, but go ahead and try it."
+        "installationFoundTooltip": "Agent configuration found. You may need to log in to use it."
       },
       "editor": {
         "formLabel": "Edit JSON",

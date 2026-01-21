@@ -1,4 +1,8 @@
 {
+  "dropzone": {
+    "dropImagesHere": "将图片拖放到这里",
+    "supportedFormats": "支持 PNG、JPG、GIF、WebP、SVG 格式"
+  },
   "gitPanel": {
     "create": {
       "warnings": {
@@ -237,6 +241,11 @@
     "title_one": "待办事项（{{count}}）",
     "title_other": "待办事项（{{count}}）"
   },
+  "todoPopup": {
+    "title": "任务",
+    "progress": "{{completed}}/{{total}} 已完成",
+    "noTasks": "暂无任务"
+  },
   "projects": {
     "create": {
       "dialog": {
@@ -421,9 +430,6 @@
     "gitActions": "Git 操作",
     "editBranchName": "编辑分支名称",
     "task": "任务",
-    "share": "共享",
-    "reassign": "重新分配",
-    "stopShare": "停止共享",
     "duplicate": "复制",
     "startReview": "开始审查",
     "startingReview": "正在开始审查..."
@@ -580,6 +586,9 @@
       "continueEditing": "继续编辑",
       "discardChanges": "放弃更改"
     }
+  },
+  "terminal": {
+    "selectWorkspace": "选择一个工作区以打开终端"
   },
   "restoreLogsDialog": {
     "title": "确认重试",

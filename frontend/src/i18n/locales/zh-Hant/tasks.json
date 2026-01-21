@@ -1,4 +1,8 @@
 {
+  "dropzone": {
+    "dropImagesHere": "將圖片拖放到這裡",
+    "supportedFormats": "支援 PNG、JPG、GIF、WebP、SVG 格式"
+  },
   "gitPanel": {
     "create": {
       "warnings": {
@@ -237,6 +241,11 @@
     "title_one": "待辦事項（{{count}}）",
     "title_other": "待辦事項（{{count}}）"
   },
+  "todoPopup": {
+    "title": "任務",
+    "progress": "{{completed}}/{{total}} 已完成",
+    "noTasks": "暫無任務"
+  },
   "projects": {
     "create": {
       "dialog": {
@@ -421,9 +430,6 @@
     "gitActions": "Git 操作",
     "editBranchName": "編輯分支名稱",
     "task": "任務",
-    "share": "分享",
-    "reassign": "重新指派",
-    "stopShare": "停止分享",
     "duplicate": "複製",
     "startReview": "開始審查",
     "startingReview": "正在開始審查..."
@@ -580,6 +586,9 @@
       "continueEditing": "繼續編輯",
       "discardChanges": "放棄變更"
     }
+  },
+  "terminal": {
+    "selectWorkspace": "選擇一個工作區以開啟終端機"
   },
   "restoreLogsDialog": {
     "title": "確認重試",

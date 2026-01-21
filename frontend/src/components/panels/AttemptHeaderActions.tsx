@@ -20,7 +20,6 @@ interface AttemptHeaderActionsProps {
   onModeChange?: (mode: LayoutMode) => void;
   task: TaskWithAttemptStatus;
   attempt?: WorkspaceWithSession | null;
-  sharedTask?: SharedTaskRecord;
 }
 
 export const AttemptHeaderActions = ({
@@ -29,7 +28,6 @@ export const AttemptHeaderActions = ({
   onModeChange,
   task,
   attempt,
-  sharedTask,
 }: AttemptHeaderActionsProps) => {
   const { t } = useTranslation('tasks');
 
@@ -101,7 +99,7 @@ export const AttemptHeaderActions = ({
       {typeof mode !== 'undefined' && onModeChange && (
         <div className="h-4 w-px bg-border" />
       )}
-      <ActionsDropdown task={task} attempt={attempt} sharedTask={sharedTask} />
+      <ActionsDropdown task={task} attempt={attempt} />
       <Button variant="icon" aria-label="Close" onClick={onClose}>
         <X size={16} />
       </Button>

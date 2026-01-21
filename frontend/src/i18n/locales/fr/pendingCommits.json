@@ -1,0 +1,23 @@
+{
+  "title": "Commits en attente",
+  "description": "Ces modifications attendent que vous fournissiez des titres de commit. Examinez chaque modification et entrez un message de commit significatif.",
+  "noPending": "Aucun commit en attente",
+  "agentSummary": "Résumé de l'agent",
+  "diffSummary": "Modifications",
+  "commitTitle": "Titre du commit",
+  "titlePlaceholder": "Entrez un titre de commit (ex: feat: ajouter l'authentification utilisateur)",
+  "commit": "Valider",
+  "discard": "Annuler",
+  "discardAll": "Tout annuler",
+  "close": "Fermer",
+  "indicator": {
+    "ariaLabel": "{{count}} commits en attente",
+    "tooltip": "{{count}} commits en attente de votre examen"
+  },
+  "errors": {
+    "titleRequired": "Un titre de commit est requis",
+    "titleTooLong": "Le titre du commit est trop long (max 500 caractères)",
+    "commitFailed": "Échec de la création du commit",
+    "discardFailed": "Échec de l'annulation du commit"
+  }
+}

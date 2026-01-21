@@ -1,4 +1,8 @@
 {
+  "dropzone": {
+    "dropImagesHere": "画像をここにドロップ",
+    "supportedFormats": "PNG、JPG、GIF、WebP、SVG に対応"
+  },
   "gitPanel": {
     "create": {
       "warnings": {
@@ -25,9 +29,6 @@
     "attempt": "Attempt",
     "createNewAttempt": "Create new attempt",
     "createSubtask": "Create subtask",
-    "share": "タスクを共有",
-    "reassign": "再割り当て",
-    "stopShare": "共有を停止",
     "duplicate": "Duplicate",
     "editBranchName": "ブランチ名を編集",
     "gitActions": "Gitアクション",
@@ -472,6 +473,11 @@
     "title_one": "Todos ({{count}})",
     "title_other": "Todos ({{count}})"
   },
+  "todoPopup": {
+    "title": "タスク",
+    "progress": "{{completed}}/{{total}} 完了",
+    "noTasks": "タスクなし"
+  },
   "projects": {
     "create": {
       "dialog": {
@@ -580,6 +586,9 @@
       "continueEditing": "編集を続ける",
       "discardChanges": "変更を破棄"
     }
+  },
+  "terminal": {
+    "selectWorkspace": "ターミナルを開くにはワークスペースを選択してください"
   },
   "restoreLogsDialog": {
     "title": "リトライを確認",

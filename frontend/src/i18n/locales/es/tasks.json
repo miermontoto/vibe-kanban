@@ -1,4 +1,8 @@
 {
+  "dropzone": {
+    "dropImagesHere": "Suelta las imágenes aquí",
+    "supportedFormats": "PNG, JPG, GIF, WebP, SVG compatibles"
+  },
   "gitPanel": {
     "create": {
       "warnings": {
@@ -25,9 +29,6 @@
     "attempt": "Attempt",
     "createNewAttempt": "Create new attempt",
     "createSubtask": "Create subtask",
-    "share": "Compartir tarea",
-    "reassign": "Reasignar",
-    "stopShare": "Dejar de compartir",
     "duplicate": "Duplicate",
     "editBranchName": "Editar nombre de rama",
     "gitActions": "Acciones de Git",
@@ -472,6 +473,11 @@
     "title_one": "Todos ({{count}})",
     "title_other": "Todos ({{count}})"
   },
+  "todoPopup": {
+    "title": "Tareas",
+    "progress": "{{completed}}/{{total}} completadas",
+    "noTasks": "Sin tareas"
+  },
   "projects": {
     "create": {
       "dialog": {
@@ -580,6 +586,9 @@
       "continueEditing": "Continuar Editando",
       "discardChanges": "Descartar Cambios"
     }
+  },
+  "terminal": {
+    "selectWorkspace": "Selecciona un espacio de trabajo para abrir terminal"
   },
   "restoreLogsDialog": {
     "title": "Confirmar Reintento",

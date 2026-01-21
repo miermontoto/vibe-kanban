@@ -299,6 +299,10 @@
         "workspaces": {
           "label": "啟用工作區 Beta",
           "helper": "查看任務嘗試時使用新的工作區介面。任務將首先在任務檢視中開啟，嘗試將在新的工作區檢視中開啟。"
+        },
+        "commitReminder": {
+          "label": "提交提醒",
+          "helper": "提示支援的代理在停止前提交變更。"
         }
       }
     },
@@ -315,9 +319,7 @@
         "loginDetected": "偵測到最近使用",
         "loginDetectedTooltip": "找到此代理的最近驗證憑證",
         "installationFound": "偵測到曾使用",
-        "installationFoundTooltip": "找到代理設定。您可能需要登入才能使用。",
-        "notFound": "未知",
-        "notFoundTooltip": "我們無法驗證此代理是否已設定，但請繼續嘗試。"
+        "installationFoundTooltip": "找到代理設定。您可能需要登入才能使用。"
       },
       "editor": {
         "formLabel": "編輯 JSON",

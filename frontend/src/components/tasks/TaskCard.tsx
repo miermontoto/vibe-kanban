@@ -14,11 +14,11 @@ import { Button } from '@/components/ui/button';
 import { useNavigateWithSearch } from '@/hooks';
 import { paths } from '@/lib/paths';
 import { attemptsApi } from '@/lib/api';
-import type { SharedTaskRecord } from '@/hooks/useProjectTasks';
 import { TaskCardHeader } from './TaskCardHeader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks';
 import { CreateAttemptDialog } from '@/components/dialogs/tasks/CreateAttemptDialog';
+import type { SharedTaskRecord } from '@/hooks/useProjectTasks';
 
 type Task = TaskWithAttemptStatus;
 
@@ -48,7 +48,6 @@ export function TaskCard({
   const { t } = useTranslation('tasks');
   const navigate = useNavigateWithSearch();
   const [isNavigatingToParent, setIsNavigatingToParent] = useState(false);
-  const { isSignedIn } = useAuth();
 
   const handleClick = useCallback(() => {
     onViewDetails(task);
@@ -119,12 +118,6 @@ export function TaskCard({
       onClick={handleClick}
       isOpen={isOpen}
       forwardedRef={localRef}
-      dragDisabled={(!!sharedTask || !!task.shared_task_id) && !isSignedIn}
-      className={
-        sharedTask || task.shared_task_id
-          ? 'relative overflow-hidden pl-5 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-card-foreground before:content-[""]'
-          : undefined
-      }
     >
       <div className="flex flex-col gap-2">
         <TaskCardHeader
@@ -205,7 +198,7 @@ export function TaskCard({
                   <Link className="h-4 w-4" />
                 </Button>
               )}
-              <ActionsDropdown task={task} sharedTask={sharedTask} />
+              <ActionsDropdown task={task} />
             </>
           }
         />
