@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import NiceModal, { useModal } from '@ebay/nice-modal-react';
@@ -72,68 +71,60 @@ const FeatureShowcaseDialogImpl = NiceModal.create<FeatureShowcaseDialogProps>(
         className="max-w-none xl:max-w-[min(66.66vw,calc((100svh-20rem)*1.6))] p-0 overflow-hidden"
       >
         <DialogContent className="p-0 gap-0">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStage}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ShowcaseStageMedia media={stage.media} />
+          <div>
+            <ShowcaseStageMedia media={stage.media} />
 
-              <div className="p-6 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {t(stage.titleKey)}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    {currentStage + 1} / {totalStages}
-                  </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {t(stage.titleKey)}
+                  </h3>
                 </div>
-
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t(stage.descriptionKey)}
-                </p>
-
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: totalStages }).map((_, index) => (
-                    <div
-                      key={index}
-                      className={`h-1 flex-1 rounded-full transition-colors ${
-                        index === currentStage ? 'bg-primary' : 'bg-muted'
-                      }`}
-                    />
-                  ))}
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  {currentStage + 1} / {totalStages}
                 </div>
-
-                {totalStages > 1 && (
-                  <div className="flex justify-end gap-2 pt-2">
-                    {currentStage > 0 && (
-                      <button
-                        onClick={handlePrevious}
-                        className="h-10 px-4 py-2 inline-flex items-center justify-center gap-2 text-sm font-medium border border-input hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        {t('showcases.buttons.previous')}
-                      </button>
-                    )}
-                    <button
-                      onClick={handleNext}
-                      className="h-10 px-4 py-2 inline-flex items-center justify-center gap-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 border border-foreground transition-colors"
-                    >
-                      {currentStage === totalStages - 1
-                        ? t('showcases.buttons.finish')
-                        : t('showcases.buttons.next')}
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
               </div>
-            </motion.div>
-          </AnimatePresence>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t(stage.descriptionKey)}
+              </p>
+
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalStages }).map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 flex-1 rounded-full ${
+                      index === currentStage ? 'bg-primary' : 'bg-muted'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {totalStages > 1 && (
+                <div className="flex justify-end gap-2 pt-2">
+                  {currentStage > 0 && (
+                    <button
+                      onClick={handlePrevious}
+                      className="h-10 px-4 py-2 inline-flex items-center justify-center gap-2 text-sm font-medium border border-input hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      {t('showcases.buttons.previous')}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleNext}
+                    className="h-10 px-4 py-2 inline-flex items-center justify-center gap-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 border border-foreground"
+                  >
+                    {currentStage === totalStages - 1
+                      ? t('showcases.buttons.finish')
+                      : t('showcases.buttons.next')}
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     );
