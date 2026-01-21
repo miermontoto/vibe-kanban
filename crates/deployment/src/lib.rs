@@ -120,8 +120,7 @@ pub trait Deployment: Clone + Send + Sync + 'static {
                 user_id: self.user_id().to_string(),
                 analytics_service: analytics_service.clone(),
             });
-        let publisher = self.share_publisher().ok();
-        PrMonitorService::spawn(db, analytics, publisher).await
+        PrMonitorService::spawn(db, analytics).await
     }
 
     /// Trigger background auto-setup of default projects for new users

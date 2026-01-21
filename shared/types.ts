@@ -4,14 +4,6 @@
 
 // If you are an AI, and you absolutely have to edit this file, please confirm with the user first.
 
-export type SharedTaskResponse = { task: SharedTask, user: UserData | null, };
-
-export type AssigneesQuery = { project_id: string, };
-
-export type SharedTask = { id: string, organization_id: string, project_id: string, creator_user_id: string | null, assignee_user_id: string | null, deleted_by_user_id: string | null, title: string, description: string | null, status: TaskStatus, deleted_at: string | null, shared_at: string | null, created_at: string, updated_at: string, };
-
-export type UserData = { user_id: string, first_name: string | null, last_name: string | null, username: string | null, };
-
 export type Project = { id: string, name: string, default_agent_working_dir: string | null, remote_project_id: string | null, 
 /**
  * None = usa config global, Some(true/false) = override por proyecto
@@ -108,7 +100,7 @@ export type SearchMatchType = "FileName" | "DirectoryName" | "FullPath";
 
 export type Repo = { id: string, path: string, name: string, display_name: string, setup_script: string | null, cleanup_script: string | null, copy_files: string | null, parallel_setup_script: boolean, dev_server_script: string | null, created_at: Date, updated_at: Date, };
 
-export type UpdateRepo = { display_name: string | null, setup_script: string | null, cleanup_script: string | null, copy_files: string | null, parallel_setup_script: boolean | null, dev_server_script: string | null, };
+export type UpdateRepo = { display_name?: string | null, setup_script?: string | null, cleanup_script?: string | null, copy_files?: string | null, parallel_setup_script?: boolean | null, dev_server_script?: string | null, };
 
 export type ProjectRepo = { id: string, project_id: string, repo_id: string, };
 
@@ -152,9 +144,11 @@ export type DraftWorkspaceRepo = { repo_id: string, target_branch: string, };
 
 export type PreviewSettingsData = { url: string, screen_size: string | null, responsive_width: number | null, responsive_height: number | null, };
 
-export type ScratchPayload = { "type": "DRAFT_TASK", "data": string } | { "type": "DRAFT_FOLLOW_UP", "data": DraftFollowUpData } | { "type": "DRAFT_WORKSPACE", "data": DraftWorkspaceData } | { "type": "PREVIEW_SETTINGS", "data": PreviewSettingsData };
+export type WorkspaceNotesData = { content: string, };
 
-export enum ScratchType { DRAFT_TASK = "DRAFT_TASK", DRAFT_FOLLOW_UP = "DRAFT_FOLLOW_UP", DRAFT_WORKSPACE = "DRAFT_WORKSPACE", PREVIEW_SETTINGS = "PREVIEW_SETTINGS" }
+export type ScratchPayload = { "type": "DRAFT_TASK", "data": string } | { "type": "DRAFT_FOLLOW_UP", "data": DraftFollowUpData } | { "type": "DRAFT_WORKSPACE", "data": DraftWorkspaceData } | { "type": "PREVIEW_SETTINGS", "data": PreviewSettingsData } | { "type": "WORKSPACE_NOTES", "data": WorkspaceNotesData };
+
+export enum ScratchType { DRAFT_TASK = "DRAFT_TASK", DRAFT_FOLLOW_UP = "DRAFT_FOLLOW_UP", DRAFT_WORKSPACE = "DRAFT_WORKSPACE", PREVIEW_SETTINGS = "PREVIEW_SETTINGS", WORKSPACE_NOTES = "WORKSPACE_NOTES" }
 
 export type Scratch = { id: string, payload: ScratchPayload, created_at: string, updated_at: string, };
 
@@ -266,7 +260,7 @@ export type UpdateMemberRoleRequest = { role: MemberRole, };
 
 export type UpdateMemberRoleResponse = { user_id: string, role: MemberRole, };
 
-export type RemoteProject = { id: string, organization_id: string, name: string, metadata: Record<string, unknown>, created_at: string, };
+export type RemoteProject = { id: string, organization_id: string, name: string, color: string, created_at: string, updated_at: string, };
 
 export type ListProjectsResponse = { projects: Array<RemoteProject>, };
 
@@ -335,11 +329,9 @@ export type OpenEditorRequest = { editor_type: string | null, file_path: string 
 
 export type OpenEditorResponse = { url: string | null, };
 
-export type AssignSharedTaskRequest = { new_assignee_user_id: string | null, };
+export type CreateAndStartTaskRequest = { task: CreateTask, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, };
 
 export type ShareTaskResponse = { shared_task_id: string, };
-
-export type CreateAndStartTaskRequest = { task: CreateTask, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, };
 
 export type CreatePrApiRequest = { title: string, body: string | null, target_branch: string | null, draft: boolean | null, repo_id: string, auto_generate_description: boolean, };
 
@@ -515,7 +507,11 @@ git_auto_push_mode: GitAutoPushMode,
 /**
  * cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
  */
-open_pr_in_browser: boolean, };
+open_pr_in_browser: boolean, 
+/**
+ * commit reminder for uncommitted changes (from upstream)
+ */
+commit_reminder: boolean, };
 
 export type NotificationConfig = { sound_enabled: boolean, push_enabled: boolean, sound_file: SoundFile, };
 
@@ -531,7 +527,7 @@ export type GitHubConfig = { pat: string | null, oauth_token: string | null, use
 
 export enum SoundFile { ABSTRACT_SOUND1 = "ABSTRACT_SOUND1", ABSTRACT_SOUND2 = "ABSTRACT_SOUND2", ABSTRACT_SOUND3 = "ABSTRACT_SOUND3", ABSTRACT_SOUND4 = "ABSTRACT_SOUND4", COW_MOOING = "COW_MOOING", PHONE_VIBRATION = "PHONE_VIBRATION", ROOSTER = "ROOSTER" }
 
-export type UiLanguage = "BROWSER" | "EN" | "JA" | "ES" | "KO" | "ZH_HANS" | "ZH_HANT";
+export type UiLanguage = "BROWSER" | "EN" | "FR" | "JA" | "ES" | "KO" | "ZH_HANS" | "ZH_HANT";
 
 export type ShowcaseState = { seen_features: Array<string>, };
 
@@ -556,6 +552,16 @@ agent_summary: string | null, created_at: Date, };
 export type CreatePendingCommit = { workspace_id: string, repo_id: string, repo_path: string, diff_summary: string, agent_summary: string | null, };
 
 export type CommitPendingRequest = { title: string, };
+
+export type SharedTask = { id: string, organization_id: string, project_id: string, creator_user_id: string | null, assignee_user_id: string | null, deleted_by_user_id: string | null, title: string, description: string | null, status: TaskStatus, deleted_at: string | null, shared_at: string | null, created_at: string, updated_at: string, };
+
+export type UserData = { user_id: string, first_name: string | null, last_name: string | null, username: string | null, };
+
+export type AssigneesQuery = { project_id: string, };
+
+export type SharedTaskResponse = { task: SharedTask, user: UserData | null, };
+
+export type AssignSharedTaskRequest = { new_assignee_user_id: string | null, };
 
 export type GitBranch = { name: string, is_current: boolean, is_remote: boolean, last_commit_date: Date, };
 
@@ -668,7 +674,7 @@ export type CursorAgent = { append_prompt: AppendPrompt, force?: boolean | null,
 
 export type Copilot = { append_prompt: AppendPrompt, model?: string | null, allow_all_tools?: boolean | null, allow_tool?: string | null, deny_tool?: string | null, add_dir?: Array<string> | null, disable_mcp_server?: Array<string> | null, base_command_override?: string | null, additional_params?: Array<string> | null, env?: { [key in string]?: string } | null, };
 
-export type Opencode = { append_prompt: AppendPrompt, model?: string | null, mode?: string | null, 
+export type Opencode = { append_prompt: AppendPrompt, model?: string | null, variant?: string | null, mode?: string | null, 
 /**
  * Auto-approve agent actions
  */
@@ -724,7 +730,9 @@ export type CommandRunResult = { exit_status: CommandExitStatus | null, output: 
 
 export type NormalizedEntry = { timestamp: string | null, entry_type: NormalizedEntryType, content: string, };
 
-export type NormalizedEntryType = { "type": "user_message" } | { "type": "user_feedback", denied_tool: string, } | { "type": "assistant_message" } | { "type": "tool_use", tool_name: string, action_type: ActionType, status: ToolStatus, } | { "type": "system_message" } | { "type": "error_message", error_type: NormalizedEntryError, } | { "type": "thinking" } | { "type": "loading" } | { "type": "next_action", failed: boolean, execution_processes: number, needs_setup: boolean, };
+export type NormalizedEntryType = { "type": "user_message" } | { "type": "user_feedback", denied_tool: string, } | { "type": "assistant_message" } | { "type": "tool_use", tool_name: string, action_type: ActionType, status: ToolStatus, } | { "type": "system_message" } | { "type": "error_message", error_type: NormalizedEntryError, } | { "type": "thinking" } | { "type": "loading" } | { "type": "next_action", failed: boolean, execution_processes: number, needs_setup: boolean, } | { "type": "token_usage_info" } & TokenUsageInfo;
+
+export type TokenUsageInfo = { total_tokens: number, model_context_window: number, };
 
 export type FileChange = { "action": "write", content: string, } | { "action": "delete" } | { "action": "rename", new_path: string, } | { "action": "edit", 
 /**

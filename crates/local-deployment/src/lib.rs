@@ -20,7 +20,7 @@ use services::services::{
     queued_message::QueuedMessageService,
     remote_client::{RemoteClient, RemoteClientError},
     repo::RepoService,
-    share::{ShareConfig, SharePublisher},
+    worktree_manager::WorktreeManager,
 };
 use tokio::sync::RwLock;
 use utils::{
@@ -30,10 +30,11 @@ use utils::{
 };
 use uuid::Uuid;
 
-use crate::container::LocalContainerService;
+use crate::{container::LocalContainerService, pty::PtyService};
 mod command;
 pub mod container;
 mod copy;
+pub mod pty;
 
 #[derive(Clone)]
 pub struct LocalDeployment {
@@ -51,11 +52,10 @@ pub struct LocalDeployment {
     file_search_cache: Arc<FileSearchCache>,
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
-    share_publisher: Result<SharePublisher, RemoteClientNotConfigured>,
-    share_config: Option<ShareConfig>,
     remote_client: Result<RemoteClient, RemoteClientNotConfigured>,
     auth_context: AuthContext,
     oauth_handoffs: Arc<RwLock<HashMap<Uuid, PendingHandoff>>>,
+    pty: PtyService,
 }
 
 #[derive(Debug, Clone)]
@@ -78,6 +78,11 @@ impl Deployment for LocalDeployment {
 
         // Always save config (may have been migrated)
         save_config_to_file(&raw_config, &config_path()).await?;
+
+        if let Some(workspace_dir) = &raw_config.workspace_dir {
+            let path = utils::path::expand_tilde(workspace_dir);
+            WorktreeManager::set_workspace_dir_override(path);
+        }
 
         let config = Arc::new(RwLock::new(raw_config));
         let user_id = generate_user_id();
@@ -116,8 +121,6 @@ impl Deployment for LocalDeployment {
         let approvals = Approvals::new(msg_stores.clone());
         let queued_message_service = QueuedMessageService::new();
 
-        let share_config = ShareConfig::from_env();
-
         let oauth_credentials = Arc::new(OAuthCredentials::new(credentials_path()));
         if let Err(e) = oauth_credentials.load().await {
             tracing::warn!(?e, "failed to load OAuth credentials");
@@ -147,11 +150,6 @@ impl Deployment for LocalDeployment {
             }
         };
 
-        let share_publisher = remote_client
-            .as_ref()
-            .map(|client| SharePublisher::new(db.clone(), client.clone()))
-            .map_err(|e| *e);
-
         let oauth_handoffs = Arc::new(RwLock::new(HashMap::new()));
 
         let container = LocalContainerService::new(
@@ -163,13 +161,14 @@ impl Deployment for LocalDeployment {
             None, // analytics was removed
             approvals.clone(),
             queued_message_service.clone(),
-            share_publisher.clone(),
         )
         .await;
 
         let events = EventService::new(db.clone(), events_msg_store, events_entry_count);
 
         let file_search_cache = Arc::new(FileSearchCache::new());
+
+        let pty = PtyService::new();
 
         let deployment = Self {
             config,
@@ -186,11 +185,10 @@ impl Deployment for LocalDeployment {
             file_search_cache,
             approvals,
             queued_message_service,
-            share_publisher,
-            share_config: share_config.clone(),
             remote_client,
             auth_context,
             oauth_handoffs,
+            pty,
         };
 
         Ok(deployment)
@@ -252,12 +250,18 @@ impl Deployment for LocalDeployment {
         &self.queued_message_service
     }
 
-    fn share_publisher(&self) -> Result<SharePublisher, RemoteClientNotConfigured> {
-        self.share_publisher.clone()
-    }
-
     fn auth_context(&self) -> &AuthContext {
         &self.auth_context
+    }
+
+    fn share_publisher(
+        &self,
+    ) -> Result<services::services::share::SharePublisher, RemoteClientNotConfigured> {
+        let client = self.remote_client.clone()?;
+        Ok(services::services::share::SharePublisher::new(
+            self.db.clone(),
+            client,
+        ))
     }
 }
 
@@ -324,7 +328,7 @@ impl LocalDeployment {
             .map(|state| (state.provider, state.app_verifier))
     }
 
-    pub fn share_config(&self) -> Option<&ShareConfig> {
-        self.share_config.as_ref()
+    pub fn pty(&self) -> &PtyService {
+        &self.pty
     }
 }

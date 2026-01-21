@@ -169,6 +169,55 @@ See `.claude/commands/merge-upstream.md` for detailed instructions.
 
 **Verification:** All CI checks passing after removal.
 
+#### Merge 2026-01-21: BloopAI/vibe-kanban upstream sync
+
+**Context:** Merged 59 upstream commits from BloopAI/vibe-kanban (v0.0.158). Fork is ~345 commits ahead.
+
+**Key upstream changes integrated:**
+- **Drag-and-drop image upload**: Image upload functionality across chat components
+- **Commits behind indicator**: Shows when branch is behind in git panel
+- **Branch name search**: Search functionality in workspaces sidebar
+- **Override default worktree directory**: New configuration option
+- **TodoProgressPopup**: New component for task progress display
+- **Expandable terminal in logs panel**: Terminal UX improvements
+- **Commit reminder improvements**: Show reminder only once with logging
+- **OpenCode model variant support**: New AI model support
+- **Remote projects/workspaces schema**: Electric Sync and shape definitions
+- **Permission update fixes**: Correct rules type for Claude Code SDK
+
+**Conflicts resolved:**
+- Shared task infrastructure restored (removed by upstream simplification)
+- `tasks.rs`: Added back share_task endpoint
+- `shared_tasks.rs`: Added SharedTask, UserData, AssigneesQuery, SharedTaskResponse types for TS generation
+- `error.rs`: Added ShareError handling to ApiError
+- `mod.rs`: Re-added shared_tasks module and router
+- `api.ts`: Added share, unshare, reassign, linkToLocal methods to tasksApi
+- `useTaskMutations.ts`: Restored shareTask, stopShareTask, linkSharedTaskToLocal mutations
+- `remoteApi.ts`: Restored getSharedTaskAssignees function
+- `generate_types.rs`: Added shared task types for TypeScript generation
+
+**Shared task dialogs restored:**
+- `ShareDialog.tsx`
+- `ReassignDialog.tsx`
+- `StopShareTaskDialog.tsx`
+
+**Custom features preserved:**
+- Package name: `@miermontoto/vkm`
+- Version: 1.2.0
+- Shared task infrastructure (Electric SQL sync)
+- Custom git workflow features (auto-commit, auto-PR, push modes)
+- Ralph Wiggum mode
+- Sentry and PostHog removed
+
+**All CI checks passing:**
+1. ✅ TypeScript compilation: `pnpm run check`
+2. ✅ ESLint: `pnpm run lint`
+3. ✅ Rust formatting: `cargo fmt --all -- --check`
+4. ✅ Frontend formatting: `pnpm run format:check`
+5. ✅ Rust linting: `cargo clippy --all --all-targets -- -D warnings`
+6. ✅ Type generation: `pnpm run generate-types:check`
+7. ⚠️ Tests: 9 git_ops_safety tests fail due to 1Password SSH agent (environment-specific)
+
 ## Project Structure & Module Organization
 
 - `crates/`: Rust workspace crates — `server` (API + bins), `db` (SQLx models/migrations), `executors`, `services`, `utils`, `deployment`, `local-deployment`, `remote`.

@@ -8,6 +8,7 @@ import {
   useRef,
 } from 'react';
 import type { PatchTypeWithKey } from '@/hooks/useConversationHistory';
+import { NormalizedEntry, TokenUsageInfo } from 'shared/types';
 
 // cache of conversations indexed by attempt id
 type ConversationCache = Map<
@@ -41,6 +42,7 @@ interface EntriesContextType {
   hasCachedEntries: (attemptId: string) => boolean;
   getCachedLoadedInitial: (attemptId: string) => boolean;
   invalidateCache: (attemptId?: string) => void;
+  tokenUsageInfo: TokenUsageInfo | null;
 }
 
 const EntriesContext = createContext<EntriesContextType | null>(null);
@@ -52,13 +54,29 @@ interface EntriesProviderProps {
 export const EntriesProvider = ({ children }: EntriesProviderProps) => {
   const [entries, setEntriesState] = useState<PatchTypeWithKey[]>([]);
   const conversationCache = useRef<ConversationCache>(new Map());
+  const [tokenUsageInfo, setTokenUsageInfo] = useState<TokenUsageInfo | null>(
+    null
+  );
+
+  const extractTokenUsageInfo = (
+    entries: PatchTypeWithKey[]
+  ): TokenUsageInfo | null => {
+    const latest = entries.findLast(
+      (e) =>
+        e.type === 'NORMALIZED_ENTRY' &&
+        e.content.entry_type.type === 'token_usage_info'
+    )?.content as NormalizedEntry | undefined;
+    return (latest?.entry_type as TokenUsageInfo) ?? null;
+  };
 
   const setEntries = useCallback((newEntries: PatchTypeWithKey[]) => {
     setEntriesState(newEntries);
+    setTokenUsageInfo(extractTokenUsageInfo(newEntries));
   }, []);
 
   const reset = useCallback(() => {
     setEntriesState([]);
+    setTokenUsageInfo(null);
   }, []);
 
   // get cached entries for an attempt
@@ -128,6 +146,7 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
       hasCachedEntries,
       getCachedLoadedInitial,
       invalidateCache,
+      tokenUsageInfo,
     }),
     [
       entries,
@@ -138,6 +157,7 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
       hasCachedEntries,
       getCachedLoadedInitial,
       invalidateCache,
+      tokenUsageInfo,
     ]
   );
 
@@ -152,4 +172,12 @@ export const useEntries = (): EntriesContextType => {
     throw new Error('useEntries must be used within an EntriesProvider');
   }
   return context;
+};
+
+export const useTokenUsage = () => {
+  const context = useContext(EntriesContext);
+  if (!context) {
+    throw new Error('useTokenUsage must be used within an EntriesProvider');
+  }
+  return context.tokenUsageInfo;
 };

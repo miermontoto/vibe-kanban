@@ -24,7 +24,6 @@ import {
   UpdateRepo,
   SearchMode,
   SearchResult,
-  ShareTaskResponse,
   Task,
   TaskRelationships,
   Tag,
@@ -79,8 +78,6 @@ import {
   PushError,
   TokenResponse,
   CurrentUserResponse,
-  SharedTaskResponse,
-  SharedTaskDetails,
   QueueStatus,
   PrCommentsResponse,
   MergeTaskAttemptRequest,
@@ -93,6 +90,9 @@ import {
   ReviewError,
   PendingCommit,
   CommitPendingRequest,
+  ShareTaskResponse,
+  SharedTaskResponse,
+  SharedTaskDetails,
 } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { createWorkspaceWithSession } from '@/types/attempt';
@@ -438,7 +438,6 @@ export const tasksApi = {
         body: JSON.stringify(payload),
       }
     );
-
     return handleApiResponse<SharedTaskResponse>(response);
   },
 
@@ -747,14 +746,14 @@ export const attemptsApi = {
     return handleApiResponseAsResult<string, PrError>(response);
   },
 
-  startDevServer: async (attemptId: string): Promise<void> => {
+  startDevServer: async (attemptId: string): Promise<ExecutionProcess[]> => {
     const response = await makeRequest(
       `/api/task-attempts/${attemptId}/start-dev-server`,
       {
         method: 'POST',
       }
     );
-    return handleApiResponse<void>(response);
+    return handleApiResponse<ExecutionProcess[]>(response);
   },
 
   setupGhCli: async (attemptId: string): Promise<ExecutionProcess> => {

@@ -141,7 +141,13 @@
     "workingBranch": "Rama de trabajo",
     "recent": "Reciente",
     "other": "Otro",
-    "devServerPreview": "Vista previa del servidor de desarrollo"
+    "devServerPreview": "Vista previa del servidor de desarrollo",
+    "terminal": "Terminal",
+    "notes": "Notas"
+  },
+  "notes": {
+    "placeholder": "Agregar notas sobre este espacio de trabajo...",
+    "selectWorkspace": "Selecciona un espacio de trabajo para ver notas"
   },
   "repos": {
     "loading": "Cargando repositorios...",
@@ -159,7 +165,8 @@
     "repoSettings": "Configuración del repositorio",
     "cancel": "Cancelar",
     "saveChanges": "Guardar cambios",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "collapse": "Contraer"
   },
   "comments": {
     "addReviewComment": "Agregar comentario de revisión",
@@ -170,6 +177,10 @@
     "defaultConfirm": "Confirmar",
     "defaultCancel": "Cancelar"
   },
+  "dialogs": {
+    "selectGitRepository": "Seleccionar repositorio Git",
+    "chooseExistingRepo": "Elige un repositorio existente de tu sistema de archivos"
+  },
   "empty": {
     "noChanges": "No hay cambios para mostrar"
   },
@@ -179,7 +190,8 @@
     "defaultPlaceholder": "Escribe un comando o busca..."
   },
   "chatBox": {
-    "variants": "Variantes"
+    "variants": "Variantes",
+    "customise": "Personalizar"
   },
   "projects": {
     "noProjectFound": "No se encontró ningún proyecto",
@@ -192,10 +204,17 @@
     "selectProcessToView": "Seleccione un proceso para ver los registros"
   },
   "processes": {
-    "noProcesses": "Sin procesos"
+    "noProcesses": "Sin procesos",
+    "terminal": "Terminal"
   },
   "search": {
     "matchCount": "{{current}} de {{total}}",
     "noMatches": "Sin coincidencias"
+  },
+  "contextUsage": {
+    "label": "Uso del contexto",
+    "emptyTooltip": "El uso del contexto aparece después de la próxima respuesta",
+    "tooltip": "Contexto: {{percentage}}% · {{used}} / {{total}} tokens",
+    "ariaLabel": "Uso del contexto: {{percentage}}%"
   }
 }

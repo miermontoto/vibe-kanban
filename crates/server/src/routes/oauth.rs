@@ -11,7 +11,6 @@ use rand::{Rng, distributions::Alphanumeric};
 use serde::{Deserialize, Serialize};
 use services::services::oauth_credentials::Credentials;
 use sha2::{Digest, Sha256};
-use tokio;
 use ts_rs::TS;
 use utils::{
     api::oauth::{HandoffInitRequest, HandoffRedeemRequest, StatusResponse},

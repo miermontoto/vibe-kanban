@@ -1,4 +1,8 @@
 {
+  "dropzone": {
+    "dropImagesHere": "여기에 이미지를 드롭하세요",
+    "supportedFormats": "PNG, JPG, GIF, WebP, SVG 지원"
+  },
   "gitPanel": {
     "create": {
       "warnings": {
@@ -25,9 +29,6 @@
     "attempt": "Attempt",
     "createNewAttempt": "Create new attempt",
     "createSubtask": "Create subtask",
-    "share": "작업 공유",
-    "reassign": "재할당",
-    "stopShare": "공유 중지",
     "duplicate": "Duplicate",
     "editBranchName": "브랜치 이름 편집",
     "gitActions": "Git 작업",
@@ -472,6 +473,11 @@
     "title_one": "Todos ({{count}})",
     "title_other": "Todos ({{count}})"
   },
+  "todoPopup": {
+    "title": "작업",
+    "progress": "{{completed}}/{{total}} 완료",
+    "noTasks": "작업 없음"
+  },
   "toolbar": {
     "actions": "Actions",
     "noAttempts": "No attempts yet",
@@ -580,6 +586,9 @@
       "continueEditing": "계속 수정",
       "discardChanges": "변경사항 버리기"
     }
+  },
+  "terminal": {
+    "selectWorkspace": "터미널을 열려면 작업 공간을 선택하세요"
   },
   "restoreLogsDialog": {
     "title": "재시도 확인",

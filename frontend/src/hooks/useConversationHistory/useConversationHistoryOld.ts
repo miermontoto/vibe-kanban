@@ -1,115 +1,40 @@
-// useConversationHistory.ts
 import {
   CommandExitStatus,
   ExecutionProcess,
   ExecutionProcessStatus,
-  ExecutorAction,
   NormalizedEntry,
   PatchType,
   ToolStatus,
-  Workspace,
 } from 'shared/types';
 import { useExecutionProcessesContext } from '@/contexts/ExecutionProcessesContext';
-import { useEntries } from '@/contexts/EntriesContext';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { streamJsonPatchEntries } from '@/utils/streamJsonPatchEntries';
+import type {
+  AddEntryType,
+  ExecutionProcessStateStore,
+  OnEntriesUpdated,
+  PatchTypeWithKey,
+  UseConversationHistoryParams,
+  UseConversationHistoryResult,
+} from './types';
+import {
+  makeLoadingPatch,
+  MIN_INITIAL_ENTRIES,
+  nextActionPatch,
+  REMAINING_BATCH_SIZE,
+} from './constants';
 
-export type PatchTypeWithKey = PatchType & {
-  patchKey: string;
-  executionProcessId: string;
-};
-
-export type AddEntryType = 'initial' | 'running' | 'historic' | 'plan';
-
-export type OnEntriesUpdated = (
-  newEntries: PatchTypeWithKey[],
-  addType: AddEntryType,
-  loading: boolean
-) => void;
-
-type ExecutionProcessStaticInfo = {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  executor_action: ExecutorAction;
-};
-
-type ExecutionProcessState = {
-  executionProcess: ExecutionProcessStaticInfo;
-  entries: PatchTypeWithKey[];
-};
-
-type ExecutionProcessStateStore = Record<string, ExecutionProcessState>;
-
-interface UseConversationHistoryParams {
-  attempt: Workspace;
-  onEntriesUpdated: OnEntriesUpdated;
-}
-
-interface UseConversationHistoryResult {}
-
-const MIN_INITIAL_ENTRIES = 10;
-const REMAINING_BATCH_SIZE = 50;
-
-const makeLoadingPatch = (executionProcessId: string): PatchTypeWithKey => ({
-  type: 'NORMALIZED_ENTRY',
-  content: {
-    entry_type: {
-      type: 'loading',
-    },
-    content: '',
-    timestamp: null,
-  },
-  patchKey: `${executionProcessId}:loading`,
-  executionProcessId,
-});
-
-const nextActionPatch: (
-  failed: boolean,
-  execution_processes: number,
-  needs_setup: boolean,
-  setup_help_text?: string
-) => PatchTypeWithKey = (
-  failed,
-  execution_processes,
-  needs_setup,
-  setup_help_text
-) => ({
-  type: 'NORMALIZED_ENTRY',
-  content: {
-    entry_type: {
-      type: 'next_action',
-      failed: failed,
-      execution_processes: execution_processes,
-      needs_setup: needs_setup,
-      setup_help_text: setup_help_text ?? null,
-    },
-    content: '',
-    timestamp: null,
-  },
-  patchKey: 'next_action',
-  executionProcessId: '',
-});
-
-export const useConversationHistory = ({
+export const useConversationHistoryOld = ({
   attempt,
   onEntriesUpdated,
 }: UseConversationHistoryParams): UseConversationHistoryResult => {
   const { executionProcessesVisible: executionProcessesRaw } =
     useExecutionProcessesContext();
-  const {
-    getCachedEntries,
-    setCachedEntries,
-    getCachedLoadedInitial,
-    invalidateCache,
-  } = useEntries();
   const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesRaw);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
   const streamingProcessIdsRef = useRef<Set<string>>(new Set());
   const onEntriesUpdatedRef = useRef<OnEntriesUpdated | null>(null);
-  // track current attempt to prevent race conditions when switching rapidly
-  const currentAttemptId = useRef(attempt.id);
 
   const mergeIntoDisplayed = (
     mutator: (state: ExecutionProcessStateStore) => void
@@ -134,11 +59,6 @@ export const useConversationHistory = ({
   const loadEntriesForHistoricExecutionProcess = (
     executionProcess: ExecutionProcess
   ) => {
-    // Skip WebSocket connection for optimistic processes (no existen en el backend todavía)
-    if (executionProcess.id.startsWith('optimistic-')) {
-      return Promise.resolve([]);
-    }
-
     let url = '';
     if (executionProcess.executor_action.typ.type === 'ScriptRequest') {
       url = `/api/execution-processes/${executionProcess.id}/raw-logs/ws`;
@@ -153,7 +73,7 @@ export const useConversationHistory = ({
           resolve(allEntries);
         },
         onError: (err) => {
-          console.warn!(
+          console.warn(
             `Error loading entries for historic execution process ${executionProcess.id}`,
             err
           );
@@ -162,6 +82,14 @@ export const useConversationHistory = ({
         },
       });
     });
+  };
+
+  const getLiveExecutionProcess = (
+    executionProcessId: string
+  ): ExecutionProcess | undefined => {
+    return executionProcesses?.current.find(
+      (executionProcess) => executionProcess.id === executionProcessId
+    );
   };
 
   const patchWithKey = (
@@ -198,17 +126,18 @@ export const useConversationHistory = ({
       .flatMap((p) => p.entries);
   };
 
+  const getActiveAgentProcesses = (): ExecutionProcess[] => {
+    return (
+      executionProcesses?.current.filter(
+        (p) =>
+          p.status === ExecutionProcessStatus.running &&
+          p.run_reason !== 'devserver'
+      ) ?? []
+    );
+  };
+
   const flattenEntriesForEmit = useCallback(
     (executionProcessState: ExecutionProcessStateStore): PatchTypeWithKey[] => {
-      // Helper function to get live execution process
-      const getLiveExecutionProcess = (
-        executionProcessId: string
-      ): ExecutionProcess | undefined => {
-        return executionProcessesRaw.find(
-          (executionProcess) => executionProcess.id === executionProcessId
-        );
-      };
-
       // Flags to control Next Action bar emit
       let hasPendingApproval = false;
       let hasRunningProcess = false;
@@ -256,29 +185,28 @@ export const useConversationHistory = ({
             );
             entries.push(userPatchTypeWithKey);
 
-            // Remove all coding agent added user messages, replace with our custom one
-            const entriesExcludingUser = p.entries.filter(
+            // Remove user messages (replaced with custom one) and token usage info (displayed separately)
+            const filteredEntries = p.entries.filter(
               (e) =>
                 e.type !== 'NORMALIZED_ENTRY' ||
-                e.content.entry_type.type !== 'user_message'
+                (e.content.entry_type.type !== 'user_message' &&
+                  e.content.entry_type.type !== 'token_usage_info')
             );
 
-            const hasPendingApprovalEntry = entriesExcludingUser.some(
-              (entry) => {
-                if (entry.type !== 'NORMALIZED_ENTRY') return false;
-                const entryType = entry.content.entry_type;
-                return (
-                  entryType.type === 'tool_use' &&
-                  entryType.status.status === 'pending_approval'
-                );
-              }
-            );
+            const hasPendingApprovalEntry = filteredEntries.some((entry) => {
+              if (entry.type !== 'NORMALIZED_ENTRY') return false;
+              const entryType = entry.content.entry_type;
+              return (
+                entryType.type === 'tool_use' &&
+                entryType.status.status === 'pending_approval'
+              );
+            });
 
             if (hasPendingApprovalEntry) {
               hasPendingApproval = true;
             }
 
-            entries.push(...entriesExcludingUser);
+            entries.push(...filteredEntries);
 
             const liveProcessStatus = getLiveExecutionProcess(
               p.executionProcess.id
@@ -300,7 +228,7 @@ export const useConversationHistory = ({
               lastProcessFailedOrKilled = true;
 
               // Check if this failed process has a SetupRequired entry
-              const hasSetupRequired = entriesExcludingUser.some((entry) => {
+              const hasSetupRequired = filteredEntries.some((entry) => {
                 if (entry.type !== 'NORMALIZED_ENTRY') return false;
                 if (
                   entry.content.entry_type.type === 'error_message' &&
@@ -406,19 +334,8 @@ export const useConversationHistory = ({
           return entries;
         });
 
-      // Emit the next action bar if no process running OR if the last process failed
-      // This ensures the action buttons remain visible even during conversation calculation
+      // Emit the next action bar if no process running
       if (!hasRunningProcess && !hasPendingApproval) {
-        allEntries.push(
-          nextActionPatch(
-            lastProcessFailedOrKilled,
-            Object.keys(executionProcessState).length,
-            needsSetup,
-            setupHelpText
-          )
-        );
-      } else if (lastProcessFailedOrKilled && !hasPendingApproval) {
-        // Show action buttons even when a new process is running, if the previous one failed
         allEntries.push(
           nextActionPatch(
             lastProcessFailedOrKilled,
@@ -431,7 +348,7 @@ export const useConversationHistory = ({
 
       return allEntries;
     },
-    [executionProcessesRaw]
+    []
   );
 
   const emitEntries = useCallback(
@@ -456,30 +373,13 @@ export const useConversationHistory = ({
       }
 
       onEntriesUpdatedRef.current?.(entries, modifiedAddEntryType, loading);
-
-      // actualizar cache cuando se emiten entradas
-      // solo cachear si no está cargando (estado final o intermedio estable)
-      if (!loading && entries.length > 0) {
-        setCachedEntries(attempt.id, entries, loadedInitialEntries.current);
-      }
     },
-    [flattenEntriesForEmit, attempt.id, setCachedEntries]
+    [flattenEntriesForEmit]
   );
-
-  // Store emitEntries in a ref so it can be called without being a dependency
-  const emitEntriesRef = useRef(emitEntries);
-  useEffect(() => {
-    emitEntriesRef.current = emitEntries;
-  }, [emitEntries]);
 
   // This emits its own events as they are streamed
   const loadRunningAndEmit = useCallback(
     (executionProcess: ExecutionProcess): Promise<void> => {
-      // Skip WebSocket connection for optimistic processes (no existen en el backend todavía)
-      if (executionProcess.id.startsWith('optimistic-')) {
-        return Promise.resolve();
-      }
-
       return new Promise((resolve, reject) => {
         let url = '';
         if (executionProcess.executor_action.typ.type === 'ScriptRequest') {
@@ -498,18 +398,10 @@ export const useConversationHistory = ({
                 entries: patchesWithKey,
               };
             });
-            emitEntriesRef.current(
-              displayedExecutionProcesses.current,
-              'running',
-              false
-            );
+            emitEntries(displayedExecutionProcesses.current, 'running', false);
           },
           onFinished: () => {
-            emitEntriesRef.current(
-              displayedExecutionProcesses.current,
-              'running',
-              false
-            );
+            emitEntries(displayedExecutionProcesses.current, 'running', false);
             controller.close();
             resolve();
           },
@@ -520,30 +412,18 @@ export const useConversationHistory = ({
         });
       });
     },
-    []
+    [emitEntries]
   );
 
   // Sometimes it can take a few seconds for the stream to start, wrap the loadRunningAndEmit method
   const loadRunningAndEmitWithBackoff = useCallback(
     async (executionProcess: ExecutionProcess) => {
-      const MAX_RETRIES = 12; // 12 intentos = ~1 minuto total
-      for (let i = 0; i < MAX_RETRIES; i++) {
+      for (let i = 0; i < 20; i++) {
         try {
           await loadRunningAndEmit(executionProcess);
-          return; // éxito
-        } catch (error) {
-          const isLastAttempt = i === MAX_RETRIES - 1;
-          if (isLastAttempt) {
-            console.error(
-              `Failed to load stream for process ${executionProcess.id} after ${MAX_RETRIES} attempts:`,
-              error
-            );
-            return; // falló después de todos los intentos
-          }
-
-          // exponential backoff: 500ms, 1s, 2s, 4s, 8s (max)
-          const delay = Math.min(8000, 500 * Math.pow(2, i));
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          break;
+        } catch (_) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
     },
@@ -654,7 +534,6 @@ export const useConversationHistory = ({
   // Initial load when attempt changes
   useEffect(() => {
     let cancelled = false;
-    const attemptIdSnapshot = attempt.id;
     (async () => {
       // Waiting for execution processes to load
       if (
@@ -665,33 +544,22 @@ export const useConversationHistory = ({
 
       // Initial entries
       const allInitialEntries = await loadInitialEntries();
-      if (cancelled || currentAttemptId.current !== attemptIdSnapshot) return;
+      if (cancelled) return;
       mergeIntoDisplayed((state) => {
         Object.assign(state, allInitialEntries);
       });
-      emitEntriesRef.current(
-        displayedExecutionProcesses.current,
-        'initial',
-        false
-      );
+      emitEntries(displayedExecutionProcesses.current, 'initial', false);
       loadedInitialEntries.current = true;
 
       // Then load the remaining in batches
       while (
         !cancelled &&
-        currentAttemptId.current === attemptIdSnapshot &&
         (await loadRemainingEntriesInBatches(REMAINING_BATCH_SIZE))
       ) {
-        if (cancelled || currentAttemptId.current !== attemptIdSnapshot) return;
+        if (cancelled) return;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
-      if (currentAttemptId.current === attemptIdSnapshot) {
-        emitEntriesRef.current(
-          displayedExecutionProcesses.current,
-          'historic',
-          false
-        );
-      }
+      emitEntries(displayedExecutionProcesses.current, 'historic', false);
     })();
     return () => {
       cancelled = true;
@@ -701,22 +569,10 @@ export const useConversationHistory = ({
     idListKey,
     loadInitialEntries,
     loadRemainingEntriesInBatches,
+    emitEntries,
   ]); // include idListKey so new processes trigger reload
 
   useEffect(() => {
-    // Helper function to get active agent processes
-    const getActiveAgentProcesses = (): ExecutionProcess[] => {
-      return (
-        executionProcessesRaw.filter(
-          (p) =>
-            (p.run_reason === 'setupscript' ||
-              p.run_reason === 'cleanupscript' ||
-              p.run_reason === 'codingagent') &&
-            p.status === ExecutionProcessStatus.running
-        ) ?? []
-      );
-    };
-
     const activeProcesses = getActiveAgentProcesses();
     if (activeProcesses.length === 0) return;
 
@@ -727,7 +583,7 @@ export const useConversationHistory = ({
             ? 'running'
             : 'initial';
         ensureProcessVisible(activeProcess);
-        emitEntriesRef.current(
+        emitEntries(
           displayedExecutionProcesses.current,
           runningOrInitial,
           false
@@ -747,12 +603,12 @@ export const useConversationHistory = ({
   }, [
     attempt.id,
     idStatusKey,
+    emitEntries,
     ensureProcessVisible,
     loadRunningAndEmitWithBackoff,
-    executionProcessesRaw,
   ]);
 
-  // If an execution process is removed, remove it from the state and invalidate cache
+  // If an execution process is removed, remove it from the state
   useEffect(() => {
     if (!executionProcessesRaw) return;
 
@@ -766,42 +622,16 @@ export const useConversationHistory = ({
           delete state[id];
         });
       });
-      // invalidate cache when processes are removed (data deletion)
-      // cache will be naturally updated via emitEntries when processes complete/update
-      invalidateCache(attempt.id);
     }
-  }, [attempt.id, idListKey, executionProcessesRaw, invalidateCache]);
+  }, [attempt.id, idListKey, executionProcessesRaw]);
 
   // Reset state when attempt changes
   useEffect(() => {
-    // update current attempt ID to prevent race conditions
-    currentAttemptId.current = attempt.id;
-
-    // attempt to restore from cache before resetting
-    const cachedEntries = getCachedEntries(attempt.id);
-    const cachedLoadedInitial = getCachedLoadedInitial(attempt.id);
-
-    if (cachedEntries && cachedEntries.length > 0) {
-      // if cache exists, emit it immediately without resetting state
-      // this avoids showing loading while waiting for execution processes to load
-      loadedInitialEntries.current = cachedLoadedInitial;
-      streamingProcessIdsRef.current.clear();
-
-      // emit cached entries directly without touching displayedExecutionProcesses
-      // state will update naturally when execution processes load
-      onEntriesUpdatedRef.current?.(cachedEntries, 'initial', false);
-    } else {
-      // no cache, reset normally
-      displayedExecutionProcesses.current = {};
-      loadedInitialEntries.current = false;
-      streamingProcessIdsRef.current.clear();
-      emitEntriesRef.current(
-        displayedExecutionProcesses.current,
-        'initial',
-        true
-      );
-    }
-  }, [attempt.id, getCachedEntries, getCachedLoadedInitial]);
+    displayedExecutionProcesses.current = {};
+    loadedInitialEntries.current = false;
+    streamingProcessIdsRef.current.clear();
+    emitEntries(displayedExecutionProcesses.current, 'initial', true);
+  }, [attempt.id, emitEntries]);
 
   return {};
 };
