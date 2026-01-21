@@ -11,8 +11,21 @@ import {
 import { TaskCard } from './TaskCard';
 import type { TaskStatus, TaskWithAttemptStatus } from 'shared/types';
 import { statusBoardColors, statusLabels } from '@/utils/statusLabels';
+import type { SharedTaskRecord } from '@/hooks/useProjectTasks';
+import { SharedTaskCard } from './SharedTaskCard';
 
-export type KanbanColumns = Record<TaskStatus, TaskWithAttemptStatus[]>;
+export type KanbanColumnItem =
+  | {
+      type: 'task';
+      task: TaskWithAttemptStatus;
+      sharedTask?: SharedTaskRecord;
+    }
+  | {
+      type: 'shared';
+      task: SharedTaskRecord;
+    };
+
+export type KanbanColumns = Record<TaskStatus, KanbanColumnItem[]>;
 
 /** Get a unique card ID for collapse state tracking. Shared tasks use a prefix to avoid collisions. */
 function getCardId(item: KanbanColumnItem): string {
@@ -23,7 +36,9 @@ interface TaskKanbanBoardProps {
   columns: KanbanColumns;
   onDragEnd: (event: DragEndEvent) => void;
   onViewTaskDetails: (task: TaskWithAttemptStatus) => void;
+  onViewSharedTask?: (task: SharedTaskRecord) => void;
   selectedTaskId?: string;
+  selectedSharedTaskId?: string | null;
   onCreateTask?: () => void;
   projectId: string;
 }
@@ -32,7 +47,9 @@ function TaskKanbanBoard({
   columns,
   onDragEnd,
   onViewTaskDetails,
+  onViewSharedTask,
   selectedTaskId,
+  selectedSharedTaskId,
   onCreateTask,
   projectId,
 }: TaskKanbanBoardProps) {
@@ -81,7 +98,7 @@ function TaskKanbanBoard({
 
   return (
     <KanbanProvider onDragEnd={onDragEnd}>
-      {Object.entries(columns).map(([status, tasks]) => {
+      {Object.entries(columns).map(([status, items]) => {
         const statusKey = status as TaskStatus;
         const cardIds = columnCardIds[statusKey];
         const allCollapsed = areAllCollapsed(cardIds);

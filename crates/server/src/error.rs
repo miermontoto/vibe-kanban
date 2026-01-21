@@ -22,6 +22,7 @@ use services::services::{
     project::ProjectServiceError,
     remote_client::RemoteClientError,
     repo::RepoError as RepoServiceError,
+    share::ShareError,
     worktree_manager::WorktreeError,
 };
 use thiserror::Error;
@@ -80,6 +81,8 @@ pub enum ApiError {
     CommandBuilder(#[from] CommandBuildError),
     #[error(transparent)]
     Pty(#[from] PtyError),
+    #[error(transparent)]
+    Share(#[from] ShareError),
 }
 
 impl From<&'static str> for ApiError {
@@ -186,6 +189,15 @@ impl IntoResponse for ApiError {
                 PtyError::SessionNotFound(_) => (StatusCode::NOT_FOUND, "PtyError"),
                 PtyError::SessionClosed => (StatusCode::GONE, "PtyError"),
                 _ => (StatusCode::INTERNAL_SERVER_ERROR, "PtyError"),
+            },
+            ApiError::Share(err) => match err {
+                ShareError::TaskNotFound(_) | ShareError::ProjectNotFound(_) => {
+                    (StatusCode::NOT_FOUND, "ShareError")
+                }
+                ShareError::AlreadyShared(_) => (StatusCode::CONFLICT, "ShareError"),
+                ShareError::MissingAuth => (StatusCode::UNAUTHORIZED, "ShareError"),
+                ShareError::MissingConfig(_) => (StatusCode::BAD_REQUEST, "ShareError"),
+                _ => (StatusCode::INTERNAL_SERVER_ERROR, "ShareError"),
             },
         };
 

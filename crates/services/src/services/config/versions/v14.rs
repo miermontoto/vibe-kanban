@@ -57,6 +57,10 @@ fn default_open_pr_in_browser() -> bool {
     true
 }
 
+fn default_commit_reminder() -> bool {
+    false
+}
+
 fn default_git_auto_push_mode() -> GitAutoPushMode {
     GitAutoPushMode::default()
 }
@@ -130,6 +134,9 @@ pub struct Config {
     /// cuando está habilitado, abre el PR en una nueva pestaña del navegador después de crearlo
     #[serde(default = "default_open_pr_in_browser")]
     pub open_pr_in_browser: bool,
+    /// commit reminder for uncommitted changes (from upstream)
+    #[serde(default = "default_commit_reminder")]
+    pub commit_reminder: bool,
 }
 
 impl Config {
@@ -162,6 +169,7 @@ impl Config {
             // nuevo campo con valor por defecto
             git_auto_push_mode: default_git_auto_push_mode(),
             open_pr_in_browser: default_open_pr_in_browser(),
+            commit_reminder: default_commit_reminder(),
         }
     }
 
@@ -221,6 +229,7 @@ impl Default for Config {
             redirect_to_attempt_on_create: false,
             git_auto_push_mode: GitAutoPushMode::default(),
             open_pr_in_browser: true,
+            commit_reminder: false,
         }
     }
 }

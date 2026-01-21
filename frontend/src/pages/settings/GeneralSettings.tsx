@@ -21,14 +21,8 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-<<<<<<< HEAD
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Volume2 } from 'lucide-react';
-||||||| 3902cc95
-import { Loader2, Volume2 } from 'lucide-react';
-=======
 import { FolderOpen, Loader2, Volume2 } from 'lucide-react';
->>>>>>> upstream/main
 import {
   DEFAULT_PR_DESCRIPTION_PROMPT,
   DEFAULT_COMMIT_TITLE_PROMPT,
@@ -580,7 +574,6 @@ export function GeneralSettings() {
               )}
             </p>
           </div>
-<<<<<<< HEAD
           <div className="flex items-center space-x-2">
             <Checkbox
               id="git-auto-commit"
@@ -708,36 +701,6 @@ export function GeneralSettings() {
               )}
             </>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.general.tasks.title')}</CardTitle>
-          <CardDescription>
-            {t('settings.general.tasks.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="redirect-to-attempt"
-              checked={draft?.redirect_to_attempt_on_create ?? true}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ redirect_to_attempt_on_create: checked })
-              }
-            />
-            <div className="space-y-0.5">
-              <Label htmlFor="redirect-to-attempt" className="cursor-pointer">
-                {t('settings.general.tasks.redirectToAttempt.label')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('settings.general.tasks.redirectToAttempt.helper')}
-              </p>
-            </div>
-          </div>
-||||||| 3902cc95
-=======
 
           <div className="space-y-2">
             <Label htmlFor="workspace-dir">
@@ -768,7 +731,34 @@ export function GeneralSettings() {
               {t('settings.general.git.workspaceDir.helper')}
             </p>
           </div>
->>>>>>> upstream/main
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('settings.general.tasks.title')}</CardTitle>
+          <CardDescription>
+            {t('settings.general.tasks.description')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="redirect-to-attempt"
+              checked={draft?.redirect_to_attempt_on_create ?? true}
+              onCheckedChange={(checked: boolean) =>
+                updateDraft({ redirect_to_attempt_on_create: checked })
+              }
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="redirect-to-attempt" className="cursor-pointer">
+                {t('settings.general.tasks.redirectToAttempt.label')}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settings.general.tasks.redirectToAttempt.helper')}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -1031,8 +1021,6 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
-<<<<<<< HEAD
-||||||| 3902cc95
       <Card>
         <CardHeader>
           <CardTitle>{t('settings.general.beta.title')}</CardTitle>
@@ -1041,52 +1029,6 @@ export function GeneralSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="beta-workspaces"
-              checked={draft?.beta_workspaces ?? false}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ beta_workspaces: checked })
-              }
-            />
-            <div className="space-y-0.5">
-              <Label htmlFor="beta-workspaces" className="cursor-pointer">
-                {t('settings.general.beta.workspaces.label')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('settings.general.beta.workspaces.helper')}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-=======
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.general.beta.title')}</CardTitle>
-          <CardDescription>
-            {t('settings.general.beta.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="beta-workspaces"
-              checked={draft?.beta_workspaces ?? false}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ beta_workspaces: checked })
-              }
-            />
-            <div className="space-y-0.5">
-              <Label htmlFor="beta-workspaces" className="cursor-pointer">
-                {t('settings.general.beta.workspaces.label')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('settings.general.beta.workspaces.helper')}
-              </p>
-            </div>
-          </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="commit-reminder"
@@ -1107,7 +1049,6 @@ export function GeneralSettings() {
         </CardContent>
       </Card>
 
->>>>>>> upstream/main
       {/* Sticky Save Button */}
       <div className="sticky bottom-0 z-10 bg-background/80 backdrop-blur-sm border-t py-4">
         <div className="flex items-center justify-between">

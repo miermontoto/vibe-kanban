@@ -23,6 +23,7 @@ pub mod projects;
 pub mod repo;
 pub mod scratch;
 pub mod sessions;
+pub mod shared_tasks;
 pub mod tags;
 pub mod task_attempts;
 pub mod task_labels;
@@ -51,6 +52,7 @@ pub fn router(deployment: DeploymentImpl) -> IntoMakeService<Router> {
         .merge(sessions::router(&deployment))
         .merge(pending_commits::router())
         .merge(terminal::router())
+        .merge(shared_tasks::router())
         .nest("/images", images::routes())
         .layer(ValidateRequestHeaderLayer::custom(
             middleware::validate_origin,

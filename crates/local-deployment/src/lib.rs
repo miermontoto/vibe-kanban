@@ -253,6 +253,16 @@ impl Deployment for LocalDeployment {
     fn auth_context(&self) -> &AuthContext {
         &self.auth_context
     }
+
+    fn share_publisher(
+        &self,
+    ) -> Result<services::services::share::SharePublisher, RemoteClientNotConfigured> {
+        let client = self.remote_client.clone()?;
+        Ok(services::services::share::SharePublisher::new(
+            self.db.clone(),
+            client,
+        ))
+    }
 }
 
 impl LocalDeployment {

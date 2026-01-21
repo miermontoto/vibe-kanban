@@ -30,6 +30,7 @@ use services::services::{
     project::ProjectService,
     queued_message::QueuedMessageService,
     repo::RepoService,
+    share::SharePublisher,
     worktree_manager::WorktreeError,
 };
 use sqlx::Error as SqlxError;
