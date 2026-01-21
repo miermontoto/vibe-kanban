@@ -57,6 +57,16 @@ pub fn validate_origin<B>(req: &mut Request<B>) -> Result<(), Response> {
         return Err(forbidden());
     };
 
+    // permitir cross-port localhost requests (necesario para dev con frontend/backend en puertos distintos)
+    if origin_key.host == "localhost" {
+        if let Some(host_key) =
+            host.and_then(|host| OriginKey::from_host_header(host, origin_key.https))
+            && host_key.host == "localhost"
+        {
+            return Ok(());
+        }
+    }
+
     if allowed_origins()
         .iter()
         .any(|allowed| allowed == &origin_key)
@@ -225,6 +235,14 @@ mod tests {
 
         // Cross-loopback requests should be allowed
         let mut req = make_request(Some("http://127.0.0.1:3000"), Some("[::1]:3000"));
+        assert!(validate_origin(&mut req).is_ok());
+
+        // Cross-port localhost requests should be allowed (dev: frontend on 3000, backend on 44265)
+        let mut req = make_request(Some("http://localhost:3000"), Some("localhost:44265"));
+        assert!(validate_origin(&mut req).is_ok());
+
+        // Also with loopback IP variants
+        let mut req = make_request(Some("http://127.0.0.1:3000"), Some("localhost:44265"));
         assert!(validate_origin(&mut req).is_ok());
     }
 
