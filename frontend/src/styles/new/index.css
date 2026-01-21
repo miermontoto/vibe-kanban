@@ -354,16 +354,7 @@
   }
 }
 
-/* Animated border for running chat box */
-@keyframes border-flash {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
+/* Static border for running chat box */
 @layer components {
   .new-design .chat-box-running {
     @apply relative;
@@ -374,14 +365,7 @@
     @apply absolute inset-0 pointer-events-none rounded-t-md;
     padding: 1px;
     padding-bottom: 0;
-    background: linear-gradient(
-      45deg,
-      transparent,
-      hsl(var(--brand-secondary)),
-      transparent
-    );
-    background-size: 200% 100%;
-    animation: border-flash 2s linear infinite;
+    background: hsl(var(--brand-secondary));
     -webkit-mask:
       linear-gradient(#fff 0 0) content-box,
       linear-gradient(#fff 0 0);

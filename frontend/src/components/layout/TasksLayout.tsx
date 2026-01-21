@@ -1,6 +1,5 @@
 import { ReactNode, useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 export type LayoutMode = 'preview' | 'diffs' | null;
@@ -19,25 +18,11 @@ const MIN_PANEL_SIZE = 20; // percentage (0-100)
 const COLLAPSED_SIZE = 0; // percentage (0-100)
 
 /**
- * AuxRouter - Handles nested AnimatePresence for preview/diffs transitions.
+ * AuxRouter - Renders preview/diffs content.
  */
 function AuxRouter({ mode, aux }: { mode: LayoutMode; aux: ReactNode }) {
-  return (
-    <AnimatePresence initial={false} mode="popLayout">
-      {mode && (
-        <motion.div
-          key={mode}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
-          className="h-full min-h-0"
-        >
-          {aux}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  if (!mode) return null;
+  return <div className="h-full min-h-0">{aux}</div>;
 }
 
 /**
@@ -98,13 +83,12 @@ function RightWorkArea({
                 'relative z-30 bg-border cursor-col-resize group touch-none',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
                 'focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-                'transition-all',
                 isAttemptCollapsed ? 'w-6' : 'w-1'
               )}
               aria-label="Resize panels"
             >
               <div className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border" />
-              <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 bg-muted/90 border border-border rounded-full px-1.5 py-3 opacity-70 group-hover:opacity-100 group-focus:opacity-100 transition-opacity shadow-sm">
+              <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 bg-muted/90 border border-border rounded-full px-1.5 py-3 opacity-70 group-hover:opacity-100 group-focus:opacity-100 shadow-sm">
                 <span className="w-1 h-1 rounded-full bg-muted-foreground" />
                 <span className="w-1 h-1 rounded-full bg-muted-foreground" />
                 <span className="w-1 h-1 rounded-full bg-muted-foreground" />
@@ -192,13 +176,12 @@ function DesktopSimple({
           'relative z-30 bg-border cursor-col-resize group touch-none',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
           'focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-          'transition-all',
           isKanbanCollapsed ? 'w-6' : 'w-1'
         )}
         aria-label="Resize panels"
       >
         <div className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border" />
-        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 bg-muted/90 border border-border rounded-full px-1.5 py-3 opacity-70 group-hover:opacity-100 group-focus:opacity-100 transition-opacity shadow-sm">
+        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 bg-muted/90 border border-border rounded-full px-1.5 py-3 opacity-70 group-hover:opacity-100 group-focus:opacity-100 shadow-sm">
           <span className="w-1 h-1 rounded-full bg-muted-foreground" />
           <span className="w-1 h-1 rounded-full bg-muted-foreground" />
           <span className="w-1 h-1 rounded-full bg-muted-foreground" />
@@ -231,8 +214,6 @@ export function TasksLayout({
   isMobile = false,
   rightHeader,
 }: TasksLayoutProps) {
-  const desktopKey = isPanelOpen ? 'desktop-with-panel' : 'kanban-only';
-
   if (isMobile) {
     // When panel is open and mode is set, show aux content (preview/diffs)
     // Otherwise show attempt content
@@ -284,18 +265,5 @@ export function TasksLayout({
     );
   }
 
-  return (
-    <AnimatePresence initial={false} mode="popLayout">
-      <motion.div
-        key={desktopKey}
-        className="h-full min-h-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3, ease: [0.2, 0, 0, 1] }}
-      >
-        {desktopNode}
-      </motion.div>
-    </AnimatePresence>
-  );
+  return <div className="h-full min-h-0">{desktopNode}</div>;
 }
