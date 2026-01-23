@@ -28,6 +28,7 @@ pub type UiLanguage = versions::v14::UiLanguage;
 pub type ShowcaseState = versions::v14::ShowcaseState;
 pub type GitCommitTitleMode = versions::v14::GitCommitTitleMode;
 pub type GitAutoPushMode = versions::v14::GitAutoPushMode;
+pub type SendMessageShortcut = versions::v14::SendMessageShortcut;
 pub use versions::v14::DEFAULT_COMMIT_TITLE_PROMPT;
 
 /// Will always return config, trying old schemas or eventually returning default

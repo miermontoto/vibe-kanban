@@ -7,6 +7,16 @@ pub use v13::{
     NotificationConfig, ShowcaseState, SoundFile, ThemeMode, UiLanguage,
 };
 
+/// shortcut for sending messages in chat
+#[derive(Clone, Debug, Serialize, Deserialize, TS, Default, PartialEq)]
+pub enum SendMessageShortcut {
+    /// Cmd/Ctrl + Enter to send
+    #[default]
+    ModifierEnter,
+    /// Enter to send (Shift+Enter for newline)
+    Enter,
+}
+
 use crate::services::config::versions::v13;
 
 fn default_git_branch_prefix() -> String {
@@ -63,6 +73,10 @@ fn default_commit_reminder() -> bool {
 
 fn default_git_auto_push_mode() -> GitAutoPushMode {
     GitAutoPushMode::default()
+}
+
+fn default_send_message_shortcut() -> SendMessageShortcut {
+    SendMessageShortcut::default()
 }
 
 /// modo de auto-push después de commits
@@ -137,6 +151,9 @@ pub struct Config {
     /// commit reminder for uncommitted changes (from upstream)
     #[serde(default = "default_commit_reminder")]
     pub commit_reminder: bool,
+    /// shortcut for sending messages in chat
+    #[serde(default = "default_send_message_shortcut")]
+    pub send_message_shortcut: SendMessageShortcut,
 }
 
 impl Config {
@@ -170,6 +187,7 @@ impl Config {
             git_auto_push_mode: default_git_auto_push_mode(),
             open_pr_in_browser: default_open_pr_in_browser(),
             commit_reminder: default_commit_reminder(),
+            send_message_shortcut: default_send_message_shortcut(),
         }
     }
 
@@ -230,6 +248,7 @@ impl Default for Config {
             git_auto_push_mode: GitAutoPushMode::default(),
             open_pr_in_browser: true,
             commit_reminder: false,
+            send_message_shortcut: SendMessageShortcut::default(),
         }
     }
 }

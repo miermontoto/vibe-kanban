@@ -8,7 +8,7 @@ import {
   useRef,
 } from 'react';
 import type { PatchTypeWithKey } from '@/hooks/useConversationHistory';
-import { NormalizedEntry, TokenUsageInfo } from 'shared/types';
+import { TokenUsageInfo } from 'shared/types';
 
 // cache of conversations indexed by attempt id
 type ConversationCache = Map<
@@ -31,6 +31,7 @@ const isCacheStale = (timestamp: number): boolean => {
 interface EntriesContextType {
   entries: PatchTypeWithKey[];
   setEntries: (entries: PatchTypeWithKey[]) => void;
+  setTokenUsageInfo: (info: TokenUsageInfo | null) => void;
   reset: () => void;
   // cache methods
   getCachedEntries: (attemptId: string) => PatchTypeWithKey[] | null;
@@ -58,21 +59,16 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
     null
   );
 
-  const extractTokenUsageInfo = (
-    entries: PatchTypeWithKey[]
-  ): TokenUsageInfo | null => {
-    const latest = entries.findLast(
-      (e) =>
-        e.type === 'NORMALIZED_ENTRY' &&
-        e.content.entry_type.type === 'token_usage_info'
-    )?.content as NormalizedEntry | undefined;
-    return (latest?.entry_type as TokenUsageInfo) ?? null;
-  };
-
   const setEntries = useCallback((newEntries: PatchTypeWithKey[]) => {
     setEntriesState(newEntries);
-    setTokenUsageInfo(extractTokenUsageInfo(newEntries));
   }, []);
+
+  const setTokenUsageInfoCallback = useCallback(
+    (info: TokenUsageInfo | null) => {
+      setTokenUsageInfo(info);
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     setEntriesState([]);
@@ -140,6 +136,7 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
     () => ({
       entries,
       setEntries,
+      setTokenUsageInfo: setTokenUsageInfoCallback,
       reset,
       getCachedEntries,
       setCachedEntries,
@@ -151,6 +148,7 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
     [
       entries,
       setEntries,
+      setTokenUsageInfoCallback,
       reset,
       getCachedEntries,
       setCachedEntries,

@@ -9,7 +9,8 @@ type Args = {
   conflictMarkdown: string | null;
   reviewMarkdown: string;
   clickedMarkdown?: string;
-  selectedVariant: string | null;
+  executor: BaseCodingAgent | null;
+  variant: string | null;
   clearComments: () => void;
   clearClickedElements?: () => void;
   onAfterSendCleanup: () => void;
@@ -23,7 +24,8 @@ export function useFollowUpSend({
   conflictMarkdown,
   reviewMarkdown,
   clickedMarkdown,
-  selectedVariant,
+  executor,
+  variant,
   clearComments,
   clearClickedElements,
   onAfterSendCleanup,
@@ -34,7 +36,7 @@ export function useFollowUpSend({
   const [followUpError, setFollowUpError] = useState<string | null>(null);
 
   const onSendFollowUp = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId || !executor) return;
     const extraMessage = message.trim();
     const finalPrompt = [
       conflictMarkdown,
@@ -54,7 +56,7 @@ export function useFollowUpSend({
       setFollowUpError(null);
       const body: CreateFollowUpAttempt = {
         prompt: finalPrompt,
-        variant: selectedVariant,
+        executor_profile_id: { executor, variant },
         retry_process_id: null,
         force_when_dirty: null,
         perform_git_reset: null,
@@ -115,7 +117,8 @@ export function useFollowUpSend({
     conflictMarkdown,
     reviewMarkdown,
     clickedMarkdown,
-    selectedVariant,
+    executor,
+    variant,
     clearComments,
     clearClickedElements,
     onAfterSendCleanup,

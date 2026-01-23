@@ -76,7 +76,12 @@ pub struct AbortConflictsRequest {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(tag = "type", rename_all = "snake_case")]
 pub enum GitOperationError {
-    MergeConflicts { message: String, op: ConflictOp },
+    MergeConflicts {
+        message: String,
+        op: ConflictOp,
+        conflicted_files: Vec<String>,
+        target_branch: String,
+    },
     RebaseInProgress,
 }
 
@@ -1186,15 +1191,19 @@ pub async fn rebase_task_attempt(
     if let Err(e) = result {
         use services::services::git::GitServiceError;
         return match e {
-            GitServiceError::MergeConflicts(msg) => Ok(ResponseJson(ApiResponse::<
-                (),
-                GitOperationError,
-            >::error_with_data(
-                GitOperationError::MergeConflicts {
-                    message: msg,
-                    op: ConflictOp::Rebase,
-                },
-            ))),
+            GitServiceError::MergeConflicts {
+                message,
+                conflicted_files,
+            } => Ok(ResponseJson(
+                ApiResponse::<(), GitOperationError>::error_with_data(
+                    GitOperationError::MergeConflicts {
+                        message,
+                        op: ConflictOp::Rebase,
+                        conflicted_files,
+                        target_branch: new_base_branch.clone(),
+                    },
+                ),
+            )),
             GitServiceError::RebaseInProgress => Ok(ResponseJson(ApiResponse::<
                 (),
                 GitOperationError,
@@ -1462,9 +1471,7 @@ pub async fn run_setup_script(
         None => {
             Session::create(
                 pool,
-                &CreateSession {
-                    executor: Some("setup-script".to_string()),
-                },
+                &CreateSession { executor: None },
                 Uuid::new_v4(),
                 workspace.id,
             )
@@ -1544,9 +1551,7 @@ pub async fn run_cleanup_script(
         None => {
             Session::create(
                 pool,
-                &CreateSession {
-                    executor: Some("cleanup-script".to_string()),
-                },
+                &CreateSession { executor: None },
                 Uuid::new_v4(),
                 workspace.id,
             )

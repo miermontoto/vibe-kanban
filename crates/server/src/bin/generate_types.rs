@@ -170,6 +170,7 @@ fn generate_types_content() -> String {
         services::services::config::ShowcaseState::decl(),
         services::services::config::GitCommitTitleMode::decl(),
         services::services::config::GitAutoPushMode::decl(),
+        services::services::config::SendMessageShortcut::decl(),
         db::models::pending_commit::PendingCommit::decl(),
         db::models::pending_commit::CreatePendingCommit::decl(),
         server::routes::pending_commits::CommitPendingRequest::decl(),
