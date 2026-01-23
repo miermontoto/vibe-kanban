@@ -3,7 +3,11 @@
 //! These helpers abstract over JSON vs TOML vs JSONC formats used by different agents.
 //! JSONC (JSON with Comments) is supported with comment preservation using jsonc-parser's CST.
 
-use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 use jsonc_parser::{
     ParseOptions,

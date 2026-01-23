@@ -147,7 +147,10 @@ export function NextActionCard({
       // enviar un follow-up sin mensaje que continúa desde el proceso fallido
       await sessionsApi.followUp(attempt.session.id, {
         prompt: '',
-        variant: null,
+        executor_profile_id: {
+          executor: attempt.session.executor as BaseCodingAgent,
+          variant: null,
+        },
         retry_process_id: null,
         force_when_dirty: false,
         perform_git_reset: false,

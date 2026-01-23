@@ -76,7 +76,7 @@ export function useFollowUpSend({
               session_id: sessionId,
               executor_profile_id: {
                 executor: BaseCodingAgent.CLAUDE_CODE,
-                variant: selectedVariant,
+                variant,
               },
               working_dir: null,
             },
