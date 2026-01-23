@@ -58,13 +58,12 @@ pub fn validate_origin<B>(req: &mut Request<B>) -> Result<(), Response> {
     };
 
     // permitir cross-port localhost requests (necesario para dev con frontend/backend en puertos distintos)
-    if origin_key.host == "localhost" {
-        if let Some(host_key) =
+    if origin_key.host == "localhost"
+        && let Some(host_key) =
             host.and_then(|host| OriginKey::from_host_header(host, origin_key.https))
-            && host_key.host == "localhost"
-        {
-            return Ok(());
-        }
+        && host_key.host == "localhost"
+    {
+        return Ok(());
     }
 
     if allowed_origins()
