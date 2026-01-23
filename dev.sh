@@ -53,22 +53,18 @@ rm -f "$PORT_FILE"
 cargo run --bin vkm &
 BACKEND_PID=$!
 
-# wait for backend to write its port (max 60s)
-echo "Waiting for backend to start..."
-for i in {1..60}; do
-    if [ -f "$PORT_FILE" ]; then
-        export BACKEND_PORT=$(cat "$PORT_FILE")
-        echo "Backend running on port $BACKEND_PORT"
-        break
+# wait for backend to write its port (no timeout - cold compiles can take a while)
+echo "Waiting for backend to compile and start..."
+while [ ! -f "$PORT_FILE" ]; do
+    # check if backend process died
+    if ! kill -0 $BACKEND_PID 2>/dev/null; then
+        echo "ERROR: Backend process exited unexpectedly"
+        exit 1
     fi
     sleep 1
 done
-
-if [ -z "$BACKEND_PORT" ]; then
-    echo "ERROR: Backend failed to start within 60s"
-    kill $BACKEND_PID 2>/dev/null
-    exit 1
-fi
+export BACKEND_PORT=$(cat "$PORT_FILE")
+echo "Backend running on port $BACKEND_PORT"
 
 # start frontend with backend port
 cd frontend
