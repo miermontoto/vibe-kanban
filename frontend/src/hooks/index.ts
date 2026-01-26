@@ -34,6 +34,8 @@ export { useOrganizationMutations } from './useOrganizationMutations';
 export { useVariant } from './useVariant';
 export { useRetryProcess } from './useRetryProcess';
 export { useProjects } from './useProjects';
+export { useActiveTasksAcrossProjects } from './useActiveTasksAcrossProjects';
+export type { ActiveTaskWithProject } from './useActiveTasksAcrossProjects';
 export { useCollapsedCards } from './useCollapsedCards';
 export {
   usePendingCommits,

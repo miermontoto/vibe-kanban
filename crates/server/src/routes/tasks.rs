@@ -99,6 +99,47 @@ async fn handle_tasks_ws(
     Ok(())
 }
 
+pub async fn stream_active_tasks_ws(
+    ws: WebSocketUpgrade,
+    State(deployment): State<DeploymentImpl>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| async move {
+        if let Err(e) = handle_active_tasks_ws(socket, deployment).await {
+            tracing::warn!("active tasks WS closed: {}", e);
+        }
+    })
+}
+
+async fn handle_active_tasks_ws(
+    socket: WebSocket,
+    deployment: DeploymentImpl,
+) -> anyhow::Result<()> {
+    let mut stream = deployment
+        .events()
+        .stream_active_tasks_raw()
+        .await?
+        .map_ok(|msg| msg.to_ws_message_unchecked());
+
+    let (mut sender, mut receiver) = socket.split();
+
+    tokio::spawn(async move { while let Some(Ok(_)) = receiver.next().await {} });
+
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(msg) => {
+                if sender.send(msg).await.is_err() {
+                    break;
+                }
+            }
+            Err(e) => {
+                tracing::error!("active tasks stream error: {}", e);
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
 pub async fn get_task(
     Extension(task): Extension<Task>,
     State(_deployment): State<DeploymentImpl>,
@@ -476,6 +517,7 @@ pub fn router(deployment: &DeploymentImpl) -> Router<DeploymentImpl> {
     let inner = Router::new()
         .route("/", get(get_tasks).post(create_task))
         .route("/stream/ws", get(stream_tasks_ws))
+        .route("/active/stream/ws", get(stream_active_tasks_ws))
         .route("/create-and-start", post(create_task_and_start))
         .nest("/{task_id}", task_id_router);
 

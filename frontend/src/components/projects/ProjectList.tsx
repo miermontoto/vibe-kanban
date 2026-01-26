@@ -11,6 +11,7 @@ import { AlertCircle, Loader2, Plus } from 'lucide-react';
 import ProjectCard from '@/components/projects/ProjectCard.tsx';
 import { useKeyCreate, Scope } from '@/keyboard';
 import { useProjects } from '@/hooks/useProjects';
+import { ActiveTasksDashboard } from '@/components/dashboard/ActiveTasksDashboard';
 
 export function ProjectList() {
   const navigate = useNavigate();
@@ -91,17 +92,20 @@ export function ProjectList() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              isFocused={focusedProjectId === project.id}
-              setError={setError}
-              onEdit={handleEditProject}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                isFocused={focusedProjectId === project.id}
+                setError={setError}
+                onEdit={handleEditProject}
+              />
+            ))}
+          </div>
+          <ActiveTasksDashboard />
+        </>
       )}
     </div>
   );

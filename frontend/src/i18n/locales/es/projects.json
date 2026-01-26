@@ -55,5 +55,12 @@
   "projectNotFound": "El proyecto que buscas no existe o ha sido eliminado.",
   "viewProject": "Ver Proyecto",
   "openInIDE": "Abrir en IDE",
-  "createdDate": "Creado {{date}}"
+  "createdDate": "Creado {{date}}",
+  "dashboard": {
+    "activeTasks": "Tareas Activas",
+    "inProgress": "en progreso",
+    "inReview": "en revisión",
+    "loading": "Cargando tareas activas...",
+    "error": "Error al cargar tareas activas"
+  }
 }

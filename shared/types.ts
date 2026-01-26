@@ -124,6 +124,8 @@ export type Task = { id: string, project_id: string, title: string, description:
 
 export type TaskWithAttemptStatus = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
 
+export type ActiveTaskWithProject = { has_in_progress_attempt: boolean, last_attempt_failed: boolean, executor: string, pr_number: bigint | null, pr_url: string | null, project_name: string, id: string, project_id: string, title: string, description: string | null, status: TaskStatus, parent_workspace_id: string | null, shared_task_id: string | null, use_ralph_wiggum: boolean, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, created_at: string, updated_at: string, };
+
 export type TaskRelationships = { parent_task: Task | null, current_workspace: Workspace, children: Array<Task>, };
 
 export type CreateTask = { project_id: string, title: string, description: string | null, status: TaskStatus | null, parent_workspace_id: string | null, image_ids: Array<string> | null, shared_task_id: string | null, use_ralph_wiggum: boolean | null, ralph_max_iterations: bigint | null, ralph_completion_promise: string | null, label_ids: Array<string> | null, };

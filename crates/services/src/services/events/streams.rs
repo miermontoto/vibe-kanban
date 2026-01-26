@@ -2,7 +2,7 @@ use db::models::{
     execution_process::ExecutionProcess,
     project::{Project, ProjectWithTaskCounts},
     scratch::Scratch,
-    task::{Task, TaskWithAttemptStatus},
+    task::{ActiveTaskWithProject, Task, TaskWithAttemptStatus},
     workspace::Workspace,
 };
 use futures::StreamExt;
@@ -141,6 +141,170 @@ impl EventService {
             });
 
         // Start with initial snapshot, Ready signal, then live updates
+        let initial_stream = futures::stream::iter(vec![Ok(initial_msg), Ok(LogMsg::Ready)]);
+        let combined_stream = initial_stream.chain(filtered_stream).boxed();
+
+        Ok(combined_stream)
+    }
+
+    /// Stream active tasks (inprogress, inreview) across all projects with initial snapshot
+    pub async fn stream_active_tasks_raw(
+        &self,
+    ) -> Result<futures::stream::BoxStream<'static, Result<LogMsg, std::io::Error>>, EventError>
+    {
+        fn build_active_tasks_snapshot(tasks: Vec<ActiveTaskWithProject>) -> LogMsg {
+            let tasks_map: serde_json::Map<String, serde_json::Value> = tasks
+                .into_iter()
+                .map(|task| (task.task.id.to_string(), serde_json::to_value(task).unwrap()))
+                .collect();
+
+            let patch = json!([
+                {
+                    "op": "replace",
+                    "path": "/tasks",
+                    "value": tasks_map
+                }
+            ]);
+
+            LogMsg::JsonPatch(serde_json::from_value(patch).unwrap())
+        }
+
+        // Get initial snapshot of active tasks across all projects
+        let tasks = Task::find_active_with_project_names(&self.db.pool).await?;
+        let initial_msg = build_active_tasks_snapshot(tasks);
+
+        let db_pool = self.db.pool.clone();
+
+        // Filter for active task updates
+        let filtered_stream =
+            BroadcastStream::new(self.msg_store.get_receiver()).filter_map(move |msg_result| {
+                let db_pool = db_pool.clone();
+                async move {
+                    match msg_result {
+                        Ok(LogMsg::JsonPatch(patch)) => {
+                            if let Some(patch_op) = patch.0.first() {
+                                // Handle direct task patches
+                                if patch_op.path().starts_with("/tasks/") {
+                                    match patch_op {
+                                        json_patch::PatchOperation::Add(op) => {
+                                            if let Ok(task) =
+                                                serde_json::from_value::<TaskWithAttemptStatus>(
+                                                    op.value.clone(),
+                                                )
+                                            {
+                                                // Only include if status is inprogress or inreview
+                                                if task.status == db::models::task::TaskStatus::InProgress
+                                                    || task.status == db::models::task::TaskStatus::InReview
+                                                {
+                                                    // Fetch project name and construct ActiveTaskWithProject
+                                                    if let Ok(Some(project)) =
+                                                        db::models::project::Project::find_by_id(
+                                                            &db_pool,
+                                                            task.project_id,
+                                                        )
+                                                        .await
+                                                    {
+                                                        let active_task = ActiveTaskWithProject {
+                                                            task: task.task,
+                                                            has_in_progress_attempt: task.has_in_progress_attempt,
+                                                            last_attempt_failed: task.last_attempt_failed,
+                                                            executor: task.executor,
+                                                            pr_number: task.pr_number,
+                                                            pr_url: task.pr_url,
+                                                            project_name: project.name,
+                                                        };
+                                                        let new_patch = json!([{
+                                                            "op": "add",
+                                                            "path": format!("/tasks/{}", active_task.task.id),
+                                                            "value": active_task
+                                                        }]);
+                                                        return Some(Ok(LogMsg::JsonPatch(
+                                                            serde_json::from_value(new_patch).unwrap(),
+                                                        )));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        json_patch::PatchOperation::Replace(op) => {
+                                            if let Ok(task) =
+                                                serde_json::from_value::<TaskWithAttemptStatus>(
+                                                    op.value.clone(),
+                                                )
+                                            {
+                                                // If task transitions OUT of active status, remove it
+                                                if task.status != db::models::task::TaskStatus::InProgress
+                                                    && task.status != db::models::task::TaskStatus::InReview
+                                                {
+                                                    let remove_patch = json!([{
+                                                        "op": "remove",
+                                                        "path": format!("/tasks/{}", task.task.id)
+                                                    }]);
+                                                    return Some(Ok(LogMsg::JsonPatch(
+                                                        serde_json::from_value(remove_patch).unwrap(),
+                                                    )));
+                                                }
+                                                // If task is still active, update it with project name
+                                                if let Ok(Some(project)) =
+                                                    db::models::project::Project::find_by_id(
+                                                        &db_pool,
+                                                        task.project_id,
+                                                    )
+                                                    .await
+                                                {
+                                                    let active_task = ActiveTaskWithProject {
+                                                        task: task.task,
+                                                        has_in_progress_attempt: task.has_in_progress_attempt,
+                                                        last_attempt_failed: task.last_attempt_failed,
+                                                        executor: task.executor,
+                                                        pr_number: task.pr_number,
+                                                        pr_url: task.pr_url,
+                                                        project_name: project.name,
+                                                    };
+                                                    let new_patch = json!([{
+                                                        "op": "replace",
+                                                        "path": format!("/tasks/{}", active_task.task.id),
+                                                        "value": active_task
+                                                    }]);
+                                                    return Some(Ok(LogMsg::JsonPatch(
+                                                        serde_json::from_value(new_patch).unwrap(),
+                                                    )));
+                                                }
+                                            }
+                                        }
+                                        json_patch::PatchOperation::Remove(_) => {
+                                            // Pass through removals
+                                            return Some(Ok(LogMsg::JsonPatch(patch)));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            None
+                        }
+                        Ok(other) => Some(Ok(other)),
+                        Err(BroadcastStreamRecvError::Lagged(skipped)) => {
+                            tracing::warn!(
+                                skipped = skipped,
+                                "active tasks stream lagged; resyncing snapshot"
+                            );
+
+                            match Task::find_active_with_project_names(&db_pool).await {
+                                Ok(tasks) => Some(Ok(build_active_tasks_snapshot(tasks))),
+                                Err(err) => {
+                                    tracing::error!(
+                                        error = %err,
+                                        "failed to resync active tasks after lag"
+                                    );
+                                    Some(Err(std::io::Error::other(format!(
+                                        "failed to resync active tasks after lag: {err}"
+                                    ))))
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
         let initial_stream = futures::stream::iter(vec![Ok(initial_msg), Ok(LogMsg::Ready)]);
         let combined_stream = initial_stream.chain(filtered_stream).boxed();
 
