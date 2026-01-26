@@ -180,7 +180,7 @@ impl EventService {
                 }
             ]);
 
-            serde_json::from_value(patch)
+            Ok(LogMsg::JsonPatch(serde_json::from_value(patch)?))
         }
 
         // Get initial snapshot of active tasks across all projects
