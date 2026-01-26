@@ -8,8 +8,9 @@ import type { TaskWithAttemptStatus } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { NewCardContent } from '../ui/new-card';
 import { Button } from '../ui/button';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { CreateAttemptDialog } from '@/components/dialogs/tasks/CreateAttemptDialog';
+import { DeleteAttemptDialog } from '@/components/dialogs/tasks/DeleteAttemptDialog';
 import WYSIWYGEditor from '@/components/ui/wysiwyg';
 import { DataTable, type ColumnDef } from '@/components/ui/table';
 
@@ -76,6 +77,14 @@ const TaskPanel = ({ task }: TaskPanelProps) => {
   const titleContent = `# ${task.title || 'Task'}`;
   const descriptionContent = task.description || '';
 
+  const handleDeleteAttempt = (
+    attempt: WorkspaceWithSession,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation(); // evita que se dispare el onRowClick
+    DeleteAttemptDialog.show({ attempt });
+  };
+
   const attemptColumns: ColumnDef<WorkspaceWithSession>[] = [
     {
       id: 'executor',
@@ -93,7 +102,23 @@ const TaskPanel = ({ task }: TaskPanelProps) => {
       id: 'time',
       header: '',
       accessor: (attempt) => formatTimeAgo(attempt.created_at),
-      className: 'pr-0 text-right',
+      className: 'pr-2 text-right',
+    },
+    {
+      id: 'actions',
+      header: '',
+      accessor: (attempt) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+          onClick={(e) => handleDeleteAttempt(attempt, e)}
+          title={t('deleteAttemptDialog.title')}
+        >
+          <Trash2Icon size={14} />
+        </Button>
+      ),
+      className: 'w-8 text-right',
     },
   ];
 

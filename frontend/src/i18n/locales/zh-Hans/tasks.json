@@ -760,5 +760,15 @@
     "statusSuccess": "成功完成",
     "statusFailed": "失败，退出代码 {{exitCode}}",
     "statusKilled": "进程已被终止"
+  },
+  "deleteAttemptDialog": {
+    "title": "删除尝试",
+    "description": "确定要删除 \"{{name}}\" 吗？",
+    "warningTitle": "警告：",
+    "warningBody": "这将永久删除该尝试，包括所有会话、执行日志和工作树数据。此操作无法撤销。",
+    "error": "删除尝试失败",
+    "cancel": "取消",
+    "confirm": "删除尝试",
+    "deleting": "删除中..."
   }
 }

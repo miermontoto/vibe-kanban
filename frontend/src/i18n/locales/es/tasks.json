@@ -760,5 +760,15 @@
     "statusSuccess": "Completado exitosamente",
     "statusFailed": "Falló con código de salida {{exitCode}}",
     "statusKilled": "El proceso fue terminado"
+  },
+  "deleteAttemptDialog": {
+    "title": "Eliminar intento",
+    "description": "¿Estás seguro de que deseas eliminar \"{{name}}\"?",
+    "warningTitle": "Advertencia:",
+    "warningBody": "Esto eliminará permanentemente el intento, incluyendo todas las sesiones, registros de ejecución y datos del worktree. Esta acción no se puede deshacer.",
+    "error": "Error al eliminar el intento",
+    "cancel": "Cancelar",
+    "confirm": "Eliminar intento",
+    "deleting": "Eliminando..."
   }
 }

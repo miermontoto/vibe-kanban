@@ -760,5 +760,15 @@
     "statusSuccess": "正常に完了しました",
     "statusFailed": "終了コード {{exitCode}} で失敗しました",
     "statusKilled": "プロセスが強制終了されました"
+  },
+  "deleteAttemptDialog": {
+    "title": "試行を削除",
+    "description": "\"{{name}}\" を削除してもよろしいですか？",
+    "warningTitle": "警告：",
+    "warningBody": "これにより、すべてのセッション、実行ログ、ワークツリーデータを含む試行が完全に削除されます。この操作は元に戻せません。",
+    "error": "試行の削除に失敗しました",
+    "cancel": "キャンセル",
+    "confirm": "試行を削除",
+    "deleting": "削除中..."
   }
 }
