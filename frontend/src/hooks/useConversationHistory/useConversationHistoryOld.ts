@@ -30,7 +30,13 @@ export const useConversationHistoryOld = ({
 }: UseConversationHistoryParams): UseConversationHistoryResult => {
   const { executionProcessesVisible: executionProcessesRaw } =
     useExecutionProcessesContext();
-  const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesRaw);
+  // filtrar procesos optimistas que empiezan con 'optimistic-' ya que se mostrarán
+  // via el proceso real una vez que llegue del servidor
+  const executionProcessesFiltered = useMemo(
+    () => executionProcessesRaw.filter((ep) => !ep.id.startsWith('optimistic-')),
+    [executionProcessesRaw]
+  );
+  const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesFiltered);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
   const streamingProcessIdsRef = useRef<Set<string>>(new Set());
@@ -48,13 +54,13 @@ export const useConversationHistoryOld = ({
 
   // Keep executionProcesses up to date
   useEffect(() => {
-    executionProcesses.current = executionProcessesRaw.filter(
+    executionProcesses.current = executionProcessesFiltered.filter(
       (ep) =>
         ep.run_reason === 'setupscript' ||
         ep.run_reason === 'cleanupscript' ||
         ep.run_reason === 'codingagent'
     );
-  }, [executionProcessesRaw]);
+  }, [executionProcessesFiltered]);
 
   const loadEntriesForHistoricExecutionProcess = (
     executionProcess: ExecutionProcess
@@ -522,13 +528,13 @@ export const useConversationHistoryOld = ({
   }, []);
 
   const idListKey = useMemo(
-    () => executionProcessesRaw?.map((p) => p.id).join(','),
-    [executionProcessesRaw]
+    () => executionProcessesFiltered?.map((p) => p.id).join(','),
+    [executionProcessesFiltered]
   );
 
   const idStatusKey = useMemo(
-    () => executionProcessesRaw?.map((p) => `${p.id}:${p.status}`).join(','),
-    [executionProcessesRaw]
+    () => executionProcessesFiltered?.map((p) => `${p.id}:${p.status}`).join(','),
+    [executionProcessesFiltered]
   );
 
   // Initial load when attempt changes
@@ -610,11 +616,11 @@ export const useConversationHistoryOld = ({
 
   // If an execution process is removed, remove it from the state
   useEffect(() => {
-    if (!executionProcessesRaw) return;
+    if (!executionProcessesFiltered) return;
 
     const removedProcessIds = Object.keys(
       displayedExecutionProcesses.current
-    ).filter((id) => !executionProcessesRaw.some((p) => p.id === id));
+    ).filter((id) => !executionProcessesFiltered.some((p) => p.id === id));
 
     if (removedProcessIds.length > 0) {
       mergeIntoDisplayed((state) => {
@@ -623,7 +629,7 @@ export const useConversationHistoryOld = ({
         });
       });
     }
-  }, [attempt.id, idListKey, executionProcessesRaw]);
+  }, [attempt.id, idListKey, executionProcessesFiltered]);
 
   // Reset state when attempt changes
   useEffect(() => {
