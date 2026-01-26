@@ -146,6 +146,14 @@
       "git": {
         "title": "Git",
         "description": "Configure git branch naming preferences",
+        "workspaceDir": {
+          "label": "Workspace Directory",
+          "placeholder": "/path/to/workspaces",
+          "browse": "Browse",
+          "helper": "Directory where git worktrees are created for task attempts. Leave empty to use the default location (~/.local/share/vkm/workspaces).",
+          "dialogTitle": "Select Workspace Directory",
+          "dialogDescription": "Choose the directory where git worktrees will be created for task attempts."
+        },
         "branchPrefix": {
           "label": "Branch Prefix",
           "placeholder": "vk",

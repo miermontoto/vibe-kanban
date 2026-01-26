@@ -146,6 +146,14 @@
       "git": {
         "title": "Git",
         "description": "Configurar preferencias de nombres de ramas git",
+        "workspaceDir": {
+          "label": "Directorio de Espacios de Trabajo",
+          "placeholder": "/ruta/a/workspaces",
+          "browse": "Explorar",
+          "helper": "Directorio donde se crean los worktrees de git para los intentos de tareas. Dejar vacío para usar la ubicación predeterminada (~/.local/share/vkm/workspaces).",
+          "dialogTitle": "Seleccionar Directorio de Espacios de Trabajo",
+          "dialogDescription": "Elige el directorio donde se crearán los worktrees de git para los intentos de tareas."
+        },
         "branchPrefix": {
           "label": "Prefijo de Rama",
           "placeholder": "vk",

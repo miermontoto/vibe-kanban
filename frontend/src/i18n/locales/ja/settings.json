@@ -146,6 +146,14 @@
       "git": {
         "title": "Git",
         "description": "Gitブランチ名の設定",
+        "workspaceDir": {
+          "label": "ワークスペースディレクトリ",
+          "placeholder": "/path/to/workspaces",
+          "browse": "参照",
+          "helper": "タスク試行用のgit worktreeが作成されるディレクトリ。空のままにするとデフォルトの場所（~/.local/share/vkm/workspaces）が使用されます。",
+          "dialogTitle": "ワークスペースディレクトリを選択",
+          "dialogDescription": "タスク試行用のgit worktreeが作成されるディレクトリを選択してください。"
+        },
         "branchPrefix": {
           "label": "ブランチプレフィックス",
           "placeholder": "vk",

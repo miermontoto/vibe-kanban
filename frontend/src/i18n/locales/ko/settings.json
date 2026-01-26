@@ -146,6 +146,14 @@
       "git": {
         "title": "Git",
         "description": "Git 브랜치 이름 지정 기본 설정 구성",
+        "workspaceDir": {
+          "label": "워크스페이스 디렉토리",
+          "placeholder": "/path/to/workspaces",
+          "browse": "찾아보기",
+          "helper": "작업 시도를 위한 git worktree가 생성되는 디렉토리입니다. 기본 위치(~/.local/share/vkm/workspaces)를 사용하려면 비워두세요.",
+          "dialogTitle": "워크스페이스 디렉토리 선택",
+          "dialogDescription": "작업 시도를 위한 git worktree가 생성될 디렉토리를 선택하세요."
+        },
         "branchPrefix": {
           "label": "브랜치 접두사",
           "placeholder": "vk",

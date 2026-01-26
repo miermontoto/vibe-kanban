@@ -146,6 +146,14 @@
       "git": {
         "title": "Git",
         "description": "配置 git 分支命名偏好",
+        "workspaceDir": {
+          "label": "工作区目录",
+          "placeholder": "/path/to/workspaces",
+          "browse": "浏览",
+          "helper": "为任务尝试创建 git worktree 的目录。留空以使用默认位置（~/.local/share/vkm/workspaces）。",
+          "dialogTitle": "选择工作区目录",
+          "dialogDescription": "选择将为任务尝试创建 git worktree 的目录。"
+        },
         "branchPrefix": {
           "label": "分支前缀",
           "placeholder": "vk",
