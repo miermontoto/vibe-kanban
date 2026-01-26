@@ -759,5 +759,15 @@
     "statusSuccess": "成功完成",
     "statusFailed": "失敗，結束代碼 {{exitCode}}",
     "statusKilled": "程序已被終止"
+  },
+  "deleteAttemptDialog": {
+    "title": "刪除嘗試",
+    "description": "確定要刪除 \"{{name}}\" 嗎？",
+    "warningTitle": "警告：",
+    "warningBody": "這將永久刪除該嘗試，包括所有工作階段、執行日誌和工作樹資料。此操作無法復原。",
+    "error": "刪除嘗試失敗",
+    "cancel": "取消",
+    "confirm": "刪除嘗試",
+    "deleting": "刪除中..."
   }
 }

@@ -759,5 +759,15 @@
     "statusSuccess": "성공적으로 완료됨",
     "statusFailed": "종료 코드 {{exitCode}}(으)로 실패함",
     "statusKilled": "프로세스가 종료되었습니다"
+  },
+  "deleteAttemptDialog": {
+    "title": "시도 삭제",
+    "description": "\"{{name}}\"을(를) 삭제하시겠습니까?",
+    "warningTitle": "경고:",
+    "warningBody": "이 작업은 모든 세션, 실행 로그 및 워크트리 데이터를 포함한 시도를 영구적으로 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
+    "error": "시도 삭제에 실패했습니다",
+    "cancel": "취소",
+    "confirm": "시도 삭제",
+    "deleting": "삭제 중..."
   }
 }

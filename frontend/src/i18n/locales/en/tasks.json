@@ -762,5 +762,15 @@
     "statusSuccess": "Completed successfully",
     "statusFailed": "Failed with exit code {{exitCode}}",
     "statusKilled": "Process was killed"
+  },
+  "deleteAttemptDialog": {
+    "title": "Delete Attempt",
+    "description": "Are you sure you want to delete \"{{name}}\"?",
+    "warningTitle": "Warning:",
+    "warningBody": "This will permanently delete the attempt, including all sessions, execution logs, and worktree data. This action cannot be undone.",
+    "error": "Failed to delete attempt",
+    "cancel": "Cancel",
+    "confirm": "Delete Attempt",
+    "deleting": "Deleting..."
   }
 }

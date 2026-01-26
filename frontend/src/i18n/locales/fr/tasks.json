@@ -692,5 +692,15 @@
     "statusSuccess": "Terminé avec succès",
     "statusFailed": "Échec avec le code de sortie {{exitCode}}",
     "statusKilled": "Le processus a été interrompu"
+  },
+  "deleteAttemptDialog": {
+    "title": "Supprimer la tentative",
+    "description": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ?",
+    "warningTitle": "Avertissement :",
+    "warningBody": "Cela supprimera définitivement la tentative, y compris toutes les sessions, les journaux d'exécution et les données du worktree. Cette action est irréversible.",
+    "error": "Échec de la suppression de la tentative",
+    "cancel": "Annuler",
+    "confirm": "Supprimer la tentative",
+    "deleting": "Suppression..."
   }
 }
