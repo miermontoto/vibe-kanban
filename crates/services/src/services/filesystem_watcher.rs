@@ -458,7 +458,7 @@ fn remove_directory_watch(
 pub fn async_watcher(root: PathBuf) -> Result<WatcherComponents, FilesystemWatcherError> {
     let canonical_root = canonicalize_lossy(&root);
     let gi_set = Arc::new(build_gitignore_set(&canonical_root)?);
-    // NOTE: changes to .gitignore aren’t picked up until the watcher is rebuilt.
+    // NOTE: changes to .gitignore aren't picked up until the watcher is rebuilt.
     // Recomputing on every change would require rebuilding the full watcher fleet.
 
     let (mut raw_tx, mut raw_rx) = channel::<DebounceEventResult>(64);
@@ -499,7 +499,26 @@ pub fn async_watcher(root: PathBuf) -> Result<WatcherComponents, FilesystemWatch
     }
 
     std::thread::spawn(move || {
-        while let Some(result) = futures::executor::block_on(async { raw_rx.next().await }) {
+        // usa timeout para verificar periódicamente si el debouncer fue dropped
+        // esto previene que el thread quede bloqueado indefinidamente cuando no hay eventos
+        loop {
+            // verifica primero si el debouncer sigue vivo
+            if debouncer_for_task.strong_count() == 0 {
+                break;
+            }
+
+            // espera por eventos con timeout para poder verificar shutdown periódicamente
+            let recv_result = futures::executor::block_on(async {
+                tokio::time::timeout(Duration::from_millis(500), raw_rx.next()).await
+            });
+
+            let result = match recv_result {
+                Ok(Some(r)) => r,
+                Ok(None) => break,    // channel cerrado
+                Err(_) => continue,   // timeout, verificar shutdown y continuar
+            };
+
+            // verifica nuevamente si el debouncer sigue vivo
             let Some(debouncer_arc) = debouncer_for_task.upgrade() else {
                 break;
             };
