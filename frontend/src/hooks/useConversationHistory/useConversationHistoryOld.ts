@@ -32,8 +32,9 @@ export const useConversationHistoryOld = ({
     useExecutionProcessesContext();
   // filtrar procesos optimistas que empiezan con 'optimistic-' ya que se mostrarán
   // via el proceso real una vez que llegue del servidor
-  const executionProcessesFiltered = executionProcessesRaw.filter(
-    (ep) => !ep.id.startsWith('optimistic-')
+  const executionProcessesFiltered = useMemo(
+    () => executionProcessesRaw.filter((ep) => !ep.id.startsWith('optimistic-')),
+    [executionProcessesRaw]
   );
   const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesFiltered);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
