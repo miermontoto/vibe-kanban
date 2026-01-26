@@ -1,13 +1,15 @@
 import { useCallback, useMemo } from 'react';
 import { useJsonPatchWsStream } from './useJsonPatchWsStream';
-import type { TaskStatus, TaskWithAttemptStatus } from 'shared/types';
+import type {
+  ActiveTaskWithProject,
+  TaskStatus,
+} from 'shared/types';
+
+// re-export for convenience
+export type { ActiveTaskWithProject } from 'shared/types';
 
 type ActiveTasksState = {
-  tasks: Record<string, TaskWithAttemptStatus & { project_name: string }>;
-};
-
-export type ActiveTaskWithProject = TaskWithAttemptStatus & {
-  project_name: string;
+  tasks: Record<string, ActiveTaskWithProject>;
 };
 
 export interface UseActiveTasksResult {

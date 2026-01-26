@@ -1,3 +1,5 @@
+use std::{collections::HashMap, sync::Arc};
+
 use db::models::{
     execution_process::ExecutionProcess,
     project::{Project, ProjectWithTaskCounts},
@@ -7,6 +9,7 @@ use db::models::{
 };
 use futures::StreamExt;
 use serde_json::json;
+use tokio::sync::RwLock;
 use tokio_stream::wrappers::{BroadcastStream, errors::BroadcastStreamRecvError};
 use utils::log_msg::LogMsg;
 use uuid::Uuid;
@@ -152,10 +155,21 @@ impl EventService {
         &self,
     ) -> Result<futures::stream::BoxStream<'static, Result<LogMsg, std::io::Error>>, EventError>
     {
-        fn build_active_tasks_snapshot(tasks: Vec<ActiveTaskWithProject>) -> LogMsg {
+        fn build_active_tasks_snapshot(
+            tasks: Vec<ActiveTaskWithProject>,
+        ) -> Result<LogMsg, serde_json::Error> {
             let tasks_map: serde_json::Map<String, serde_json::Value> = tasks
                 .into_iter()
-                .map(|task| (task.task.id.to_string(), serde_json::to_value(task).unwrap()))
+                .filter_map(|task| {
+                    let id = task.task.id.to_string();
+                    match serde_json::to_value(task) {
+                        Ok(value) => Some((id, value)),
+                        Err(e) => {
+                            tracing::error!(error = %e, "failed to serialize task for snapshot");
+                            None
+                        }
+                    }
+                })
                 .collect();
 
             let patch = json!([
@@ -166,19 +180,72 @@ impl EventService {
                 }
             ]);
 
-            LogMsg::JsonPatch(serde_json::from_value(patch).unwrap())
+            serde_json::from_value(patch)
         }
 
         // Get initial snapshot of active tasks across all projects
         let tasks = Task::find_active_with_project_names(&self.db.pool).await?;
-        let initial_msg = build_active_tasks_snapshot(tasks);
+
+        // Build initial project name cache from the snapshot
+        let initial_cache: HashMap<Uuid, String> = tasks
+            .iter()
+            .map(|t| (t.task.project_id, t.project_name.clone()))
+            .collect();
+        let project_name_cache: Arc<RwLock<HashMap<Uuid, String>>> =
+            Arc::new(RwLock::new(initial_cache));
+
+        let initial_msg = build_active_tasks_snapshot(tasks)?;
 
         let db_pool = self.db.pool.clone();
+
+        // Helper to get project name from cache or database
+        async fn get_project_name(
+            cache: &Arc<RwLock<HashMap<Uuid, String>>>,
+            db_pool: &sqlx::SqlitePool,
+            project_id: Uuid,
+        ) -> Option<String> {
+            // Try cache first
+            {
+                let cache_read = cache.read().await;
+                if let Some(name) = cache_read.get(&project_id) {
+                    return Some(name.clone());
+                }
+            }
+
+            // Cache miss - fetch from database
+            match db::models::project::Project::find_by_id(db_pool, project_id).await {
+                Ok(Some(project)) => {
+                    let name = project.name.clone();
+                    // Update cache
+                    {
+                        let mut cache_write = cache.write().await;
+                        cache_write.insert(project_id, name.clone());
+                    }
+                    Some(name)
+                }
+                Ok(None) => {
+                    tracing::warn!(
+                        project_id = %project_id,
+                        "project not found when fetching name for active task"
+                    );
+                    None
+                }
+                Err(e) => {
+                    tracing::error!(
+                        project_id = %project_id,
+                        error = %e,
+                        "failed to fetch project for active task update"
+                    );
+                    None
+                }
+            }
+        }
 
         // Filter for active task updates
         let filtered_stream =
             BroadcastStream::new(self.msg_store.get_receiver()).filter_map(move |msg_result| {
                 let db_pool = db_pool.clone();
+                let cache = project_name_cache.clone();
                 async move {
                     match msg_result {
                         Ok(LogMsg::JsonPatch(patch)) => {
@@ -196,13 +263,9 @@ impl EventService {
                                                 if task.status == db::models::task::TaskStatus::InProgress
                                                     || task.status == db::models::task::TaskStatus::InReview
                                                 {
-                                                    // Fetch project name and construct ActiveTaskWithProject
-                                                    if let Ok(Some(project)) =
-                                                        db::models::project::Project::find_by_id(
-                                                            &db_pool,
-                                                            task.project_id,
-                                                        )
-                                                        .await
+                                                    // Get project name from cache or database
+                                                    if let Some(project_name) =
+                                                        get_project_name(&cache, &db_pool, task.project_id).await
                                                     {
                                                         let active_task = ActiveTaskWithProject {
                                                             task: task.task,
@@ -211,16 +274,20 @@ impl EventService {
                                                             executor: task.executor,
                                                             pr_number: task.pr_number,
                                                             pr_url: task.pr_url,
-                                                            project_name: project.name,
+                                                            project_name,
                                                         };
                                                         let new_patch = json!([{
                                                             "op": "add",
                                                             "path": format!("/tasks/{}", active_task.task.id),
                                                             "value": active_task
                                                         }]);
-                                                        return Some(Ok(LogMsg::JsonPatch(
-                                                            serde_json::from_value(new_patch).unwrap(),
-                                                        )));
+                                                        match serde_json::from_value(new_patch) {
+                                                            Ok(patch) => return Some(Ok(LogMsg::JsonPatch(patch))),
+                                                            Err(e) => {
+                                                                tracing::error!(error = %e, "failed to serialize add patch");
+                                                                return None;
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -239,17 +306,17 @@ impl EventService {
                                                         "op": "remove",
                                                         "path": format!("/tasks/{}", task.task.id)
                                                     }]);
-                                                    return Some(Ok(LogMsg::JsonPatch(
-                                                        serde_json::from_value(remove_patch).unwrap(),
-                                                    )));
+                                                    match serde_json::from_value(remove_patch) {
+                                                        Ok(patch) => return Some(Ok(LogMsg::JsonPatch(patch))),
+                                                        Err(e) => {
+                                                            tracing::error!(error = %e, "failed to serialize remove patch");
+                                                            return None;
+                                                        }
+                                                    }
                                                 }
                                                 // If task is still active, update it with project name
-                                                if let Ok(Some(project)) =
-                                                    db::models::project::Project::find_by_id(
-                                                        &db_pool,
-                                                        task.project_id,
-                                                    )
-                                                    .await
+                                                if let Some(project_name) =
+                                                    get_project_name(&cache, &db_pool, task.project_id).await
                                                 {
                                                     let active_task = ActiveTaskWithProject {
                                                         task: task.task,
@@ -258,16 +325,20 @@ impl EventService {
                                                         executor: task.executor,
                                                         pr_number: task.pr_number,
                                                         pr_url: task.pr_url,
-                                                        project_name: project.name,
+                                                        project_name,
                                                     };
                                                     let new_patch = json!([{
                                                         "op": "replace",
                                                         "path": format!("/tasks/{}", active_task.task.id),
                                                         "value": active_task
                                                     }]);
-                                                    return Some(Ok(LogMsg::JsonPatch(
-                                                        serde_json::from_value(new_patch).unwrap(),
-                                                    )));
+                                                    match serde_json::from_value(new_patch) {
+                                                        Ok(patch) => return Some(Ok(LogMsg::JsonPatch(patch))),
+                                                        Err(e) => {
+                                                            tracing::error!(error = %e, "failed to serialize replace patch");
+                                                            return None;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -289,7 +360,25 @@ impl EventService {
                             );
 
                             match Task::find_active_with_project_names(&db_pool).await {
-                                Ok(tasks) => Some(Ok(build_active_tasks_snapshot(tasks))),
+                                Ok(tasks) => {
+                                    // Update cache with fresh data
+                                    {
+                                        let mut cache_write = cache.write().await;
+                                        for task in &tasks {
+                                            cache_write
+                                                .insert(task.task.project_id, task.project_name.clone());
+                                        }
+                                    }
+                                    match build_active_tasks_snapshot(tasks) {
+                                        Ok(msg) => Some(Ok(msg)),
+                                        Err(e) => {
+                                            tracing::error!(error = %e, "failed to build resync snapshot");
+                                            Some(Err(std::io::Error::other(format!(
+                                                "failed to build resync snapshot: {e}"
+                                            ))))
+                                        }
+                                    }
+                                }
                                 Err(err) => {
                                     tracing::error!(
                                         error = %err,
