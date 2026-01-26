@@ -78,7 +78,7 @@ export type TaskFormDialogProps =
       initialBaseBranch: string;
     };
 
-type RepoBranch = { repoId: string; branch: string };
+type RepoBranch = { repoId: string; branch: string; selected: boolean };
 
 type TaskFormValues = {
   title: string;
@@ -168,7 +168,11 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   const defaultRepoBranches = useMemo((): RepoBranch[] => {
     return repoBranchConfigs
       .filter((c) => c.targetBranch !== null)
-      .map((c) => ({ repoId: c.repoId, branch: c.targetBranch! }));
+      .map((c) => ({
+        repoId: c.repoId,
+        branch: c.targetBranch!,
+        selected: true,
+      }));
   }, [repoBranchConfigs]);
 
   // Get default form values based on mode
@@ -277,10 +281,12 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
       } satisfies CreateTask;
       const shouldAutoStart = value.autoStart && !forceCreateOnlyRef.current;
       if (shouldAutoStart) {
-        const repos = value.repoBranches.map((rb) => ({
-          repo_id: rb.repoId,
-          target_branch: rb.branch,
-        }));
+        const repos = value.repoBranches
+          .filter((rb) => rb.selected)
+          .map((rb) => ({
+            repo_id: rb.repoId,
+            target_branch: rb.branch,
+          }));
         await createAndStart.mutateAsync(
           {
             task,
@@ -299,11 +305,12 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
     if (!value.title.trim().length) return 'need title';
     if (value.autoStart && !forceCreateOnlyRef.current) {
       if (!value.executorProfileId) return 'need executor profile';
-      if (
-        value.repoBranches.length === 0 ||
-        value.repoBranches.some((rb) => !rb.branch)
-      ) {
-        return 'need branch for all repos';
+      const selectedRepos = value.repoBranches.filter((rb) => rb.selected);
+      if (selectedRepos.length === 0) {
+        return 'need at least one repo selected';
+      }
+      if (selectedRepos.some((rb) => !rb.branch)) {
+        return 'need branch for all selected repos';
       }
     }
   };
@@ -636,7 +643,11 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                                   selectedBranch={selectedBranch}
                                   onBranchSelect={(branch) => {
                                     field.handleChange([
-                                      { repoId: config.repoId, branch },
+                                      {
+                                        repoId: config.repoId,
+                                        branch,
+                                        selected: true,
+                                      },
                                     ]);
                                   }}
                                   placeholder={
@@ -654,13 +665,17 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                     {!isSingleRepo && (
                       <form.Field name="repoBranches">
                         {(field) => {
-                          const configs = repoBranchConfigs.map((config) => ({
-                            ...config,
-                            targetBranch:
-                              field.state.value.find(
-                                (v) => v.repoId === config.repoId
-                              )?.branch ?? config.targetBranch,
-                          }));
+                          const configs = repoBranchConfigs.map((config) => {
+                            const formValue = field.state.value.find(
+                              (v) => v.repoId === config.repoId
+                            );
+                            return {
+                              ...config,
+                              targetBranch:
+                                formValue?.branch ?? config.targetBranch,
+                              selected: formValue?.selected ?? true,
+                            };
+                          });
                           return (
                             <RepoBranchSelector
                               configs={configs}
@@ -671,8 +686,18 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                                 if (
                                   !newValue.find((v) => v.repoId === repoId)
                                 ) {
-                                  newValue.push({ repoId, branch });
+                                  newValue.push({
+                                    repoId,
+                                    branch,
+                                    selected: true,
+                                  });
                                 }
+                                field.handleChange(newValue);
+                              }}
+                              onRepoToggle={(repoId, selected) => {
+                                const newValue = field.state.value.map((v) =>
+                                  v.repoId === repoId ? { ...v, selected } : v
+                                );
                                 field.handleChange(newValue);
                               }}
                               isLoading={branchesLoading}

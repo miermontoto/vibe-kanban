@@ -190,7 +190,8 @@
     }
   },
   "repoBranchSelector": {
-    "label": "ベースブランチ"
+    "label": "ベースブランチ",
+    "toggleRepo": "タスクに{{repo}}を含める"
   },
   "attemptRepoSelector": {
     "label": "リポジトリ",

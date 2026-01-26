@@ -27,6 +27,7 @@ type Props = {
   className?: string;
   excludeCurrentBranch?: boolean;
   disabledTooltip?: string;
+  disabled?: boolean;
 };
 
 type RowProps = {
@@ -108,6 +109,7 @@ function BranchSelector({
   className = '',
   excludeCurrentBranch = false,
   disabledTooltip,
+  disabled = false,
 }: Props) {
   const { t } = useTranslation(['common']);
   const [branchSearchTerm, setBranchSearchTerm] = useState('');
@@ -205,10 +207,11 @@ function BranchSelector({
         }
       }}
     >
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild disabled={disabled}>
         <Button
           variant="outline"
           size="sm"
+          disabled={disabled}
           className={`w-full justify-between text-xs ${className}`}
         >
           <div className="flex items-center gap-1.5 w-full min-w-0">

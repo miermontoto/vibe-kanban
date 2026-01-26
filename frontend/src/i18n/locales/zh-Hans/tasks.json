@@ -79,7 +79,8 @@
     }
   },
   "repoBranchSelector": {
-    "label": "基础分支"
+    "label": "基础分支",
+    "toggleRepo": "在任务中包含 {{repo}}"
   },
   "attemptRepoSelector": {
     "label": "仓库",

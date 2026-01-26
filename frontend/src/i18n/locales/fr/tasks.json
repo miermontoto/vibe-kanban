@@ -450,7 +450,8 @@
     "start": "Démarrer"
   },
   "repoBranchSelector": {
-    "label": "Branche de base"
+    "label": "Branche de base",
+    "toggleRepo": "Inclure {{repo}} dans la tâche"
   },
   "attemptRepoSelector": {
     "label": "Dépôts",

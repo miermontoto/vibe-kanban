@@ -190,7 +190,8 @@
     }
   },
   "repoBranchSelector": {
-    "label": "Rama base"
+    "label": "Rama base",
+    "toggleRepo": "Incluir {{repo}} en la tarea"
   },
   "attemptRepoSelector": {
     "label": "Repositorios",
