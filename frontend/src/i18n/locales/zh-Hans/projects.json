@@ -55,5 +55,12 @@
   "projectNotFound": "您查找的项目不存在或已被删除。",
   "viewProject": "查看项目",
   "openInIDE": "在 IDE 中打开",
-  "createdDate": "创建于 {{date}}"
+  "createdDate": "创建于 {{date}}",
+  "dashboard": {
+    "activeTasks": "活动任务",
+    "inProgress": "进行中",
+    "inReview": "审核中",
+    "loading": "加载活动任务中...",
+    "error": "加载活动任务失败"
+  }
 }

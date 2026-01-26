@@ -64,6 +64,20 @@ impl std::ops::DerefMut for TaskWithAttemptStatus {
     }
 }
 
+/// Task with attempt status and project name for cross-project dashboard views
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ActiveTaskWithProject {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub task: Task,
+    pub has_in_progress_attempt: bool,
+    pub last_attempt_failed: bool,
+    pub executor: String,
+    pub pr_number: Option<i64>,
+    pub pr_url: Option<String>,
+    pub project_name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct TaskRelationships {
     pub parent_task: Option<Task>, // The task that owns the parent workspace
@@ -227,12 +241,14 @@ The task will loop until you output the completion signal or reach the iteration
   ) IN ('failed','killed') THEN 1 ELSE 0 END
                                  AS "last_attempt_failed!: i64",
 
-  ( SELECT s.executor
-      FROM workspaces w
-      JOIN sessions s ON s.workspace_id = w.id
-      WHERE w.task_id = t.id
-     ORDER BY s.created_at DESC
-      LIMIT 1
+  COALESCE(
+    ( SELECT s.executor
+        FROM workspaces w
+        JOIN sessions s ON s.workspace_id = w.id
+        WHERE w.task_id = t.id
+       ORDER BY s.created_at DESC
+        LIMIT 1
+      ), 'unknown'
     )                               AS "executor!: String",
 
   ( SELECT m.pr_number
@@ -285,6 +301,116 @@ ORDER BY t.created_at DESC"#,
                 executor: rec.executor,
                 pr_number: rec.pr_number,
                 pr_url: rec.pr_url,
+            })
+            .collect();
+
+        Ok(tasks)
+    }
+
+    /// Find all active tasks (inprogress, inreview) across all projects with attempt status
+    pub async fn find_active_with_project_names(
+        pool: &SqlitePool,
+    ) -> Result<Vec<ActiveTaskWithProject>, sqlx::Error> {
+        let records = sqlx::query!(
+            r#"SELECT
+  t.id                            AS "id!: Uuid",
+  t.project_id                    AS "project_id!: Uuid",
+  t.title,
+  t.description,
+  t.status                        AS "status!: TaskStatus",
+  t.parent_workspace_id           AS "parent_workspace_id: Uuid",
+  t.shared_task_id                AS "shared_task_id: Uuid",
+  t.use_ralph_wiggum              AS "use_ralph_wiggum!: bool",
+  t.ralph_max_iterations          AS "ralph_max_iterations: i64",
+  t.ralph_completion_promise      AS "ralph_completion_promise: String",
+  t.created_at                    AS "created_at!: DateTime<Utc>",
+  t.updated_at                    AS "updated_at!: DateTime<Utc>",
+  p.name                          AS "project_name!: String",
+
+  CASE WHEN EXISTS (
+    SELECT 1
+      FROM workspaces w
+      JOIN sessions s ON s.workspace_id = w.id
+      JOIN execution_processes ep ON ep.session_id = s.id
+     WHERE w.task_id       = t.id
+       AND ep.status        = 'running'
+       AND ep.run_reason IN ('setupscript','cleanupscript','codingagent')
+     LIMIT 1
+  ) THEN 1 ELSE 0 END            AS "has_in_progress_attempt!: i64",
+
+  CASE WHEN (
+    SELECT ep.status
+      FROM workspaces w
+      JOIN sessions s ON s.workspace_id = w.id
+      JOIN execution_processes ep ON ep.session_id = s.id
+     WHERE w.task_id       = t.id
+     AND ep.run_reason IN ('setupscript','cleanupscript','codingagent')
+     ORDER BY ep.created_at DESC
+     LIMIT 1
+  ) IN ('failed','killed') THEN 1 ELSE 0 END
+                                 AS "last_attempt_failed!: i64",
+
+  COALESCE(
+    ( SELECT s.executor
+        FROM workspaces w
+        JOIN sessions s ON s.workspace_id = w.id
+        WHERE w.task_id = t.id
+       ORDER BY s.created_at DESC
+        LIMIT 1
+      ), 'unknown'
+    )                               AS "executor!: String",
+
+  ( SELECT m.pr_number
+      FROM workspaces w
+      JOIN merges m ON m.workspace_id = w.id
+     WHERE w.task_id = t.id
+       AND m.merge_type = 'pr'
+       AND m.pr_status = 'open'
+     ORDER BY m.created_at DESC
+     LIMIT 1
+    )                               AS "pr_number: i64",
+
+  ( SELECT m.pr_url
+      FROM workspaces w
+      JOIN merges m ON m.workspace_id = w.id
+     WHERE w.task_id = t.id
+       AND m.merge_type = 'pr'
+       AND m.pr_status = 'open'
+     ORDER BY m.created_at DESC
+     LIMIT 1
+    )                               AS "pr_url: String"
+
+FROM tasks t
+JOIN projects p ON p.id = t.project_id
+WHERE t.status IN ('inprogress', 'inreview')
+ORDER BY t.updated_at DESC"#
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let tasks = records
+            .into_iter()
+            .map(|rec| ActiveTaskWithProject {
+                task: Task {
+                    id: rec.id,
+                    project_id: rec.project_id,
+                    title: rec.title,
+                    description: rec.description,
+                    status: rec.status,
+                    parent_workspace_id: rec.parent_workspace_id,
+                    shared_task_id: rec.shared_task_id,
+                    use_ralph_wiggum: rec.use_ralph_wiggum,
+                    ralph_max_iterations: rec.ralph_max_iterations,
+                    ralph_completion_promise: rec.ralph_completion_promise,
+                    created_at: rec.created_at,
+                    updated_at: rec.updated_at,
+                },
+                has_in_progress_attempt: rec.has_in_progress_attempt != 0,
+                last_attempt_failed: rec.last_attempt_failed != 0,
+                executor: rec.executor,
+                pr_number: rec.pr_number,
+                pr_url: rec.pr_url,
+                project_name: rec.project_name,
             })
             .collect();
 

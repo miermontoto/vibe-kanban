@@ -55,5 +55,12 @@
   "projectNotFound": "찾으시는 프로젝트가 존재하지 않거나 삭제되었습니다.",
   "viewProject": "프로젝트 보기",
   "openInIDE": "IDE에서 열기",
-  "createdDate": "생성일 {{date}}"
+  "createdDate": "생성일 {{date}}",
+  "dashboard": {
+    "activeTasks": "활성 작업",
+    "inProgress": "진행 중",
+    "inReview": "검토 중",
+    "loading": "활성 작업 로딩 중...",
+    "error": "활성 작업을 불러오지 못했습니다"
+  }
 }

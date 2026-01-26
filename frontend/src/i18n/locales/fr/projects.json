@@ -55,5 +55,12 @@
   "projectNotFound": "Le projet que vous recherchez n'existe pas ou a été supprimé.",
   "viewProject": "Voir le projet",
   "openInIDE": "Ouvrir dans l'IDE",
-  "createdDate": "Créé le {{date}}"
+  "createdDate": "Créé le {{date}}",
+  "dashboard": {
+    "activeTasks": "Tâches actives",
+    "inProgress": "en cours",
+    "inReview": "en révision",
+    "loading": "Chargement des tâches actives...",
+    "error": "Échec du chargement des tâches actives"
+  }
 }

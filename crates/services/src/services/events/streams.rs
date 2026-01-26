@@ -1,12 +1,15 @@
+use std::{collections::HashMap, sync::Arc};
+
 use db::models::{
     execution_process::ExecutionProcess,
     project::{Project, ProjectWithTaskCounts},
     scratch::Scratch,
-    task::{Task, TaskWithAttemptStatus},
+    task::{ActiveTaskWithProject, Task, TaskWithAttemptStatus},
     workspace::Workspace,
 };
 use futures::StreamExt;
 use serde_json::json;
+use tokio::sync::RwLock;
 use tokio_stream::wrappers::{BroadcastStream, errors::BroadcastStreamRecvError};
 use utils::log_msg::LogMsg;
 use uuid::Uuid;
@@ -141,6 +144,256 @@ impl EventService {
             });
 
         // Start with initial snapshot, Ready signal, then live updates
+        let initial_stream = futures::stream::iter(vec![Ok(initial_msg), Ok(LogMsg::Ready)]);
+        let combined_stream = initial_stream.chain(filtered_stream).boxed();
+
+        Ok(combined_stream)
+    }
+
+    /// Stream active tasks (inprogress, inreview) across all projects with initial snapshot
+    pub async fn stream_active_tasks_raw(
+        &self,
+    ) -> Result<futures::stream::BoxStream<'static, Result<LogMsg, std::io::Error>>, EventError>
+    {
+        fn build_active_tasks_snapshot(
+            tasks: Vec<ActiveTaskWithProject>,
+        ) -> Result<LogMsg, serde_json::Error> {
+            let tasks_map: serde_json::Map<String, serde_json::Value> = tasks
+                .into_iter()
+                .filter_map(|task| {
+                    let id = task.task.id.to_string();
+                    match serde_json::to_value(task) {
+                        Ok(value) => Some((id, value)),
+                        Err(e) => {
+                            tracing::error!(error = %e, "failed to serialize task for snapshot");
+                            None
+                        }
+                    }
+                })
+                .collect();
+
+            let patch = json!([
+                {
+                    "op": "replace",
+                    "path": "/tasks",
+                    "value": tasks_map
+                }
+            ]);
+
+            serde_json::from_value(patch)
+        }
+
+        // Get initial snapshot of active tasks across all projects
+        let tasks = Task::find_active_with_project_names(&self.db.pool).await?;
+
+        // Build initial project name cache from the snapshot
+        let initial_cache: HashMap<Uuid, String> = tasks
+            .iter()
+            .map(|t| (t.task.project_id, t.project_name.clone()))
+            .collect();
+        let project_name_cache: Arc<RwLock<HashMap<Uuid, String>>> =
+            Arc::new(RwLock::new(initial_cache));
+
+        let initial_msg = build_active_tasks_snapshot(tasks)?;
+
+        let db_pool = self.db.pool.clone();
+
+        // Helper to get project name from cache or database
+        async fn get_project_name(
+            cache: &Arc<RwLock<HashMap<Uuid, String>>>,
+            db_pool: &sqlx::SqlitePool,
+            project_id: Uuid,
+        ) -> Option<String> {
+            // Try cache first
+            {
+                let cache_read = cache.read().await;
+                if let Some(name) = cache_read.get(&project_id) {
+                    return Some(name.clone());
+                }
+            }
+
+            // Cache miss - fetch from database
+            match db::models::project::Project::find_by_id(db_pool, project_id).await {
+                Ok(Some(project)) => {
+                    let name = project.name.clone();
+                    // Update cache
+                    {
+                        let mut cache_write = cache.write().await;
+                        cache_write.insert(project_id, name.clone());
+                    }
+                    Some(name)
+                }
+                Ok(None) => {
+                    tracing::warn!(
+                        project_id = %project_id,
+                        "project not found when fetching name for active task"
+                    );
+                    None
+                }
+                Err(e) => {
+                    tracing::error!(
+                        project_id = %project_id,
+                        error = %e,
+                        "failed to fetch project for active task update"
+                    );
+                    None
+                }
+            }
+        }
+
+        // Filter for active task updates
+        let filtered_stream =
+            BroadcastStream::new(self.msg_store.get_receiver()).filter_map(move |msg_result| {
+                let db_pool = db_pool.clone();
+                let cache = project_name_cache.clone();
+                async move {
+                    match msg_result {
+                        Ok(LogMsg::JsonPatch(patch)) => {
+                            if let Some(patch_op) = patch.0.first() {
+                                // Handle direct task patches
+                                if patch_op.path().starts_with("/tasks/") {
+                                    match patch_op {
+                                        json_patch::PatchOperation::Add(op) => {
+                                            if let Ok(task) =
+                                                serde_json::from_value::<TaskWithAttemptStatus>(
+                                                    op.value.clone(),
+                                                )
+                                            {
+                                                // Only include if status is inprogress or inreview
+                                                if task.status == db::models::task::TaskStatus::InProgress
+                                                    || task.status == db::models::task::TaskStatus::InReview
+                                                {
+                                                    // Get project name from cache or database
+                                                    if let Some(project_name) =
+                                                        get_project_name(&cache, &db_pool, task.project_id).await
+                                                    {
+                                                        let active_task = ActiveTaskWithProject {
+                                                            task: task.task,
+                                                            has_in_progress_attempt: task.has_in_progress_attempt,
+                                                            last_attempt_failed: task.last_attempt_failed,
+                                                            executor: task.executor,
+                                                            pr_number: task.pr_number,
+                                                            pr_url: task.pr_url,
+                                                            project_name,
+                                                        };
+                                                        let new_patch = json!([{
+                                                            "op": "add",
+                                                            "path": format!("/tasks/{}", active_task.task.id),
+                                                            "value": active_task
+                                                        }]);
+                                                        match serde_json::from_value(new_patch) {
+                                                            Ok(patch) => return Some(Ok(LogMsg::JsonPatch(patch))),
+                                                            Err(e) => {
+                                                                tracing::error!(error = %e, "failed to serialize add patch");
+                                                                return None;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        json_patch::PatchOperation::Replace(op) => {
+                                            if let Ok(task) =
+                                                serde_json::from_value::<TaskWithAttemptStatus>(
+                                                    op.value.clone(),
+                                                )
+                                            {
+                                                // If task transitions OUT of active status, remove it
+                                                if task.status != db::models::task::TaskStatus::InProgress
+                                                    && task.status != db::models::task::TaskStatus::InReview
+                                                {
+                                                    let remove_patch = json!([{
+                                                        "op": "remove",
+                                                        "path": format!("/tasks/{}", task.task.id)
+                                                    }]);
+                                                    match serde_json::from_value(remove_patch) {
+                                                        Ok(patch) => return Some(Ok(LogMsg::JsonPatch(patch))),
+                                                        Err(e) => {
+                                                            tracing::error!(error = %e, "failed to serialize remove patch");
+                                                            return None;
+                                                        }
+                                                    }
+                                                }
+                                                // If task is still active, update it with project name
+                                                if let Some(project_name) =
+                                                    get_project_name(&cache, &db_pool, task.project_id).await
+                                                {
+                                                    let active_task = ActiveTaskWithProject {
+                                                        task: task.task,
+                                                        has_in_progress_attempt: task.has_in_progress_attempt,
+                                                        last_attempt_failed: task.last_attempt_failed,
+                                                        executor: task.executor,
+                                                        pr_number: task.pr_number,
+                                                        pr_url: task.pr_url,
+                                                        project_name,
+                                                    };
+                                                    let new_patch = json!([{
+                                                        "op": "replace",
+                                                        "path": format!("/tasks/{}", active_task.task.id),
+                                                        "value": active_task
+                                                    }]);
+                                                    match serde_json::from_value(new_patch) {
+                                                        Ok(patch) => return Some(Ok(LogMsg::JsonPatch(patch))),
+                                                        Err(e) => {
+                                                            tracing::error!(error = %e, "failed to serialize replace patch");
+                                                            return None;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        json_patch::PatchOperation::Remove(_) => {
+                                            // Pass through removals
+                                            return Some(Ok(LogMsg::JsonPatch(patch)));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            None
+                        }
+                        Ok(other) => Some(Ok(other)),
+                        Err(BroadcastStreamRecvError::Lagged(skipped)) => {
+                            tracing::warn!(
+                                skipped = skipped,
+                                "active tasks stream lagged; resyncing snapshot"
+                            );
+
+                            match Task::find_active_with_project_names(&db_pool).await {
+                                Ok(tasks) => {
+                                    // Update cache with fresh data
+                                    {
+                                        let mut cache_write = cache.write().await;
+                                        for task in &tasks {
+                                            cache_write
+                                                .insert(task.task.project_id, task.project_name.clone());
+                                        }
+                                    }
+                                    match build_active_tasks_snapshot(tasks) {
+                                        Ok(msg) => Some(Ok(msg)),
+                                        Err(e) => {
+                                            tracing::error!(error = %e, "failed to build resync snapshot");
+                                            Some(Err(std::io::Error::other(format!(
+                                                "failed to build resync snapshot: {e}"
+                                            ))))
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    tracing::error!(
+                                        error = %err,
+                                        "failed to resync active tasks after lag"
+                                    );
+                                    Some(Err(std::io::Error::other(format!(
+                                        "failed to resync active tasks after lag: {err}"
+                                    ))))
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
         let initial_stream = futures::stream::iter(vec![Ok(initial_msg), Ok(LogMsg::Ready)]);
         let combined_stream = initial_stream.chain(filtered_stream).boxed();
 

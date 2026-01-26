@@ -55,5 +55,12 @@
   "projectNotFound": "The project you're looking for doesn't exist or has been deleted.",
   "viewProject": "View Project",
   "openInIDE": "Open in IDE",
-  "createdDate": "Created {{date}}"
+  "createdDate": "Created {{date}}",
+  "dashboard": {
+    "activeTasks": "Active Tasks",
+    "inProgress": "in progress",
+    "inReview": "in review",
+    "loading": "Loading active tasks...",
+    "error": "Failed to load active tasks"
+  }
 }
