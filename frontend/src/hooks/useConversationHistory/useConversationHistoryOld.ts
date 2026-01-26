@@ -33,10 +33,13 @@ export const useConversationHistoryOld = ({
   // filtrar procesos optimistas que empiezan con 'optimistic-' ya que se mostrarán
   // via el proceso real una vez que llegue del servidor
   const executionProcessesFiltered = useMemo(
-    () => executionProcessesRaw.filter((ep) => !ep.id.startsWith('optimistic-')),
+    () =>
+      executionProcessesRaw.filter((ep) => !ep.id.startsWith('optimistic-')),
     [executionProcessesRaw]
   );
-  const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesFiltered);
+  const executionProcesses = useRef<ExecutionProcess[]>(
+    executionProcessesFiltered
+  );
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
   const streamingProcessIdsRef = useRef<Set<string>>(new Set());
@@ -533,7 +536,8 @@ export const useConversationHistoryOld = ({
   );
 
   const idStatusKey = useMemo(
-    () => executionProcessesFiltered?.map((p) => `${p.id}:${p.status}`).join(','),
+    () =>
+      executionProcessesFiltered?.map((p) => `${p.id}:${p.status}`).join(','),
     [executionProcessesFiltered]
   );
 

@@ -79,7 +79,8 @@
     }
   },
   "repoBranchSelector": {
-    "label": "基底分支"
+    "label": "基底分支",
+    "toggleRepo": "在任務中包含 {{repo}}"
   },
   "attemptRepoSelector": {
     "label": "儲存庫",

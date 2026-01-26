@@ -190,7 +190,8 @@
     }
   },
   "repoBranchSelector": {
-    "label": "기본 브랜치"
+    "label": "기본 브랜치",
+    "toggleRepo": "작업에 {{repo}} 포함"
   },
   "attemptRepoSelector": {
     "label": "저장소",

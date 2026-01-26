@@ -458,7 +458,8 @@
     "start": "Start"
   },
   "repoBranchSelector": {
-    "label": "Base branch"
+    "label": "Base branch",
+    "toggleRepo": "Include {{repo}} in task"
   },
   "attemptRepoSelector": {
     "label": "Repositories",
