@@ -36,17 +36,31 @@ interface ChatCacheState {
 // crear store de IndexedDB separado para chat cache
 const chatCacheIdbStore = createIdbStore('vkm-chat-cache', 'conversations');
 
-// custom storage usando idb-keyval
+// custom storage usando idb-keyval con error handling para graceful degradation
+// (incognito mode, quota exceeded, database corruption, etc.)
 const idbStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    const value = await get(name, chatCacheIdbStore);
-    return value ?? null;
+    try {
+      const value = await get(name, chatCacheIdbStore);
+      return value ?? null;
+    } catch (error) {
+      console.warn('Failed to read from IndexedDB cache:', error);
+      return null;
+    }
   },
   setItem: async (name: string, value: string): Promise<void> => {
-    await set(name, value, chatCacheIdbStore);
+    try {
+      await set(name, value, chatCacheIdbStore);
+    } catch (error) {
+      console.warn('Failed to write to IndexedDB cache:', error);
+    }
   },
   removeItem: async (name: string): Promise<void> => {
-    await del(name, chatCacheIdbStore);
+    try {
+      await del(name, chatCacheIdbStore);
+    } catch (error) {
+      console.warn('Failed to delete from IndexedDB cache:', error);
+    }
   },
 };
 
@@ -153,14 +167,12 @@ export const useChatCacheStore = create<ChatCacheState>()(
           )
         ),
       }),
+      // limpiar entries stale después de hidratación (más seguro que setTimeout)
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.cleanStaleEntries();
+        }
+      },
     }
   )
 );
-
-// limpiar entries stale al inicio
-if (typeof window !== 'undefined') {
-  // ejecutar cleanup después de que la store se hidrate
-  setTimeout(() => {
-    useChatCacheStore.getState().cleanStaleEntries();
-  }, 1000);
-}

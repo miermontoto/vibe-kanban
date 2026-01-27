@@ -33,12 +33,8 @@ export const useConversationHistoryOld = ({
     useExecutionProcessesContext();
 
   // acceso al cache global para persistencia entre navegaciones
-  const {
-    getCachedEntries,
-    setCachedEntries,
-    hasCachedEntries,
-    isConversationComplete,
-  } = useChatCacheStore();
+  const { getCachedEntries, setCachedEntries, hasCachedEntries } =
+    useChatCacheStore();
   // filtrar procesos optimistas que empiezan con 'optimistic-' ya que se mostrarán
   // via el proceso real una vez que llegue del servidor
   const executionProcessesFiltered = useMemo(
@@ -561,17 +557,16 @@ export const useConversationHistoryOld = ({
       )
         return;
 
-      // verificar si hay procesos running (conversación activa)
+      // verificar si hay procesos running (conversación activa) - usar estado LIVE, no cache
+      // esto previene race conditions donde el cache dice "completo" pero hay un proceso nuevo
       const hasRunningProcess = executionProcesses.current.some(
         (p) => p.status === ExecutionProcessStatus.running
       );
 
-      // si la conversación está cacheada Y completa (sin procesos running), restaurar del cache
-      if (
-        hasCachedEntries(attempt.id) &&
-        isConversationComplete(attempt.id) &&
-        !hasRunningProcess
-      ) {
+      // solo restaurar del cache si:
+      // 1. hay entries cacheadas
+      // 2. NO hay procesos running (estado live tiene prioridad sobre cache)
+      if (hasCachedEntries(attempt.id) && !hasRunningProcess) {
         const cachedEntries = getCachedEntries(attempt.id);
         if (cachedEntries && cachedEntries.length > 0) {
           // restaurar desde cache - evita completamente los WebSocket calls
@@ -622,7 +617,6 @@ export const useConversationHistoryOld = ({
     flattenEntriesForEmit,
     getCachedEntries,
     hasCachedEntries,
-    isConversationComplete,
     setCachedEntries,
   ]); // include idListKey so new processes trigger reload
 
