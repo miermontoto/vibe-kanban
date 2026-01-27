@@ -1760,6 +1760,7 @@ dependencies = [
  "futures-io",
  "json-patch",
  "jsonc-parser",
+ "libc",
  "mcp-types",
  "os_pipe",
  "rand 0.8.5",

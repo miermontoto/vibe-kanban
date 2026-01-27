@@ -36,6 +36,7 @@ use crate::{
         stderr_processor::normalize_stderr_logs,
         utils::{EntryIndexProvider, patch::ConversationPatch},
     },
+    process_limits,
     stdout_dup::create_stdout_pipe_writer,
 };
 
@@ -274,6 +275,9 @@ impl ClaudeCode {
             command.env_remove("ANTHROPIC_API_KEY");
             tracing::info!("ANTHROPIC_API_KEY removed from environment");
         }
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
         let child_stdout = child.inner().stdout.take().ok_or_else(|| {

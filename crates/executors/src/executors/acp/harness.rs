@@ -23,6 +23,7 @@ use crate::{
     command::{CmdOverrides, CommandParts},
     env::ExecutionEnv,
     executors::{ExecutorError, ExecutorExitResult, SpawnedChild, acp::AcpEvent},
+    process_limits,
 };
 
 /// Reusable harness for ACP-based conns (Gemini, Qwen, etc.)
@@ -93,6 +94,9 @@ impl AcpAgentHarness {
             .with_profile(cmd_overrides)
             .apply_to_command(&mut command);
 
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
+
         let mut child = command.group_spawn()?;
 
         let (exit_tx, exit_rx) = tokio::sync::oneshot::channel::<ExecutorExitResult>();
@@ -142,6 +146,9 @@ impl AcpAgentHarness {
         env.clone()
             .with_profile(cmd_overrides)
             .apply_to_command(&mut command);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
 
