@@ -146,6 +146,10 @@
       "git": {
         "title": "Git",
         "description": "Configurar preferencias de nombres de ramas git",
+        "sections": {
+          "branchNaming": "Nombrado de Ramas",
+          "commits": "Commits"
+        },
         "workspaceDir": {
           "label": "Directorio de Espacios de Trabajo",
           "placeholder": "/ruta/a/workspaces",
@@ -172,15 +176,24 @@
         },
         "autoCommit": {
           "label": "Auto-confirmar cambios",
-          "helper": "Cuando está habilitado, el agente confirmará automáticamente los cambios después de una ejecución exitosa de la tarea."
+          "helper": "Controla si el agente confirma automáticamente los cambios después de la ejecución de tareas.",
+          "options": {
+            "enabled": "Habilitado",
+            "enabledDescription": "El agente confirmará automáticamente los cambios después de una ejecución exitosa.",
+            "disabled": "Deshabilitado",
+            "disabledDescription": "Los cambios se dejarán sin confirmar para revisión manual."
+          }
         },
         "commitTitleMode": {
           "label": "Modo de Título de Commit",
           "helper": "Elige cómo se generan los títulos de commits para auto-commits.",
           "options": {
-            "agentSummary": "Usar resumen del agente (predeterminado)",
-            "aiGenerated": "Generado por IA (usa prompt personalizado)",
-            "manual": "Manual (encolar commits para revisión)"
+            "agentSummary": "Resumen del Agente",
+            "agentSummaryDescription": "Usar el resumen de la tarea del agente como título del commit (predeterminado).",
+            "aiGenerated": "Generado por IA",
+            "aiGeneratedDescription": "Generar títulos de commit usando un prompt de IA personalizado.",
+            "manual": "Manual",
+            "manualDescription": "Encolar commits para entrada manual del título antes de confirmar."
           },
           "customPrompt": {
             "useCustom": "Usar prompt personalizado para títulos de commit",
@@ -201,25 +214,56 @@
       "tasks": {
         "title": "Tareas",
         "description": "Configurar el comportamiento de creación y navegación de tareas.",
+        "sections": {
+          "behavior": "Comportamiento de Tareas"
+        },
         "redirectToAttempt": {
-          "label": "Redirigir al intento al crear tarea",
-          "helper": "Cuando está habilitado, navega automáticamente a la vista de detalle del intento de tarea después de crear e iniciar una tarea."
+          "label": "Navegar al intento al crear",
+          "helper": "Controla el comportamiento de navegación después de crear e iniciar una tarea.",
+          "options": {
+            "enabled": "Habilitado",
+            "enabledDescription": "Navegar automáticamente a la vista de detalle del intento de tarea.",
+            "disabled": "Deshabilitado",
+            "disabledDescription": "Permanecer en la página actual después de crear la tarea."
+          }
         }
       },
       "pullRequests": {
         "title": "Pull Requests",
         "description": "Configura el comportamiento de creación de PR",
+        "sections": {
+          "creation": "Creación de PR",
+          "description": "Descripción de PR"
+        },
         "autoPr": {
-          "label": "Crear PR al mover a En Revisión",
-          "helper": "Crear automáticamente un pull request cuando una tarea se mueve al estado En Revisión."
+          "label": "Auto-crear PR en revisión",
+          "helper": "Controla la creación automática de PR al mover tareas a estado En Revisión.",
+          "options": {
+            "enabled": "Habilitado",
+            "enabledDescription": "Crear automáticamente un pull request cuando una tarea se mueve a En Revisión.",
+            "disabled": "Deshabilitado",
+            "disabledDescription": "No crear PRs automáticamente."
+          }
         },
         "autoPrDraft": {
           "label": "Crear como PR borrador",
-          "helper": "Al crear PRs automáticamente, crearlos como borradores en lugar de listos para revisión."
+          "helper": "Controla si los PRs auto-creados son borradores o listos para revisión.",
+          "options": {
+            "enabled": "Borrador",
+            "enabledDescription": "Crear PRs como borradores, requiriendo publicación manual.",
+            "disabled": "Listo para revisión",
+            "disabledDescription": "Crear PRs listos para revisión inmediata."
+          }
         },
         "autoDescription": {
-          "label": "Auto-generar descripción de PR por defecto",
-          "helper": "Cuando está habilitado, el agente de IA actualizará automáticamente el título y la descripción del PR después de la creación."
+          "label": "Auto-generar descripción de PR",
+          "helper": "Controla la generación automática de título y descripción de PR.",
+          "options": {
+            "enabled": "Habilitado",
+            "enabledDescription": "El agente de IA actualizará automáticamente el título y la descripción del PR después de la creación.",
+            "disabled": "Deshabilitado",
+            "disabledDescription": "Dejar el título y la descripción del PR como predeterminados."
+          }
         },
         "customPrompt": {
           "useCustom": "Usar prompt personalizado",

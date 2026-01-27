@@ -146,6 +146,10 @@
       "git": {
         "title": "Git",
         "description": "Gitブランチ名の設定",
+        "sections": {
+          "branchNaming": "ブランチ命名",
+          "commits": "コミット"
+        },
         "workspaceDir": {
           "label": "ワークスペースディレクトリ",
           "placeholder": "/path/to/workspaces",
@@ -172,15 +176,24 @@
         },
         "autoCommit": {
           "label": "変更を自動コミット",
-          "helper": "有効にすると、タスク実行が成功した後、エージェントが自動的に変更をコミットします。"
+          "helper": "タスク実行後にエージェントが自動的に変更をコミットするかどうかを制御します。",
+          "options": {
+            "enabled": "有効",
+            "enabledDescription": "タスク実行が成功した後、エージェントが自動的に変更をコミットします。",
+            "disabled": "無効",
+            "disabledDescription": "変更は手動レビュー用にコミットされずに残ります。"
+          }
         },
         "commitTitleMode": {
           "label": "コミットタイトルモード",
           "helper": "自動コミットのコミットタイトルの生成方法を選択します。",
           "options": {
-            "agentSummary": "エージェントの要約を使用（デフォルト）",
-            "aiGenerated": "AI生成（カスタムプロンプトを使用）",
-            "manual": "手動（レビュー用にキュー）"
+            "agentSummary": "エージェント要約",
+            "agentSummaryDescription": "エージェントのタスク要約をコミットタイトルとして使用（デフォルト）。",
+            "aiGenerated": "AI生成",
+            "aiGeneratedDescription": "カスタムAIプロンプトを使用してコミットタイトルを生成します。",
+            "manual": "手動",
+            "manualDescription": "コミット前に手動でタイトルを入力するようキューに追加します。"
           },
           "customPrompt": {
             "useCustom": "コミットタイトルにカスタムプロンプトを使用",
@@ -201,25 +214,56 @@
       "tasks": {
         "title": "タスク",
         "description": "タスクの作成とナビゲーション動作を設定します。",
+        "sections": {
+          "behavior": "タスク動作"
+        },
         "redirectToAttempt": {
-          "label": "タスク作成時に試行にリダイレクト",
-          "helper": "有効にすると、タスクを作成して開始した後、タスク試行の詳細ビューに自動的に移動します。"
+          "label": "作成時に試行に移動",
+          "helper": "タスクを作成して開始した後のナビゲーション動作を制御します。",
+          "options": {
+            "enabled": "有効",
+            "enabledDescription": "タスク試行の詳細ビューに自動的に移動します。",
+            "disabled": "無効",
+            "disabledDescription": "タスク作成後も現在のページに留まります。"
+          }
         }
       },
       "pullRequests": {
         "title": "プルリクエスト",
         "description": "PR作成の動作を設定",
+        "sections": {
+          "creation": "PR作成",
+          "description": "PR説明"
+        },
         "autoPr": {
-          "label": "レビュー中に移動したときにPRを作成",
-          "helper": "タスクがレビュー中ステータスに移動したときに自動的にプルリクエストを作成します。"
+          "label": "レビュー時にPRを自動作成",
+          "helper": "タスクをレビュー中ステータスに移動したときのPR自動作成を制御します。",
+          "options": {
+            "enabled": "有効",
+            "enabledDescription": "タスクがレビュー中に移動したときに自動的にプルリクエストを作成します。",
+            "disabled": "無効",
+            "disabledDescription": "PRを自動作成しません。"
+          }
         },
         "autoPrDraft": {
           "label": "ドラフトPRとして作成",
-          "helper": "PRを自動作成する際、レビュー準備完了ではなくドラフトとして作成します。"
+          "helper": "自動作成されるPRがドラフトかレビュー準備完了かを制御します。",
+          "options": {
+            "enabled": "ドラフト",
+            "enabledDescription": "手動公開が必要なドラフトとしてPRを作成します。",
+            "disabled": "レビュー準備完了",
+            "disabledDescription": "すぐにレビューできる状態でPRを作成します。"
+          }
         },
         "autoDescription": {
-          "label": "デフォルトでPR説明を自動生成",
-          "helper": "有効にすると、AIエージェントがPR作成後に自動的にタイトルと説明を更新します。"
+          "label": "PR説明を自動生成",
+          "helper": "PRタイトルと説明の自動生成を制御します。",
+          "options": {
+            "enabled": "有効",
+            "enabledDescription": "AIエージェントがPR作成後に自動的にタイトルと説明を更新します。",
+            "disabled": "無効",
+            "disabledDescription": "PRタイトルと説明をデフォルトのままにします。"
+          }
         },
         "customPrompt": {
           "useCustom": "カスタムプロンプトを使用",

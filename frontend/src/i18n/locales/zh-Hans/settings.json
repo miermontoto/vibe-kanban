@@ -146,6 +146,10 @@
       "git": {
         "title": "Git",
         "description": "配置 git 分支命名偏好",
+        "sections": {
+          "branchNaming": "分支命名",
+          "commits": "提交"
+        },
         "workspaceDir": {
           "label": "工作区目录",
           "placeholder": "/path/to/workspaces",
@@ -172,15 +176,24 @@
         },
         "autoCommit": {
           "label": "自动提交更改",
-          "helper": "启用后，代理将在任务执行成功后自动提交更改。"
+          "helper": "控制代理是否在任务执行后自动提交更改。",
+          "options": {
+            "enabled": "启用",
+            "enabledDescription": "任务执行成功后代理自动提交更改。",
+            "disabled": "禁用",
+            "disabledDescription": "更改将保持未提交状态以供手动审查。"
+          }
         },
         "commitTitleMode": {
           "label": "提交标题模式",
           "helper": "选择如何为自动提交生成提交标题。",
           "options": {
-            "agentSummary": "使用代理摘要（默认）",
-            "aiGenerated": "AI 生成（使用自定义提示）",
-            "manual": "手动（排队审查提交）"
+            "agentSummary": "代理摘要",
+            "agentSummaryDescription": "使用代理的任务摘要作为提交标题（默认）。",
+            "aiGenerated": "AI 生成",
+            "aiGeneratedDescription": "使用自定义 AI 提示生成提交标题。",
+            "manual": "手动",
+            "manualDescription": "提交前排队等待手动输入标题。"
           },
           "customPrompt": {
             "useCustom": "使用自定义提示生成提交标题",
@@ -198,32 +211,63 @@
           }
         }
       },
+      "tasks": {
+        "title": "任务",
+        "description": "配置任务创建和导航行为。",
+        "sections": {
+          "behavior": "任务行为"
+        },
+        "redirectToAttempt": {
+          "label": "创建时导航到尝试",
+          "helper": "控制创建并启动任务后的导航行为。",
+          "options": {
+            "enabled": "启用",
+            "enabledDescription": "自动导航到任务尝试详情视图。",
+            "disabled": "禁用",
+            "disabledDescription": "创建任务后保持在当前页面。"
+          }
+        }
+      },
       "pullRequests": {
         "title": "拉取请求",
         "description": "配置PR创建行为",
+        "sections": {
+          "creation": "PR 创建",
+          "description": "PR 描述"
+        },
         "autoPr": {
-          "label": "移至审查中时创建 PR",
-          "helper": "当任务移至审查中状态时自动创建拉取请求。"
+          "label": "审查时自动创建 PR",
+          "helper": "控制任务移至审查中状态时的自动 PR 创建。",
+          "options": {
+            "enabled": "启用",
+            "enabledDescription": "任务移至审查中时自动创建拉取请求。",
+            "disabled": "禁用",
+            "disabledDescription": "不自动创建 PR。"
+          }
         },
         "autoPrDraft": {
           "label": "创建为草稿 PR",
-          "helper": "自动创建 PR 时，将其创建为草稿而不是准备审查。"
+          "helper": "控制自动创建的 PR 是草稿还是准备审查。",
+          "options": {
+            "enabled": "草稿",
+            "enabledDescription": "创建为草稿 PR，需要手动发布。",
+            "disabled": "准备审查",
+            "disabledDescription": "创建为可立即审查的 PR。"
+          }
         },
         "autoDescription": {
-          "label": "默认自动生成PR描述",
-          "helper": "启用后，AI代理将在创建PR后自动更新标题和描述。"
+          "label": "自动生成 PR 描述",
+          "helper": "控制自动 PR 标题和描述生成。",
+          "options": {
+            "enabled": "启用",
+            "enabledDescription": "AI 代理将在 PR 创建后自动更新标题和描述。",
+            "disabled": "禁用",
+            "disabledDescription": "保持 PR 标题和描述为默认值。"
+          }
         },
         "customPrompt": {
           "useCustom": "使用自定义提示",
           "helper": "生成PR描述时AI代理使用的自定义提示。使用{pr_number}和{pr_url}作为占位符。"
-        }
-      },
-      "tasks": {
-        "title": "任务",
-        "description": "配置任务创建和导航行为。",
-        "redirectToAttempt": {
-          "label": "创建任务时重定向到尝试",
-          "helper": "启用后，创建并启动任务后自动导航到任务尝试详情视图。"
         }
       },
       "notifications": {

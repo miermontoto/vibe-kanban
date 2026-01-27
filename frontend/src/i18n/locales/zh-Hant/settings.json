@@ -146,6 +146,10 @@
       "git": {
         "title": "Git",
         "description": "設定 Git 分支命名偏好",
+        "sections": {
+          "branchNaming": "分支命名",
+          "commits": "提交"
+        },
         "workspaceDir": {
           "label": "工作區目錄",
           "placeholder": "/path/to/workspaces",
@@ -172,15 +176,24 @@
         },
         "autoCommit": {
           "label": "自動提交變更",
-          "helper": "啟用後，代理將在任務執行成功後自動提交變更。"
+          "helper": "控制代理是否在任務執行後自動提交變更。",
+          "options": {
+            "enabled": "啟用",
+            "enabledDescription": "任務執行成功後代理自動提交變更。",
+            "disabled": "停用",
+            "disabledDescription": "變更將保持未提交狀態以供手動審查。"
+          }
         },
         "commitTitleMode": {
           "label": "提交標題模式",
           "helper": "選擇如何為自動提交產生提交標題。",
           "options": {
-            "agentSummary": "使用代理摘要（預設）",
-            "aiGenerated": "AI 產生（使用自訂提示）",
-            "manual": "手動（排隊審查提交）"
+            "agentSummary": "代理摘要",
+            "agentSummaryDescription": "使用代理的任務摘要作為提交標題（預設）。",
+            "aiGenerated": "AI 產生",
+            "aiGeneratedDescription": "使用自訂 AI 提示產生提交標題。",
+            "manual": "手動",
+            "manualDescription": "提交前排隊等待手動輸入標題。"
           },
           "customPrompt": {
             "useCustom": "使用自訂提示產生提交標題",
@@ -198,32 +211,63 @@
           }
         }
       },
+      "tasks": {
+        "title": "任務",
+        "description": "設定任務建立與導航行為。",
+        "sections": {
+          "behavior": "任務行為"
+        },
+        "redirectToAttempt": {
+          "label": "建立時導航到嘗試",
+          "helper": "控制建立並啟動任務後的導航行為。",
+          "options": {
+            "enabled": "啟用",
+            "enabledDescription": "自動導航到任務嘗試詳情視圖。",
+            "disabled": "停用",
+            "disabledDescription": "建立任務後保持在當前頁面。"
+          }
+        }
+      },
       "pullRequests": {
         "title": "PR",
         "description": "設定 PR 建立行為",
+        "sections": {
+          "creation": "PR 建立",
+          "description": "PR 描述"
+        },
         "autoPr": {
-          "label": "移至審查中時建立 PR",
-          "helper": "當任務移至審查中狀態時自動建立拉取請求。"
+          "label": "審查時自動建立 PR",
+          "helper": "控制任務移至審查中狀態時的自動 PR 建立。",
+          "options": {
+            "enabled": "啟用",
+            "enabledDescription": "任務移至審查中時自動建立拉取請求。",
+            "disabled": "停用",
+            "disabledDescription": "不自動建立 PR。"
+          }
         },
         "autoPrDraft": {
           "label": "建立為草稿 PR",
-          "helper": "自動建立 PR 時，將其建立為草稿而不是準備審查。"
+          "helper": "控制自動建立的 PR 是草稿還是準備審查。",
+          "options": {
+            "enabled": "草稿",
+            "enabledDescription": "建立為草稿 PR，需要手動發佈。",
+            "disabled": "準備審查",
+            "disabledDescription": "建立為可立即審查的 PR。"
+          }
         },
         "autoDescription": {
-          "label": "預設自動產生 PR 描述",
-          "helper": "啟用後，AI 代理會在建立 PR 後自動更新標題與描述。"
+          "label": "自動產生 PR 描述",
+          "helper": "控制自動 PR 標題和描述產生。",
+          "options": {
+            "enabled": "啟用",
+            "enabledDescription": "AI 代理會在 PR 建立後自動更新標題與描述。",
+            "disabled": "停用",
+            "disabledDescription": "保持 PR 標題和描述為預設值。"
+          }
         },
         "customPrompt": {
           "useCustom": "使用自訂提示",
           "helper": "產生 PR 描述時 AI 代理使用的自訂提示。使用 {pr_number} 與 {pr_url} 作為佔位符。"
-        }
-      },
-      "tasks": {
-        "title": "任務",
-        "description": "設定任務建立與導航行為。",
-        "redirectToAttempt": {
-          "label": "建立任務時重新導向到嘗試",
-          "helper": "啟用後，建立並啟動任務後自動導航到任務嘗試詳情視圖。"
         }
       },
       "notifications": {

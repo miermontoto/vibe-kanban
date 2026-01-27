@@ -22,7 +22,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { FolderOpen, Loader2, Volume2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { BinaryToggle } from '@/components/settings/BinaryToggle';
+import {
+  FolderOpen,
+  GitBranch,
+  GitCommitHorizontal,
+  GitPullRequest,
+  Loader2,
+  MousePointerClick,
+  Volume2,
+} from 'lucide-react';
 import {
   DEFAULT_PR_DESCRIPTION_PROMPT,
   DEFAULT_COMMIT_TITLE_PROMPT,
@@ -533,205 +543,237 @@ export function GeneralSettings() {
             {t('settings.general.git.description')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="git-branch-prefix">
-              {t('settings.general.git.branchPrefix.label')}
-            </Label>
-            <Input
-              id="git-branch-prefix"
-              type="text"
-              placeholder={t('settings.general.git.branchPrefix.placeholder')}
-              value={draft?.git_branch_prefix ?? ''}
-              onChange={(e) => {
-                const value = e.target.value.trim();
-                updateDraft({ git_branch_prefix: value });
-                setBranchPrefixError(validateBranchPrefix(value));
-              }}
-              aria-invalid={!!branchPrefixError}
-              className={branchPrefixError ? 'border-destructive' : undefined}
-            />
-            {branchPrefixError && (
-              <p className="text-sm text-destructive">{branchPrefixError}</p>
-            )}
-            <p className="text-sm text-muted-foreground">
-              {t('settings.general.git.branchPrefix.helper')}{' '}
-              {draft?.git_branch_prefix ? (
-                <>
-                  {t('settings.general.git.branchPrefix.preview')}{' '}
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                    {t('settings.general.git.branchPrefix.previewWithPrefix', {
-                      prefix: draft.git_branch_prefix,
-                    })}
-                  </code>
-                </>
-              ) : (
-                <>
-                  {t('settings.general.git.branchPrefix.preview')}{' '}
-                  <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                    {t('settings.general.git.branchPrefix.previewNoPrefix')}
-                  </code>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="git-auto-commit"
-              checked={draft?.git_auto_commit_enabled ?? true}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ git_auto_commit_enabled: checked })
-              }
-            />
-            <div className="space-y-0.5">
-              <Label htmlFor="git-auto-commit" className="cursor-pointer">
-                {t('settings.general.git.autoCommit.label')}
+        <CardContent className="space-y-6">
+          {/* Branch Naming Section */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                {t('settings.general.git.sections.branchNaming')}
               </Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="git-branch-prefix">
+                {t('settings.general.git.branchPrefix.label')}
+              </Label>
+              <Input
+                id="git-branch-prefix"
+                type="text"
+                placeholder={t('settings.general.git.branchPrefix.placeholder')}
+                value={draft?.git_branch_prefix ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  updateDraft({ git_branch_prefix: value });
+                  setBranchPrefixError(validateBranchPrefix(value));
+                }}
+                aria-invalid={!!branchPrefixError}
+                className={branchPrefixError ? 'border-destructive' : undefined}
+              />
+              {branchPrefixError && (
+                <p className="text-sm text-destructive">{branchPrefixError}</p>
+              )}
               <p className="text-sm text-muted-foreground">
-                {t('settings.general.git.autoCommit.helper')}
+                {t('settings.general.git.branchPrefix.helper')}{' '}
+                {draft?.git_branch_prefix ? (
+                  <>
+                    {t('settings.general.git.branchPrefix.preview')}{' '}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      {t('settings.general.git.branchPrefix.previewWithPrefix', {
+                        prefix: draft.git_branch_prefix,
+                      })}
+                    </code>
+                  </>
+                ) : (
+                  <>
+                    {t('settings.general.git.branchPrefix.preview')}{' '}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      {t('settings.general.git.branchPrefix.previewNoPrefix')}
+                    </code>
+                  </>
+                )}
               </p>
             </div>
-          </div>
 
-          {draft?.git_auto_commit_enabled && (
-            <>
-              <div className="space-y-3 ml-6">
-                <Label>{t('settings.general.git.commitTitleMode.label')}</Label>
+            <div className="space-y-2">
+              <Label htmlFor="workspace-dir">
+                {t('settings.general.git.workspaceDir.label')}
+              </Label>
+              <div className="flex space-x-2">
+                <Input
+                  id="workspace-dir"
+                  type="text"
+                  placeholder={t('settings.general.git.workspaceDir.placeholder')}
+                  value={draft?.workspace_dir ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateDraft({ workspace_dir: value || null });
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBrowseWorkspaceDir}
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  {t('settings.general.git.workspaceDir.browse')}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t('settings.general.git.workspaceDir.helper')}
+              </p>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Commits Section */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <GitCommitHorizontal className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                {t('settings.general.git.sections.commits')}
+              </Label>
+            </div>
+
+            <BinaryToggle
+              label={t('settings.general.git.autoCommit.label')}
+              helper={t('settings.general.git.autoCommit.helper')}
+              value={draft?.git_auto_commit_enabled ?? true}
+              onChange={(value) => updateDraft({ git_auto_commit_enabled: value })}
+              options={[
+                {
+                  value: true,
+                  label: t('settings.general.git.autoCommit.options.enabled'),
+                  description: t('settings.general.git.autoCommit.options.enabledDescription'),
+                },
+                {
+                  value: false,
+                  label: t('settings.general.git.autoCommit.options.disabled'),
+                  description: t('settings.general.git.autoCommit.options.disabledDescription'),
+                },
+              ]}
+            />
+
+            {draft?.git_auto_commit_enabled && (
+              <div className="space-y-3">
+                <Label className="text-base font-medium">
+                  {t('settings.general.git.commitTitleMode.label')}
+                </Label>
                 <RadioGroup
                   value={draft?.git_commit_title_mode ?? 'AgentSummary'}
                   onValueChange={(value: GitCommitTitleMode) =>
                     updateDraft({ git_commit_title_mode: value })
                   }
-                  className="space-y-2"
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="AgentSummary"
-                      id="commit-title-agent"
-                    />
-                    <Label
-                      htmlFor="commit-title-agent"
-                      className="cursor-pointer font-normal"
+                  <div className="grid gap-3">
+                    <div
+                      className={`relative flex items-start space-x-3 rounded-lg border-2 p-4 transition-all cursor-pointer hover:bg-accent/50 ${
+                        (draft?.git_commit_title_mode ?? 'AgentSummary') === 'AgentSummary'
+                          ? 'border-primary bg-accent'
+                          : 'border-border bg-card'
+                      }`}
+                      onClick={() => updateDraft({ git_commit_title_mode: 'AgentSummary' })}
                     >
-                      {t(
-                        'settings.general.git.commitTitleMode.options.agentSummary'
-                      )}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="AiGenerated" id="commit-title-ai" />
-                    <Label
-                      htmlFor="commit-title-ai"
-                      className="cursor-pointer font-normal"
+                      <RadioGroupItem value="AgentSummary" id="commit-title-agent" className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <Label htmlFor="commit-title-agent" className="cursor-pointer font-normal">
+                          {t('settings.general.git.commitTitleMode.options.agentSummary')}
+                        </Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t('settings.general.git.commitTitleMode.options.agentSummaryDescription')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`relative flex items-start space-x-3 rounded-lg border-2 p-4 transition-all cursor-pointer hover:bg-accent/50 ${
+                        draft?.git_commit_title_mode === 'AiGenerated'
+                          ? 'border-primary bg-accent'
+                          : 'border-border bg-card'
+                      }`}
+                      onClick={() => updateDraft({ git_commit_title_mode: 'AiGenerated' })}
                     >
-                      {t(
-                        'settings.general.git.commitTitleMode.options.aiGenerated'
-                      )}
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {t(
-                          'settings.general.git.commitTitleMode.notImplemented'
-                        )}
-                      </Badge>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Manual" id="commit-title-manual" />
-                    <Label
-                      htmlFor="commit-title-manual"
-                      className="cursor-pointer font-normal"
+                      <RadioGroupItem value="AiGenerated" id="commit-title-ai" className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <Label htmlFor="commit-title-ai" className="cursor-pointer font-normal flex items-center gap-2">
+                          <span>{t('settings.general.git.commitTitleMode.options.aiGenerated')}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {t('settings.general.git.commitTitleMode.notImplemented')}
+                          </Badge>
+                        </Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t('settings.general.git.commitTitleMode.options.aiGeneratedDescription')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`relative flex items-start space-x-3 rounded-lg border-2 p-4 transition-all cursor-pointer hover:bg-accent/50 ${
+                        draft?.git_commit_title_mode === 'Manual'
+                          ? 'border-primary bg-accent'
+                          : 'border-border bg-card'
+                      }`}
+                      onClick={() => updateDraft({ git_commit_title_mode: 'Manual' })}
                     >
-                      {t('settings.general.git.commitTitleMode.options.manual')}
-                    </Label>
+                      <RadioGroupItem value="Manual" id="commit-title-manual" className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <Label htmlFor="commit-title-manual" className="cursor-pointer font-normal">
+                          {t('settings.general.git.commitTitleMode.options.manual')}
+                        </Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t('settings.general.git.commitTitleMode.options.manualDescription')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </RadioGroup>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {t('settings.general.git.commitTitleMode.helper')}
                 </p>
-              </div>
 
-              {draft?.git_commit_title_mode === 'AiGenerated' && (
-                <div className="space-y-2 ml-6">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="use-custom-commit-prompt"
-                      checked={draft?.git_commit_title_prompt != null}
-                      onCheckedChange={(checked: boolean) => {
-                        if (checked) {
-                          updateDraft({
-                            git_commit_title_prompt:
-                              DEFAULT_COMMIT_TITLE_PROMPT,
-                          });
-                        } else {
-                          updateDraft({ git_commit_title_prompt: null });
-                        }
-                      }}
+                {draft?.git_commit_title_mode === 'AiGenerated' && (
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="use-custom-commit-prompt"
+                        checked={draft?.git_commit_title_prompt != null}
+                        onCheckedChange={(checked: boolean) => {
+                          if (checked) {
+                            updateDraft({
+                              git_commit_title_prompt: DEFAULT_COMMIT_TITLE_PROMPT,
+                            });
+                          } else {
+                            updateDraft({ git_commit_title_prompt: null });
+                          }
+                        }}
+                      />
+                      <Label htmlFor="use-custom-commit-prompt" className="cursor-pointer">
+                        {t('settings.general.git.commitTitleMode.customPrompt.useCustom')}
+                      </Label>
+                    </div>
+                    <textarea
+                      id="commit-custom-prompt"
+                      className={`flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                        draft?.git_commit_title_prompt == null
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                      value={draft?.git_commit_title_prompt ?? DEFAULT_COMMIT_TITLE_PROMPT}
+                      disabled={draft?.git_commit_title_prompt == null}
+                      onChange={(e) =>
+                        updateDraft({ git_commit_title_prompt: e.target.value })
+                      }
                     />
-                    <Label
-                      htmlFor="use-custom-commit-prompt"
-                      className="cursor-pointer"
-                    >
-                      {t(
-                        'settings.general.git.commitTitleMode.customPrompt.useCustom'
-                      )}
-                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      {t('settings.general.git.commitTitleMode.customPrompt.helper')}
+                    </p>
                   </div>
-                  <textarea
-                    id="commit-custom-prompt"
-                    className={`flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      draft?.git_commit_title_prompt == null
-                        ? 'opacity-50 cursor-not-allowed'
-                        : ''
-                    }`}
-                    value={
-                      draft?.git_commit_title_prompt ??
-                      DEFAULT_COMMIT_TITLE_PROMPT
-                    }
-                    disabled={draft?.git_commit_title_prompt == null}
-                    onChange={(e) =>
-                      updateDraft({
-                        git_commit_title_prompt: e.target.value,
-                      })
-                    }
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    {t(
-                      'settings.general.git.commitTitleMode.customPrompt.helper'
-                    )}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="workspace-dir">
-              {t('settings.general.git.workspaceDir.label')}
-            </Label>
-            <div className="flex space-x-2">
-              <Input
-                id="workspace-dir"
-                type="text"
-                placeholder={t('settings.general.git.workspaceDir.placeholder')}
-                value={draft?.workspace_dir ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  updateDraft({ workspace_dir: value || null });
-                }}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleBrowseWorkspaceDir}
-              >
-                <FolderOpen className="h-4 w-4 mr-2" />
-                {t('settings.general.git.workspaceDir.browse')}
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t('settings.general.git.workspaceDir.helper')}
-            </p>
-          </div>
+                )}
+              </div>
+            )}
+          </section>
         </CardContent>
       </Card>
 
@@ -742,24 +784,35 @@ export function GeneralSettings() {
             {t('settings.general.tasks.description')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="redirect-to-attempt"
-              checked={draft?.redirect_to_attempt_on_create ?? true}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ redirect_to_attempt_on_create: checked })
-              }
-            />
-            <div className="space-y-0.5">
-              <Label htmlFor="redirect-to-attempt" className="cursor-pointer">
-                {t('settings.general.tasks.redirectToAttempt.label')}
+        <CardContent className="space-y-6">
+          {/* Task Behavior Section */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                {t('settings.general.tasks.sections.behavior')}
               </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('settings.general.tasks.redirectToAttempt.helper')}
-              </p>
             </div>
-          </div>
+
+            <BinaryToggle
+              label={t('settings.general.tasks.redirectToAttempt.label')}
+              helper={t('settings.general.tasks.redirectToAttempt.helper')}
+              value={draft?.redirect_to_attempt_on_create ?? true}
+              onChange={(value) => updateDraft({ redirect_to_attempt_on_create: value })}
+              options={[
+                {
+                  value: true,
+                  label: t('settings.general.tasks.redirectToAttempt.options.enabled'),
+                  description: t('settings.general.tasks.redirectToAttempt.options.enabledDescription'),
+                },
+                {
+                  value: false,
+                  label: t('settings.general.tasks.redirectToAttempt.options.disabled'),
+                  description: t('settings.general.tasks.redirectToAttempt.options.disabledDescription'),
+                },
+              ]}
+            />
+          </section>
         </CardContent>
       </Card>
 
@@ -770,105 +823,128 @@ export function GeneralSettings() {
             {t('settings.general.pullRequests.description')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="auto-pr-on-review"
-              checked={draft?.auto_pr_on_review_enabled ?? false}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ auto_pr_on_review_enabled: checked })
-              }
-            />
-            <div className="space-y-0.5">
-              <Label htmlFor="auto-pr-on-review" className="cursor-pointer">
-                {t('settings.general.pullRequests.autoPr.label')}
+        <CardContent className="space-y-6">
+          {/* Pull Request Creation Section */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <GitPullRequest className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                {t('settings.general.pullRequests.sections.creation')}
               </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('settings.general.pullRequests.autoPr.helper')}
-              </p>
             </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="auto-pr-draft"
-              checked={draft?.auto_pr_draft ?? true}
+
+            <BinaryToggle
+              label={t('settings.general.pullRequests.autoPr.label')}
+              helper={t('settings.general.pullRequests.autoPr.helper')}
+              value={draft?.auto_pr_on_review_enabled ?? false}
+              onChange={(value) => updateDraft({ auto_pr_on_review_enabled: value })}
+              options={[
+                {
+                  value: true,
+                  label: t('settings.general.pullRequests.autoPr.options.enabled'),
+                  description: t('settings.general.pullRequests.autoPr.options.enabledDescription'),
+                },
+                {
+                  value: false,
+                  label: t('settings.general.pullRequests.autoPr.options.disabled'),
+                  description: t('settings.general.pullRequests.autoPr.options.disabledDescription'),
+                },
+              ]}
+            />
+
+            <BinaryToggle
+              label={t('settings.general.pullRequests.autoPrDraft.label')}
+              helper={t('settings.general.pullRequests.autoPrDraft.helper')}
+              value={draft?.auto_pr_draft ?? true}
+              onChange={(value) => updateDraft({ auto_pr_draft: value })}
               disabled={!draft?.auto_pr_on_review_enabled}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ auto_pr_draft: checked })
-              }
+              options={[
+                {
+                  value: true,
+                  label: t('settings.general.pullRequests.autoPrDraft.options.enabled'),
+                  description: t('settings.general.pullRequests.autoPrDraft.options.enabledDescription'),
+                },
+                {
+                  value: false,
+                  label: t('settings.general.pullRequests.autoPrDraft.options.disabled'),
+                  description: t('settings.general.pullRequests.autoPrDraft.options.disabledDescription'),
+                },
+              ]}
             />
-            <div className="space-y-0.5">
-              <Label
-                htmlFor="auto-pr-draft"
-                className={`cursor-pointer ${!draft?.auto_pr_on_review_enabled ? 'opacity-50' : ''}`}
-              >
-                {t('settings.general.pullRequests.autoPrDraft.label')}
+          </section>
+
+          <Separator />
+
+          {/* PR Description Section */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <GitPullRequest className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">
+                {t('settings.general.pullRequests.sections.description')}
               </Label>
-              <p
-                className={`text-sm text-muted-foreground ${!draft?.auto_pr_on_review_enabled ? 'opacity-50' : ''}`}
-              >
-                {t('settings.general.pullRequests.autoPrDraft.helper')}
-              </p>
             </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="pr-auto-description"
-              checked={draft?.pr_auto_description_enabled ?? false}
-              onCheckedChange={(checked: boolean) =>
-                updateDraft({ pr_auto_description_enabled: checked })
-              }
+
+            <BinaryToggle
+              label={t('settings.general.pullRequests.autoDescription.label')}
+              helper={t('settings.general.pullRequests.autoDescription.helper')}
+              value={draft?.pr_auto_description_enabled ?? false}
+              onChange={(value) => updateDraft({ pr_auto_description_enabled: value })}
+              options={[
+                {
+                  value: true,
+                  label: t('settings.general.pullRequests.autoDescription.options.enabled'),
+                  description: t('settings.general.pullRequests.autoDescription.options.enabledDescription'),
+                },
+                {
+                  value: false,
+                  label: t('settings.general.pullRequests.autoDescription.options.disabled'),
+                  description: t('settings.general.pullRequests.autoDescription.options.disabledDescription'),
+                },
+              ]}
             />
-            <div className="space-y-0.5">
-              <Label htmlFor="pr-auto-description" className="cursor-pointer">
-                {t('settings.general.pullRequests.autoDescription.label')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('settings.general.pullRequests.autoDescription.helper')}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="use-custom-prompt"
-              checked={draft?.pr_auto_description_prompt != null}
-              onCheckedChange={(checked: boolean) => {
-                if (checked) {
-                  updateDraft({
-                    pr_auto_description_prompt: DEFAULT_PR_DESCRIPTION_PROMPT,
-                  });
-                } else {
-                  updateDraft({ pr_auto_description_prompt: null });
+
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="use-custom-prompt"
+                  checked={draft?.pr_auto_description_prompt != null}
+                  onCheckedChange={(checked: boolean) => {
+                    if (checked) {
+                      updateDraft({
+                        pr_auto_description_prompt: DEFAULT_PR_DESCRIPTION_PROMPT,
+                      });
+                    } else {
+                      updateDraft({ pr_auto_description_prompt: null });
+                    }
+                  }}
+                />
+                <Label htmlFor="use-custom-prompt" className="cursor-pointer">
+                  {t('settings.general.pullRequests.customPrompt.useCustom')}
+                </Label>
+              </div>
+              <textarea
+                id="pr-custom-prompt"
+                className={`flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  draft?.pr_auto_description_prompt == null
+                    ? 'opacity-50 cursor-not-allowed'
+                    : ''
+                }`}
+                value={
+                  draft?.pr_auto_description_prompt ??
+                  DEFAULT_PR_DESCRIPTION_PROMPT
                 }
-              }}
-            />
-            <Label htmlFor="use-custom-prompt" className="cursor-pointer">
-              {t('settings.general.pullRequests.customPrompt.useCustom')}
-            </Label>
-          </div>
-          <div className="space-y-2">
-            <textarea
-              id="pr-custom-prompt"
-              className={`flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                draft?.pr_auto_description_prompt == null
-                  ? 'opacity-50 cursor-not-allowed'
-                  : ''
-              }`}
-              value={
-                draft?.pr_auto_description_prompt ??
-                DEFAULT_PR_DESCRIPTION_PROMPT
-              }
-              disabled={draft?.pr_auto_description_prompt == null}
-              onChange={(e) =>
-                updateDraft({
-                  pr_auto_description_prompt: e.target.value,
-                })
-              }
-            />
-            <p className="text-sm text-muted-foreground">
-              {t('settings.general.pullRequests.customPrompt.helper')}
-            </p>
-          </div>
+                disabled={draft?.pr_auto_description_prompt == null}
+                onChange={(e) =>
+                  updateDraft({
+                    pr_auto_description_prompt: e.target.value,
+                  })
+                }
+              />
+              <p className="text-sm text-muted-foreground">
+                {t('settings.general.pullRequests.customPrompt.helper')}
+              </p>
+            </div>
+          </section>
         </CardContent>
       </Card>
 
