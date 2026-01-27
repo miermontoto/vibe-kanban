@@ -1,9 +1,9 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io,
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Weak,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
@@ -16,9 +16,13 @@ use notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache, new_debouncer,
 };
+use once_cell::sync::Lazy;
 use thiserror::Error;
-use tokio::{sync::mpsc, task::JoinHandle};
-use tokio_stream::wrappers::{IntervalStream, ReceiverStream};
+use tokio::{
+    sync::{broadcast, mpsc, Mutex as TokioMutex},
+    task::JoinHandle,
+};
+use tokio_stream::wrappers::{BroadcastStream, IntervalStream, errors::BroadcastStreamRecvError};
 use utils::{
     diff::{self, Diff},
     log_msg::LogMsg,
@@ -35,6 +39,52 @@ pub const MAX_CUMULATIVE_DIFF_BYTES: usize = 200 * 1024 * 1024;
 
 const DIFF_STREAM_CHANNEL_CAPACITY: usize = 1000;
 
+/// Maximum concurrent diff streams globally.
+/// Linux inotify has a default limit of 128 instances per user (/proc/sys/fs/inotify/max_user_instances).
+/// Each diff stream creates 2 inotify instances (filesystem watcher + git watcher), so we limit to 50
+/// to leave headroom for other system usage.
+const MAX_CONCURRENT_DIFF_STREAMS: usize = 50;
+
+/// Broadcast channel capacity - how many messages can be buffered before slow consumers lag
+const BROADCAST_CHANNEL_CAPACITY: usize = 512;
+
+/// Global counter tracking active diff streams (actual watchers, not subscribers)
+static ACTIVE_DIFF_STREAMS: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
+
+/// Cache key for shared diff streams: (workspace_id, repo_id, stats_only)
+type DiffStreamCacheKey = (Uuid, Uuid, bool);
+
+/// Shared diff stream that multiple consumers can subscribe to.
+/// When the last Arc is dropped, the watcher task is cleaned up.
+struct SharedDiffStream {
+    /// Broadcast sender for distributing messages to all subscribers
+    tx: broadcast::Sender<Result<LogMsg, String>>,
+    /// Watcher task handle - aborted when SharedDiffStream is dropped
+    watcher_task: JoinHandle<()>,
+    /// Forwarder task handle - forwards from internal channel to broadcast
+    _forwarder_task: JoinHandle<()>,
+}
+
+impl Drop for SharedDiffStream {
+    fn drop(&mut self) {
+        // aborta los tasks cuando ya no hay subscribers
+        self.watcher_task.abort();
+        self._forwarder_task.abort();
+
+        let prev = ACTIVE_DIFF_STREAMS.fetch_sub(1, Ordering::SeqCst);
+        tracing::debug!(
+            previous = prev,
+            current = prev.saturating_sub(1),
+            "Shared diff stream dropped, released slot"
+        );
+    }
+}
+
+/// Global cache for shared diff streams.
+/// Uses Weak references so entries are automatically cleaned up when last subscriber drops.
+static DIFF_STREAM_CACHE: Lazy<TokioMutex<HashMap<DiffStreamCacheKey, Weak<SharedDiffStream>>>> =
+    Lazy::new(|| TokioMutex::new(HashMap::new()));
+
 /// Errors that can occur during diff stream creation and operation
 #[derive(Error, Debug)]
 pub enum DiffStreamError {
@@ -48,12 +98,18 @@ pub enum DiffStreamError {
     Io(#[from] io::Error),
     #[error("Notify error: {0}")]
     Notify(#[from] notify::Error),
+    #[error("Too many concurrent diff streams ({current}/{max}), try again later")]
+    TooManyStreams { current: usize, max: usize },
 }
 
-/// Diff stream that owns the filesystem watcher task
-/// When this stream is dropped, the watcher is automatically cleaned up
+/// Diff stream handle that can be either:
+/// - A subscriber to a shared stream (holds Arc<SharedDiffStream>)
+/// - A standalone stream with its own watcher task (legacy/uncached mode)
 pub struct DiffStreamHandle {
     stream: futures::stream::BoxStream<'static, Result<LogMsg, io::Error>>,
+    /// Reference to shared stream - keeps the watcher alive while this handle exists
+    _shared: Option<Arc<SharedDiffStream>>,
+    /// Legacy: direct watcher task handle (only used in uncached mode)
     _watcher_task: Option<JoinHandle<()>>,
 }
 
@@ -71,20 +127,36 @@ impl futures::Stream for DiffStreamHandle {
 
 impl Drop for DiffStreamHandle {
     fn drop(&mut self) {
+        // abort legacy watcher task if present (uncached mode)
         if let Some(handle) = self._watcher_task.take() {
             handle.abort();
         }
+        // _shared is automatically dropped here, which may trigger SharedDiffStream::drop
+        // if this was the last reference
     }
 }
 
 impl DiffStreamHandle {
-    /// Create a new DiffStreamHandle from a boxed stream and optional watcher task
+    /// Create a subscriber handle that references a shared stream
+    fn new_subscriber(
+        stream: futures::stream::BoxStream<'static, Result<LogMsg, io::Error>>,
+        shared: Arc<SharedDiffStream>,
+    ) -> Self {
+        Self {
+            stream,
+            _shared: Some(shared),
+            _watcher_task: None,
+        }
+    }
+
+    /// Create a standalone handle with its own watcher task (uncached/legacy mode)
     pub fn new(
         stream: futures::stream::BoxStream<'static, Result<LogMsg, io::Error>>,
         watcher_task: Option<JoinHandle<()>>,
     ) -> Self {
         Self {
             stream,
+            _shared: None,
             _watcher_task: watcher_task,
         }
     }
@@ -121,22 +193,137 @@ enum DiffEvent {
     CheckTarget,
 }
 
+/// Create a diff stream, reusing an existing shared stream if available.
+/// Multiple WebSocket connections to the same (workspace_id, repo_id, stats_only) will share
+/// one underlying filesystem watcher, significantly reducing inotify instance usage.
 pub async fn create(args: DiffStreamArgs) -> Result<DiffStreamHandle, DiffStreamError> {
-    let (tx, rx) = mpsc::channel::<Result<LogMsg, io::Error>>(DIFF_STREAM_CHANNEL_CAPACITY);
+    let cache_key: DiffStreamCacheKey = (args.workspace_id, args.repo_id, args.stats_only);
+
+    // primero intenta reusar un stream existente del cache
+    {
+        let cache = DIFF_STREAM_CACHE.lock().await;
+        if let Some(weak) = cache.get(&cache_key) {
+            if let Some(shared) = weak.upgrade() {
+                // stream compartido encontrado - crear subscriber
+                let rx = shared.tx.subscribe();
+                let stream = BroadcastStream::new(rx)
+                    .filter_map(|result| async move {
+                        match result {
+                            Ok(Ok(msg)) => Some(Ok(msg)),
+                            Ok(Err(e)) => Some(Err(io::Error::other(e))),
+                            Err(BroadcastStreamRecvError::Lagged(n)) => {
+                                tracing::warn!(skipped = n, "Diff stream subscriber lagged");
+                                None // skip lagged messages
+                            }
+                        }
+                    })
+                    .boxed();
+
+                tracing::debug!(
+                    workspace_id = %args.workspace_id,
+                    repo_id = %args.repo_id,
+                    subscribers = shared.tx.receiver_count(),
+                    "Reusing existing shared diff stream"
+                );
+
+                return Ok(DiffStreamHandle::new_subscriber(stream, shared));
+            }
+        }
+    }
+
+    // no hay stream en cache - verificar límite y crear uno nuevo
+    let current = ACTIVE_DIFF_STREAMS.load(Ordering::SeqCst);
+    if current >= MAX_CONCURRENT_DIFF_STREAMS {
+        tracing::warn!(
+            current = current,
+            max = MAX_CONCURRENT_DIFF_STREAMS,
+            workspace_id = %args.workspace_id,
+            "Diff stream limit reached, rejecting new stream"
+        );
+        return Err(DiffStreamError::TooManyStreams {
+            current,
+            max: MAX_CONCURRENT_DIFF_STREAMS,
+        });
+    }
+
+    // incrementar contador ANTES de crear para evitar race conditions
+    let new_count = ACTIVE_DIFF_STREAMS.fetch_add(1, Ordering::SeqCst) + 1;
+    tracing::debug!(
+        count = new_count,
+        max = MAX_CONCURRENT_DIFF_STREAMS,
+        workspace_id = %args.workspace_id,
+        repo_id = %args.repo_id,
+        "Creating new shared diff stream"
+    );
+
+    // crear broadcast channel para compartir entre subscribers
+    let (broadcast_tx, _) = broadcast::channel::<Result<LogMsg, String>>(BROADCAST_CHANNEL_CAPACITY);
+
+    // canal interno para el manager
+    let (internal_tx, mut internal_rx) = mpsc::channel::<Result<LogMsg, io::Error>>(DIFF_STREAM_CHANNEL_CAPACITY);
+
     let manager_args = args.clone();
 
+    // task que ejecuta el DiffStreamManager
     let watcher_task = tokio::spawn(async move {
-        let mut manager = DiffStreamManager::new(manager_args, tx);
+        let mut manager = DiffStreamManager::new(manager_args, internal_tx);
         if let Err(e) = manager.run().await {
             tracing::error!("Diff stream manager failed: {e}");
             let _ = manager.tx.send(Err(io::Error::other(e.to_string()))).await;
         }
     });
 
-    Ok(DiffStreamHandle::new(
-        ReceiverStream::new(rx).boxed(),
-        Some(watcher_task),
-    ))
+    // task que reenvía mensajes del canal interno al broadcast
+    let broadcast_tx_clone = broadcast_tx.clone();
+    let forwarder_task = tokio::spawn(async move {
+        while let Some(result) = internal_rx.recv().await {
+            let msg = result.map_err(|e| e.to_string());
+            // si no hay receivers, el send falla pero continuamos
+            // (el stream se limpiará cuando SharedDiffStream sea dropped)
+            if broadcast_tx_clone.send(msg).is_err() {
+                // todos los receivers fueron dropped
+                break;
+            }
+        }
+    });
+
+    // crear la entrada compartida
+    let shared = Arc::new(SharedDiffStream {
+        tx: broadcast_tx,
+        watcher_task,
+        _forwarder_task: forwarder_task,
+    });
+
+    // registrar en cache con weak reference
+    {
+        let mut cache = DIFF_STREAM_CACHE.lock().await;
+        cache.insert(cache_key, Arc::downgrade(&shared));
+
+        // limpiar entradas muertas periódicamente
+        cache.retain(|_, weak| weak.strong_count() > 0);
+
+        tracing::debug!(
+            cache_size = cache.len(),
+            "Updated diff stream cache"
+        );
+    }
+
+    // crear subscriber para este consumer
+    let rx = shared.tx.subscribe();
+    let stream = BroadcastStream::new(rx)
+        .filter_map(|result| async move {
+            match result {
+                Ok(Ok(msg)) => Some(Ok(msg)),
+                Ok(Err(e)) => Some(Err(io::Error::other(e))),
+                Err(BroadcastStreamRecvError::Lagged(n)) => {
+                    tracing::warn!(skipped = n, "Diff stream subscriber lagged");
+                    None
+                }
+            }
+        })
+        .boxed();
+
+    Ok(DiffStreamHandle::new_subscriber(stream, shared))
 }
 
 impl DiffStreamManager {
