@@ -514,8 +514,8 @@ pub fn async_watcher(root: PathBuf) -> Result<WatcherComponents, FilesystemWatch
 
             let result = match recv_result {
                 Ok(Some(r)) => r,
-                Ok(None) => break,    // channel cerrado
-                Err(_) => continue,   // timeout, verificar shutdown y continuar
+                Ok(None) => break,  // channel cerrado
+                Err(_) => continue, // timeout, verificar shutdown y continuar
             };
 
             // verifica nuevamente si el debouncer sigue vivo

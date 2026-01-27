@@ -165,7 +165,14 @@ function App() {
       <UserSystemProvider>
         <ClickedElementsProvider>
           <ProjectProvider>
-            <HotkeysProvider initiallyActiveScopes={['*', 'global', 'kanban']}>
+            <HotkeysProvider
+              initiallyActiveScopes={[
+                'global',
+                'workspace',
+                'kanban',
+                'projects',
+              ]}
+            >
               <AppContent />
             </HotkeysProvider>
           </ProjectProvider>

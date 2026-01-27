@@ -257,7 +257,7 @@ Do not manually edit shared/types.ts, instead edit crates/server/src/bin/generat
 - Cache directory: `~/.vkm/bin`
 
 ## Automated QA
-- When testing changes by runnign the application, you should prefer `pnpm run dev:qa` over `pnpm run dev`, which starts the application in a dedicated mode that is optimised for QA testing
+- When testing changes by running the application, you should prefer `pnpm run dev:qa` over `pnpm run dev`, which starts the application in a dedicated mode that is optimised for QA testing
 
 ## Coding Style & Naming Conventions
 

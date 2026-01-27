@@ -33,6 +33,7 @@ CREATE TABLE project_statuses (
     name VARCHAR(50) NOT NULL,
     color VARCHAR(20) NOT NULL,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    hidden BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Prevents duplicate sort orders within the same project
@@ -246,7 +247,7 @@ CREATE TABLE workspaces (
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     issue_id UUID REFERENCES issues(id) ON DELETE SET NULL,
-    local_workspace_id UUID NOT NULL,
+    local_workspace_id UUID UNIQUE,
     archived BOOLEAN NOT NULL DEFAULT FALSE,
     files_changed INTEGER,
     lines_added INTEGER,

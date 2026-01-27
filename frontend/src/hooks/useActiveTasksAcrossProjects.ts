@@ -1,9 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useJsonPatchWsStream } from './useJsonPatchWsStream';
-import type {
-  ActiveTaskWithProject,
-  TaskStatus,
-} from 'shared/types';
+import type { ActiveTaskWithProject, TaskStatus } from 'shared/types';
 
 // re-export for convenience
 export type { ActiveTaskWithProject } from 'shared/types';
@@ -60,7 +57,11 @@ export const useActiveTasksAcrossProjects = (): UseActiveTasksResult => {
       byProject[task.project_id].push(task);
     });
 
-    return { tasks: sorted, tasksByStatus: byStatus, tasksByProject: byProject };
+    return {
+      tasks: sorted,
+      tasksByStatus: byStatus,
+      tasksByProject: byProject,
+    };
   }, [data?.tasks]);
 
   const isLoading = !isInitialized && !error;

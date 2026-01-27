@@ -19,7 +19,7 @@ use notify_debouncer_full::{
 use once_cell::sync::Lazy;
 use thiserror::Error;
 use tokio::{
-    sync::{broadcast, mpsc, Mutex as TokioMutex},
+    sync::{Mutex as TokioMutex, broadcast, mpsc},
     task::JoinHandle,
 };
 use tokio_stream::wrappers::{BroadcastStream, IntervalStream, errors::BroadcastStreamRecvError};
@@ -202,32 +202,32 @@ pub async fn create(args: DiffStreamArgs) -> Result<DiffStreamHandle, DiffStream
     // primero intenta reusar un stream existente del cache
     {
         let cache = DIFF_STREAM_CACHE.lock().await;
-        if let Some(weak) = cache.get(&cache_key) {
-            if let Some(shared) = weak.upgrade() {
-                // stream compartido encontrado - crear subscriber
-                let rx = shared.tx.subscribe();
-                let stream = BroadcastStream::new(rx)
-                    .filter_map(|result| async move {
-                        match result {
-                            Ok(Ok(msg)) => Some(Ok(msg)),
-                            Ok(Err(e)) => Some(Err(io::Error::other(e))),
-                            Err(BroadcastStreamRecvError::Lagged(n)) => {
-                                tracing::warn!(skipped = n, "Diff stream subscriber lagged");
-                                None // skip lagged messages
-                            }
+        if let Some(weak) = cache.get(&cache_key)
+            && let Some(shared) = weak.upgrade()
+        {
+            // stream compartido encontrado - crear subscriber
+            let rx = shared.tx.subscribe();
+            let stream = BroadcastStream::new(rx)
+                .filter_map(|result| async move {
+                    match result {
+                        Ok(Ok(msg)) => Some(Ok(msg)),
+                        Ok(Err(e)) => Some(Err(io::Error::other(e))),
+                        Err(BroadcastStreamRecvError::Lagged(n)) => {
+                            tracing::warn!(skipped = n, "Diff stream subscriber lagged");
+                            None // skip lagged messages
                         }
-                    })
-                    .boxed();
+                    }
+                })
+                .boxed();
 
-                tracing::debug!(
-                    workspace_id = %args.workspace_id,
-                    repo_id = %args.repo_id,
-                    subscribers = shared.tx.receiver_count(),
-                    "Reusing existing shared diff stream"
-                );
+            tracing::debug!(
+                workspace_id = %args.workspace_id,
+                repo_id = %args.repo_id,
+                subscribers = shared.tx.receiver_count(),
+                "Reusing existing shared diff stream"
+            );
 
-                return Ok(DiffStreamHandle::new_subscriber(stream, shared));
-            }
+            return Ok(DiffStreamHandle::new_subscriber(stream, shared));
         }
     }
 
@@ -257,10 +257,12 @@ pub async fn create(args: DiffStreamArgs) -> Result<DiffStreamHandle, DiffStream
     );
 
     // crear broadcast channel para compartir entre subscribers
-    let (broadcast_tx, _) = broadcast::channel::<Result<LogMsg, String>>(BROADCAST_CHANNEL_CAPACITY);
+    let (broadcast_tx, _) =
+        broadcast::channel::<Result<LogMsg, String>>(BROADCAST_CHANNEL_CAPACITY);
 
     // canal interno para el manager
-    let (internal_tx, mut internal_rx) = mpsc::channel::<Result<LogMsg, io::Error>>(DIFF_STREAM_CHANNEL_CAPACITY);
+    let (internal_tx, mut internal_rx) =
+        mpsc::channel::<Result<LogMsg, io::Error>>(DIFF_STREAM_CHANNEL_CAPACITY);
 
     let manager_args = args.clone();
 
@@ -302,10 +304,7 @@ pub async fn create(args: DiffStreamArgs) -> Result<DiffStreamHandle, DiffStream
         // limpiar entradas muertas periódicamente
         cache.retain(|_, weak| weak.strong_count() > 0);
 
-        tracing::debug!(
-            cache_size = cache.len(),
-            "Updated diff stream cache"
-        );
+        tracing::debug!(cache_size = cache.len(), "Updated diff stream cache");
     }
 
     // crear subscriber para este consumer
