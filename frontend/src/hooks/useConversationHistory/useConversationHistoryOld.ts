@@ -23,6 +23,7 @@ import {
   nextActionPatch,
   REMAINING_BATCH_SIZE,
 } from './constants';
+import { useChatCacheStore } from '@/stores/chatCacheStore';
 
 export const useConversationHistoryOld = ({
   attempt,
@@ -30,6 +31,14 @@ export const useConversationHistoryOld = ({
 }: UseConversationHistoryParams): UseConversationHistoryResult => {
   const { executionProcessesVisible: executionProcessesRaw } =
     useExecutionProcessesContext();
+
+  // acceso al cache global para persistencia entre navegaciones
+  const {
+    getCachedEntries,
+    setCachedEntries,
+    hasCachedEntries,
+    isConversationComplete,
+  } = useChatCacheStore();
   // filtrar procesos optimistas que empiezan con 'optimistic-' ya que se mostrarán
   // via el proceso real una vez que llegue del servidor
   const executionProcessesFiltered = useMemo(
@@ -541,18 +550,38 @@ export const useConversationHistoryOld = ({
     [executionProcessesFiltered]
   );
 
-  // Initial load when attempt changes
+  // Initial load when attempt changes - check cache first
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Waiting for execution processes to load
+      // waiting for execution processes to load
       if (
         executionProcesses?.current.length === 0 ||
         loadedInitialEntries.current
       )
         return;
 
-      // Initial entries
+      // verificar si hay procesos running (conversación activa)
+      const hasRunningProcess = executionProcesses.current.some(
+        (p) => p.status === ExecutionProcessStatus.running
+      );
+
+      // si la conversación está cacheada Y completa (sin procesos running), restaurar del cache
+      if (
+        hasCachedEntries(attempt.id) &&
+        isConversationComplete(attempt.id) &&
+        !hasRunningProcess
+      ) {
+        const cachedEntries = getCachedEntries(attempt.id);
+        if (cachedEntries && cachedEntries.length > 0) {
+          // restaurar desde cache - evita completamente los WebSocket calls
+          onEntriesUpdatedRef.current?.(cachedEntries, 'initial', false);
+          loadedInitialEntries.current = true;
+          return;
+        }
+      }
+
+      // cache miss o conversación incompleta - cargar del servidor
       const allInitialEntries = await loadInitialEntries();
       if (cancelled) return;
       mergeIntoDisplayed((state) => {
@@ -561,7 +590,7 @@ export const useConversationHistoryOld = ({
       emitEntries(displayedExecutionProcesses.current, 'initial', false);
       loadedInitialEntries.current = true;
 
-      // Then load the remaining in batches
+      // cargar el resto en batches
       while (
         !cancelled &&
         (await loadRemainingEntriesInBatches(REMAINING_BATCH_SIZE))
@@ -569,7 +598,17 @@ export const useConversationHistoryOld = ({
         if (cancelled) return;
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // emitir y guardar en cache si la conversación está completa
+      const entries = flattenEntriesForEmit(
+        displayedExecutionProcesses.current
+      );
       emitEntries(displayedExecutionProcesses.current, 'historic', false);
+
+      // guardar en cache solo si no hay procesos running
+      if (!hasRunningProcess && entries.length > 0) {
+        setCachedEntries(attempt.id, entries, true, true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -580,11 +619,25 @@ export const useConversationHistoryOld = ({
     loadInitialEntries,
     loadRemainingEntriesInBatches,
     emitEntries,
+    flattenEntriesForEmit,
+    getCachedEntries,
+    hasCachedEntries,
+    isConversationComplete,
+    setCachedEntries,
   ]); // include idListKey so new processes trigger reload
 
   useEffect(() => {
     const activeProcesses = getActiveAgentProcesses();
-    if (activeProcesses.length === 0) return;
+    if (activeProcesses.length === 0) {
+      // no hay procesos running - actualizar cache con la conversación completa
+      const entries = flattenEntriesForEmit(
+        displayedExecutionProcesses.current
+      );
+      if (entries.length > 0) {
+        setCachedEntries(attempt.id, entries, true, true);
+      }
+      return;
+    }
 
     for (const activeProcess of activeProcesses) {
       if (!displayedExecutionProcesses.current[activeProcess.id]) {
@@ -607,6 +660,16 @@ export const useConversationHistoryOld = ({
         streamingProcessIdsRef.current.add(activeProcess.id);
         loadRunningAndEmitWithBackoff(activeProcess).finally(() => {
           streamingProcessIdsRef.current.delete(activeProcess.id);
+          // cuando termina el streaming, guardar en cache si no hay más procesos running
+          const stillActiveProcesses = getActiveAgentProcesses();
+          if (stillActiveProcesses.length === 0) {
+            const entries = flattenEntriesForEmit(
+              displayedExecutionProcesses.current
+            );
+            if (entries.length > 0) {
+              setCachedEntries(attempt.id, entries, true, true);
+            }
+          }
         });
       }
     }
@@ -616,6 +679,8 @@ export const useConversationHistoryOld = ({
     emitEntries,
     ensureProcessVisible,
     loadRunningAndEmitWithBackoff,
+    flattenEntriesForEmit,
+    setCachedEntries,
   ]);
 
   // If an execution process is removed, remove it from the state
