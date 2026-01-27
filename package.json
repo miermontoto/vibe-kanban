@@ -1,6 +1,6 @@
 {
   "name": "@miermontoto/vkm",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "bin": {
     "vkm": "npx-cli/bin/cli.js"
