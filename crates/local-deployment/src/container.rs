@@ -17,6 +17,7 @@ use db::{
             ExecutionContext, ExecutionProcess, ExecutionProcessRunReason, ExecutionProcessStatus,
         },
         execution_process_repo_state::ExecutionProcessRepoState,
+        pending_commit::{CreatePendingCommit, PendingCommit},
         repo::Repo,
         scratch::{DraftFollowUpData, Scratch, ScratchType},
         session::{Session, SessionError},
@@ -42,7 +43,8 @@ use serde_json::json;
 use services::services::{
     analytics::AnalyticsContext,
     approvals::{Approvals, executor_approvals::ExecutorApprovalBridge},
-    config::Config,
+    commit_message::CommitMessageService,
+    config::{Config, GitCommitTitleMode},
     container::{ContainerError, ContainerRef, ContainerService},
     diff_stream::{self, DiffStreamHandle},
     git::{GitCli, GitService},
@@ -228,41 +230,81 @@ impl LocalContainerService {
         }
     }
 
-    /// Get the commit message based on the execution run reason.
-    async fn get_commit_message(&self, ctx: &ExecutionContext) -> String {
+    /// Get the agent summary from the coding agent turn (if available)
+    async fn get_agent_summary(&self, ctx: &ExecutionContext) -> Option<String> {
+        if !matches!(
+            ctx.execution_process.run_reason,
+            ExecutionProcessRunReason::CodingAgent
+        ) {
+            return None;
+        }
+
+        match CodingAgentTurn::find_by_execution_process_id(
+            &self.db().pool,
+            ctx.execution_process.id,
+        )
+        .await
+        {
+            Ok(Some(turn)) => turn.summary,
+            Ok(None) => {
+                tracing::debug!(
+                    "No coding agent turn found for execution process {}",
+                    ctx.execution_process.id
+                );
+                None
+            }
+            Err(e) => {
+                tracing::debug!(
+                    "Failed to retrieve coding agent turn for execution process {}: {}",
+                    ctx.execution_process.id,
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    /// Get the effective commit title mode (project override or global config)
+    async fn get_commit_title_mode(&self, ctx: &ExecutionContext) -> GitCommitTitleMode {
+        // check project override first
+        if let Some(mode_str) = &ctx.project.git_commit_title_mode {
+            match mode_str.as_str() {
+                "AgentSummary" => return GitCommitTitleMode::AgentSummary,
+                "AiGenerated" => return GitCommitTitleMode::AiGenerated,
+                "Manual" => return GitCommitTitleMode::Manual,
+                _ => {
+                    tracing::warn!("Invalid git_commit_title_mode in project: {}", mode_str);
+                }
+            }
+        }
+
+        // fall back to global config
+        self.config.read().await.git_commit_title_mode.clone()
+    }
+
+    /// Check if auto-commit is enabled for this execution context
+    async fn is_auto_commit_enabled(&self, ctx: &ExecutionContext) -> bool {
+        // check project override first
+        if let Some(enabled) = ctx.project.git_auto_commit_enabled {
+            return enabled;
+        }
+
+        // fall back to global config
+        self.config.read().await.git_auto_commit_enabled
+    }
+
+    /// Get the commit message based on the execution run reason (AgentSummary mode).
+    async fn get_commit_message_agent_summary(&self, ctx: &ExecutionContext) -> String {
         match ctx.execution_process.run_reason {
             ExecutionProcessRunReason::CodingAgent => {
-                // Try to retrieve the task summary from the coding agent turn
+                // try to retrieve the task summary from the coding agent turn
                 // otherwise fallback to default message
-                match CodingAgentTurn::find_by_execution_process_id(
-                    &self.db().pool,
-                    ctx.execution_process.id,
-                )
-                .await
-                {
-                    Ok(Some(turn)) if turn.summary.is_some() => turn.summary.unwrap(),
-                    Ok(_) => {
-                        tracing::debug!(
-                            "No summary found for execution process {}, using default message",
-                            ctx.execution_process.id
-                        );
-                        format!(
-                            "Commit changes from coding agent for workspace {}",
-                            ctx.workspace.id
-                        )
-                    }
-                    Err(e) => {
-                        tracing::debug!(
-                            "Failed to retrieve summary for execution process {}: {}",
-                            ctx.execution_process.id,
-                            e
-                        );
-                        format!(
-                            "Commit changes from coding agent for workspace {}",
-                            ctx.workspace.id
-                        )
-                    }
-                }
+                self.get_agent_summary(ctx).await.unwrap_or_else(|| {
+                    format!(
+                        "Commit changes from coding agent for workspace {}",
+                        ctx.workspace.id
+                    )
+                })
             }
             ExecutionProcessRunReason::CleanupScript => {
                 format!("Cleanup script changes for workspace {}", ctx.workspace.id)
@@ -271,6 +313,69 @@ impl LocalContainerService {
                 "Changes from execution process {}",
                 ctx.execution_process.id
             ),
+        }
+    }
+
+    /// Get the commit message using AI generation
+    async fn get_commit_message_ai_generated(
+        &self,
+        ctx: &ExecutionContext,
+        diff: &str,
+    ) -> Result<String, ContainerError> {
+        let commit_service = CommitMessageService::new();
+
+        if !commit_service.is_available() {
+            tracing::warn!(
+                "AI commit message service not available (ANTHROPIC_API_KEY not set), falling back to AgentSummary mode"
+            );
+            return Ok(self.get_commit_message_agent_summary(ctx).await);
+        }
+
+        // get custom prompt from config if available
+        let custom_prompt = self.config.read().await.git_commit_title_prompt.clone();
+        let custom_prompt_ref = custom_prompt.as_deref();
+
+        // get agent summary for context
+        let agent_summary = self.get_agent_summary(ctx).await;
+        let agent_summary_ref = agent_summary.as_deref();
+
+        match commit_service
+            .generate_commit_title(diff, custom_prompt_ref, agent_summary_ref)
+            .await
+        {
+            Ok(title) => {
+                tracing::info!("Generated AI commit title: {}", title);
+                Ok(title)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "AI commit message generation failed: {}, falling back to AgentSummary mode",
+                    e
+                );
+                Ok(self.get_commit_message_agent_summary(ctx).await)
+            }
+        }
+    }
+
+    /// Get the diff summary for a repository (used for pending commits)
+    fn get_diff_summary(&self, worktree_path: &Path) -> String {
+        match self.git().get_diff_stat(worktree_path) {
+            Ok(diff_stat) => diff_stat,
+            Err(e) => {
+                tracing::warn!("Failed to get diff stat: {}", e);
+                "Changes pending".to_string()
+            }
+        }
+    }
+
+    /// Get the full diff for a repository (used for AI generation)
+    fn get_full_diff(&self, worktree_path: &Path) -> String {
+        match self.git().get_diff(worktree_path) {
+            Ok(diff) => diff,
+            Err(e) => {
+                tracing::warn!("Failed to get diff: {}", e);
+                String::new()
+            }
         }
     }
 
@@ -1331,7 +1436,11 @@ impl ContainerService for LocalContainerService {
             return Ok(false);
         }
 
-        let message = self.get_commit_message(ctx).await;
+        // check if auto-commit is enabled
+        if !self.is_auto_commit_enabled(ctx).await {
+            tracing::debug!("Auto-commit is disabled for this project");
+            return Ok(false);
+        }
 
         let container_ref = ctx
             .workspace
@@ -1346,7 +1455,79 @@ impl ContainerService for LocalContainerService {
             return Ok(false);
         }
 
-        Ok(self.commit_repos(repos_with_changes, &message))
+        // determine the commit title mode
+        let title_mode = self.get_commit_title_mode(ctx).await;
+        tracing::debug!("Commit title mode: {:?}", title_mode);
+
+        match title_mode {
+            GitCommitTitleMode::Manual => {
+                // create pending commits for each repo with changes
+                tracing::info!(
+                    "Manual commit mode: creating {} pending commit(s)",
+                    repos_with_changes.len()
+                );
+                let agent_summary = self.get_agent_summary(ctx).await;
+
+                for (repo, worktree_path) in &repos_with_changes {
+                    let diff_summary = self.get_diff_summary(worktree_path);
+                    let repo_path = repo.name.clone();
+
+                    let create_pending = CreatePendingCommit {
+                        workspace_id: ctx.workspace.id,
+                        repo_id: repo.id,
+                        repo_path,
+                        diff_summary,
+                        agent_summary: agent_summary.clone(),
+                    };
+
+                    match PendingCommit::create(&self.db.pool, &create_pending).await {
+                        Ok(pending) => {
+                            tracing::info!(
+                                "Created pending commit {} for repo '{}'",
+                                pending.id,
+                                repo.name
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to create pending commit for repo '{}': {}",
+                                repo.name,
+                                e
+                            );
+                        }
+                    }
+                }
+
+                // return false because we didn't actually commit
+                // the user will commit via the pending commits UI
+                Ok(false)
+            }
+            GitCommitTitleMode::AiGenerated => {
+                // get full diff for AI generation (combine from all repos)
+                let mut combined_diff = String::new();
+                for (repo, worktree_path) in &repos_with_changes {
+                    let diff = self.get_full_diff(worktree_path);
+                    if !diff.is_empty() {
+                        if !combined_diff.is_empty() {
+                            combined_diff.push_str("\n\n=== Changes in ");
+                            combined_diff.push_str(&repo.name);
+                            combined_diff.push_str(" ===\n");
+                        }
+                        combined_diff.push_str(&diff);
+                    }
+                }
+
+                let message = self
+                    .get_commit_message_ai_generated(ctx, &combined_diff)
+                    .await?;
+                Ok(self.commit_repos(repos_with_changes, &message))
+            }
+            GitCommitTitleMode::AgentSummary => {
+                // use the default agent summary behavior
+                let message = self.get_commit_message_agent_summary(ctx).await;
+                Ok(self.commit_repos(repos_with_changes, &message))
+            }
+        }
     }
 
     /// Copy files from the original project directory to the worktree.

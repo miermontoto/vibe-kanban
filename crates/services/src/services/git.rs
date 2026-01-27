@@ -300,6 +300,20 @@ impl GitService {
         Ok(true)
     }
 
+    /// Get diff statistics (shortstat format) for uncommitted changes
+    pub fn get_diff_stat(&self, worktree_path: &Path) -> Result<String, GitServiceError> {
+        let git = GitCli::new();
+        git.diff_stat(worktree_path)
+            .map_err(|e| GitServiceError::InvalidRepository(format!("git diff stat failed: {e}")))
+    }
+
+    /// Get full diff content for uncommitted changes (used for AI generation)
+    pub fn get_diff(&self, worktree_path: &Path) -> Result<String, GitServiceError> {
+        let git = GitCli::new();
+        git.diff_full(worktree_path)
+            .map_err(|e| GitServiceError::InvalidRepository(format!("git diff failed: {e}")))
+    }
+
     /// Get diffs between branches or worktree changes
     pub fn get_diffs(
         &self,
