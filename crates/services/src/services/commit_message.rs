@@ -2,10 +2,25 @@
 //!
 //! este módulo provee funcionalidad para generar títulos de commit
 //! usando la API de Anthropic Claude
+//!
+//! # seguridad
+//!
+//! este servicio envía el contenido del diff a la API de Anthropic.
+//! considera lo siguiente:
+//! - el diff puede contener código fuente sensible
+//! - archivos como .env, credentials, secrets podrían estar en el diff
+//! - el contenido se envía usando la API key del usuario (ANTHROPIC_API_KEY)
+//! - los diffs binarios son filtrados por git, pero nombres de archivo son visibles
+//!
+//! el servicio filtra automáticamente:
+//! - archivos que matchean patrones sensibles (.env, *.pem, *credential*, etc.)
+//! - diffs binarios (git los marca como "Binary files differ")
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use crate::services::config::DEFAULT_COMMIT_TITLE_PROMPT;
 
 /// modelo por defecto para generación de commit messages (Haiku es suficiente para esta tarea)
 const DEFAULT_MODEL: &str = "claude-haiku-4-5-20251001";
@@ -60,24 +75,10 @@ struct ContentBlock {
     text: Option<String>,
 }
 
-/// prompt del sistema por defecto para generación de títulos de commit
-const DEFAULT_SYSTEM_PROMPT: &str = r#"You are a commit message generator. Generate a concise git commit title based on the provided diff.
-
-Rules:
-1. Follow conventional commits format: type(scope): description
-2. Types: feat, fix, docs, style, refactor, perf, test, chore, build, ci
-3. Keep the title under 72 characters
-4. Use imperative mood (e.g., "add" not "added")
-5. Be specific but concise
-6. Only output the commit title, nothing else - no quotes, no explanation
-
-Examples:
-- feat(auth): add OAuth2 login support
-- fix(api): handle null response in user endpoint
-- refactor(db): simplify query builder logic
-- docs(readme): update installation instructions"#;
 
 /// servicio para generar mensajes de commit usando AI
+/// el cliente HTTP se reutiliza para connection pooling
+#[derive(Clone)]
 pub struct CommitMessageService {
     client: Client,
     api_key: Option<String>,
@@ -128,7 +129,7 @@ impl CommitMessageService {
             .ok_or(CommitMessageError::ApiKeyNotConfigured)?;
 
         // construir el system prompt
-        let system_prompt = custom_prompt.unwrap_or(DEFAULT_SYSTEM_PROMPT);
+        let system_prompt = custom_prompt.unwrap_or(DEFAULT_COMMIT_TITLE_PROMPT);
 
         // construir el user message con el diff y contexto opcional
         let mut user_content = String::new();
@@ -141,8 +142,9 @@ impl CommitMessageService {
 
         user_content.push_str("Generate a commit title for the following changes:\n\n");
 
-        // limitar el tamaño del diff para evitar tokens excesivos
-        let truncated_diff = truncate_diff(diff, 8000);
+        // filtrar contenido sensible y limitar tamaño
+        let sanitized_diff = sanitize_diff(diff);
+        let truncated_diff = truncate_diff(&sanitized_diff, 8000);
         user_content.push_str(&truncated_diff);
 
         let request = AnthropicRequest {
@@ -224,31 +226,103 @@ impl Default for CommitMessageService {
     }
 }
 
-/// trunca el diff a un número máximo de caracteres, preservando líneas completas
-fn truncate_diff(diff: &str, max_chars: usize) -> String {
-    if diff.len() <= max_chars {
-        return diff.to_string();
-    }
+/// patrones de archivos sensibles que no deben enviarse a la API
+const SENSITIVE_PATTERNS: &[&str] = &[
+    ".env",
+    ".pem",
+    ".key",
+    ".secret",
+    "credential",
+    "password",
+    "token",
+    "apikey",
+    "api_key",
+    "private",
+    "id_rsa",
+    "id_ed25519",
+    ".p12",
+    ".pfx",
+    "secrets.",
+    "auth.json",
+    "config.json", // puede contener secrets
+];
 
-    let mut result = String::with_capacity(max_chars);
-    let mut chars_used = 0;
-    let truncation_notice = "\n\n[... diff truncated for brevity ...]";
-
-    let available = max_chars - truncation_notice.len();
+/// sanitiza el diff removiendo secciones de archivos sensibles
+fn sanitize_diff(diff: &str) -> String {
+    let mut result = String::with_capacity(diff.len());
+    let mut skip_until_next_file = false;
 
     for line in diff.lines() {
-        let line_len = line.len() + 1; // +1 for newline
-        if chars_used + line_len > available {
-            break;
+        // detectar inicio de nuevo archivo en el diff
+        if line.starts_with("diff --git") || line.starts_with("---") || line.starts_with("+++") {
+            // extraer nombre de archivo
+            let file_name = line
+                .split_whitespace()
+                .last()
+                .unwrap_or("")
+                .trim_start_matches("a/")
+                .trim_start_matches("b/")
+                .to_lowercase();
+
+            // verificar si es un archivo sensible
+            skip_until_next_file = SENSITIVE_PATTERNS
+                .iter()
+                .any(|pattern| file_name.contains(pattern));
+
+            if skip_until_next_file && line.starts_with("diff --git") {
+                result.push_str("[REDACTED: sensitive file]\n");
+                continue;
+            }
         }
+
+        if skip_until_next_file {
+            // saltamos el contenido de archivos sensibles
+            if line.starts_with("diff --git") {
+                // nuevo archivo, reevaluar
+                skip_until_next_file = false;
+            } else {
+                continue;
+            }
+        }
+
         if !result.is_empty() {
             result.push('\n');
         }
         result.push_str(line);
-        chars_used += line_len;
     }
 
-    result.push_str(truncation_notice);
+    result
+}
+
+/// trunca el diff a un número máximo de caracteres, preservando líneas completas
+fn truncate_diff(diff: &str, max_chars: usize) -> String {
+    const TRUNCATION_NOTICE: &str = "\n\n[... diff truncated for brevity ...]";
+
+    if diff.len() <= max_chars {
+        return diff.to_string();
+    }
+
+    // reservar espacio para el notice de truncation
+    let available = max_chars.saturating_sub(TRUNCATION_NOTICE.len());
+    let mut result = String::with_capacity(max_chars);
+
+    for line in diff.lines() {
+        // calcular cuanto espacio necesitamos para esta línea
+        let need_newline = !result.is_empty();
+        let line_cost = if need_newline { line.len() + 1 } else { line.len() };
+
+        // verificar si cabe antes de añadir
+        if result.len() + line_cost > available {
+            break;
+        }
+
+        if need_newline {
+            result.push('\n');
+        }
+        result.push_str(line);
+    }
+
+    result.push_str(TRUNCATION_NOTICE);
     result
 }
 
@@ -265,9 +339,31 @@ mod tests {
     #[test]
     fn test_truncate_diff_long() {
         let diff = "line1\nline2\nline3\nline4\nline5";
-        let truncated = truncate_diff(diff, 30);
+        let max_chars = 80;
+        let truncated = truncate_diff(diff, max_chars);
         assert!(truncated.contains("[... diff truncated"));
-        assert!(truncated.len() <= 60); // some margin for the notice
+        // ahora el resultado respeta el límite max_chars
+        assert!(
+            truncated.len() <= max_chars,
+            "truncated len {} exceeds max {}",
+            truncated.len(),
+            max_chars
+        );
+    }
+
+    #[test]
+    fn test_truncate_diff_exact_boundary() {
+        // probar que no excede el límite incluso en casos límite
+        let diff = "a\nb\nc\nd\ne\nf\ng\nh\ni\nj";
+        for max in 50..100 {
+            let truncated = truncate_diff(diff, max);
+            assert!(
+                truncated.len() <= max,
+                "truncated len {} exceeds max {} for diff",
+                truncated.len(),
+                max
+            );
+        }
     }
 
     #[test]

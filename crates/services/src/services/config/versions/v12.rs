@@ -62,11 +62,21 @@ pub enum GitCommitTitleMode {
 }
 
 /// prompt por defecto para generación de títulos de commit
-pub const DEFAULT_COMMIT_TITLE_PROMPT: &str = r#"Generate a concise git commit title for the following changes.
-Follow conventional commits format: type(scope): description
-Types: feat, fix, docs, style, refactor, perf, test, chore
-Keep it under 72 characters.
-Only output the commit title, nothing else."#;
+pub const DEFAULT_COMMIT_TITLE_PROMPT: &str = r#"You are a commit message generator. Generate a concise git commit title based on the provided diff.
+
+Rules:
+1. Follow conventional commits format: type(scope): description
+2. Types: feat, fix, docs, style, refactor, perf, test, chore, build, ci
+3. Keep the title under 72 characters
+4. Use imperative mood (e.g., "add" not "added")
+5. Be specific but concise
+6. Only output the commit title, nothing else - no quotes, no explanation
+
+Examples:
+- feat(auth): add OAuth2 login support
+- fix(api): handle null response in user endpoint
+- refactor(db): simplify query builder logic
+- docs(readme): update installation instructions"#;
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct Config {

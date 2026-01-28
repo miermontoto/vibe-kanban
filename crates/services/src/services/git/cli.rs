@@ -181,10 +181,29 @@ impl GitCli {
         Ok(out.trim().to_string())
     }
 
+    /// límite máximo de tamaño para diffs (para evitar OOM con diffs gigantes)
+    const MAX_DIFF_SIZE: usize = 512 * 1024; // 512KB
+
     /// obtener el diff completo del working tree (para AI generation)
+    /// incluye tanto cambios staged como unstaged usando `git diff HEAD`
+    /// si el diff excede MAX_DIFF_SIZE, retorna diff --stat en su lugar
     pub fn diff_full(&self, worktree_path: &Path) -> Result<String, GitCliError> {
-        // primero obtener el diff de cambios tracked
-        let tracked_diff = self.git(worktree_path, ["diff"])?;
+        // usar git diff HEAD para capturar tanto staged como unstaged changes
+        // esto es equivalente a: git diff + git diff --cached
+        let all_changes_diff = self.git(worktree_path, ["diff", "HEAD"])?;
+
+        // si el diff es demasiado grande, usar --stat en su lugar
+        let diff_content = if all_changes_diff.len() > Self::MAX_DIFF_SIZE {
+            tracing::debug!(
+                path = ?worktree_path,
+                size = all_changes_diff.len(),
+                "Diff too large, falling back to --stat"
+            );
+            let stat = self.git(worktree_path, ["diff", "--stat", "HEAD"])?;
+            format!("[Diff too large ({} bytes), showing summary only]\n{}", all_changes_diff.len(), stat)
+        } else {
+            all_changes_diff
+        };
 
         // también obtener info de archivos untracked
         let status = self.git(
@@ -199,8 +218,8 @@ impl GitCli {
 
         let mut result = String::new();
 
-        if !tracked_diff.is_empty() {
-            result.push_str(&tracked_diff);
+        if !diff_content.is_empty() {
+            result.push_str(&diff_content);
         }
 
         if !untracked.is_empty() {

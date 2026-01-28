@@ -77,6 +77,7 @@ pub struct LocalContainerService {
     approvals: Approvals,
     queued_message_service: QueuedMessageService,
     notification_service: NotificationService,
+    commit_message_service: CommitMessageService,
 }
 
 impl LocalContainerService {
@@ -94,6 +95,7 @@ impl LocalContainerService {
         let child_store = Arc::new(RwLock::new(HashMap::new()));
         let interrupt_senders = Arc::new(RwLock::new(HashMap::new()));
         let notification_service = NotificationService::new(config.clone());
+        let commit_message_service = CommitMessageService::new();
 
         let container = LocalContainerService {
             db,
@@ -107,6 +109,7 @@ impl LocalContainerService {
             approvals,
             queued_message_service,
             notification_service,
+            commit_message_service,
         };
 
         container.spawn_workspace_cleanup();
@@ -144,6 +147,15 @@ impl LocalContainerService {
             return;
         };
         let workspace_dir = PathBuf::from(container_ref);
+
+        // limpiar pending commits para este workspace
+        if let Err(e) = PendingCommit::delete_by_workspace_id(&db.pool, workspace.id).await {
+            tracing::warn!(
+                "Failed to cleanup pending commits for workspace {}: {}",
+                workspace.id,
+                e
+            );
+        }
 
         let repositories = WorkspaceRepo::find_repos_for_workspace(&db.pool, workspace.id)
             .await
@@ -322,9 +334,8 @@ impl LocalContainerService {
         ctx: &ExecutionContext,
         diff: &str,
     ) -> Result<String, ContainerError> {
-        let commit_service = CommitMessageService::new();
-
-        if !commit_service.is_available() {
+        // usa el servicio almacenado para connection pooling
+        if !self.commit_message_service.is_available() {
             tracing::warn!(
                 "AI commit message service not available (ANTHROPIC_API_KEY not set), falling back to AgentSummary mode"
             );
@@ -339,7 +350,8 @@ impl LocalContainerService {
         let agent_summary = self.get_agent_summary(ctx).await;
         let agent_summary_ref = agent_summary.as_deref();
 
-        match commit_service
+        match self
+            .commit_message_service
             .generate_commit_title(diff, custom_prompt_ref, agent_summary_ref)
             .await
         {
@@ -1442,8 +1454,13 @@ impl ContainerService for LocalContainerService {
             return Ok(false);
         }
 
-        // check if auto-commit is enabled
-        if !self.is_auto_commit_enabled(ctx).await {
+        // determine the commit title mode first - Manual mode is orthogonal to auto-commit
+        let title_mode = self.get_commit_title_mode(ctx).await;
+        let auto_commit_enabled = self.is_auto_commit_enabled(ctx).await;
+
+        // for AgentSummary and AiGenerated modes, respect the auto-commit setting
+        // Manual mode should always proceed to create pending commits
+        if !auto_commit_enabled && !matches!(title_mode, GitCommitTitleMode::Manual) {
             tracing::debug!("Auto-commit is disabled for this project");
             return Ok(false);
         }
@@ -1461,12 +1478,21 @@ impl ContainerService for LocalContainerService {
             return Ok(false);
         }
 
-        // determine the commit title mode
-        let title_mode = self.get_commit_title_mode(ctx).await;
         tracing::debug!("Commit title mode: {:?}", title_mode);
 
         match title_mode {
             GitCommitTitleMode::Manual => {
+                // limpiar pending commits anteriores para este workspace para evitar duplicados
+                if let Err(e) =
+                    PendingCommit::delete_by_workspace_id(&self.db.pool, ctx.workspace.id).await
+                {
+                    tracing::warn!(
+                        "Failed to cleanup old pending commits for workspace {}: {}",
+                        ctx.workspace.id,
+                        e
+                    );
+                }
+
                 // create pending commits for each repo with changes
                 tracing::info!(
                     "Manual commit mode: creating {} pending commit(s)",
