@@ -19,7 +19,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FolderOpen, Loader2, Volume2 } from 'lucide-react';
@@ -627,11 +626,6 @@ export function GeneralSettings() {
                       {t(
                         'settings.general.git.commitTitleMode.options.aiGenerated'
                       )}
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {t(
-                          'settings.general.git.commitTitleMode.notImplemented'
-                        )}
-                      </Badge>
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">

@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { TriStateToggle } from '@/components/settings/TriStateToggle';
@@ -114,11 +113,6 @@ export function GitProjectSettings({
                 label: t('settings.projects.git.commitTitleMode.aiGenerated'),
                 description: t(
                   'settings.projects.git.commitTitleMode.aiGeneratedDescription'
-                ),
-                badge: (
-                  <Badge variant="outline" className="text-xs">
-                    {t('settings.general.git.commitTitleMode.notImplemented')}
-                  </Badge>
                 ),
               },
               {

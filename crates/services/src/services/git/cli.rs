@@ -181,6 +181,41 @@ impl GitCli {
         Ok(out.trim().to_string())
     }
 
+    /// obtener el diff completo del working tree (para AI generation)
+    pub fn diff_full(&self, worktree_path: &Path) -> Result<String, GitCliError> {
+        // primero obtener el diff de cambios tracked
+        let tracked_diff = self.git(worktree_path, ["diff"])?;
+
+        // también obtener info de archivos untracked
+        let status = self.git(
+            worktree_path,
+            ["--no-optional-locks", "status", "--porcelain"],
+        )?;
+        let untracked: Vec<&str> = status
+            .lines()
+            .filter(|l| l.starts_with("??"))
+            .map(|l| l.trim_start_matches("?? "))
+            .collect();
+
+        let mut result = String::new();
+
+        if !tracked_diff.is_empty() {
+            result.push_str(&tracked_diff);
+        }
+
+        if !untracked.is_empty() {
+            if !result.is_empty() {
+                result.push_str("\n\n");
+            }
+            result.push_str("=== Untracked files ===\n");
+            for file in untracked {
+                result.push_str(&format!("+ {}\n", file));
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Diff status vs a base branch using a temporary index (always includes untracked).
     /// Path filter limits the reported paths.
     pub fn diff_status(
