@@ -5,28 +5,44 @@ import {
   useMemo,
   useCallback,
   ReactNode,
+  useRef,
 } from 'react';
 import type { PatchTypeWithKey } from '@/hooks/useConversationHistory';
 import { TokenUsageInfo } from 'shared/types';
-import { useChatCacheStore } from '@/stores/chatCacheStore';
+
+// cache of conversations indexed by attempt id
+type ConversationCache = Map<
+  string,
+  {
+    entries: PatchTypeWithKey[];
+    loadedInitial: boolean;
+    timestamp: number;
+  }
+>;
+
+// cache TTL is 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+// helper to check if a cache entry is stale
+const isCacheStale = (timestamp: number): boolean => {
+  return Date.now() - timestamp > CACHE_TTL_MS;
+};
 
 interface EntriesContextType {
   entries: PatchTypeWithKey[];
   setEntries: (entries: PatchTypeWithKey[]) => void;
   setTokenUsageInfo: (info: TokenUsageInfo | null) => void;
   reset: () => void;
-  // cache methods (delegated to global store)
+  // cache methods
   getCachedEntries: (attemptId: string) => PatchTypeWithKey[] | null;
   setCachedEntries: (
     attemptId: string,
     entries: PatchTypeWithKey[],
-    loadedInitial: boolean,
-    isComplete?: boolean
+    loadedInitial: boolean
   ) => void;
   hasCachedEntries: (attemptId: string) => boolean;
   getCachedLoadedInitial: (attemptId: string) => boolean;
   invalidateCache: (attemptId?: string) => void;
-  isConversationComplete: (attemptId: string) => boolean;
   tokenUsageInfo: TokenUsageInfo | null;
 }
 
@@ -38,19 +54,10 @@ interface EntriesProviderProps {
 
 export const EntriesProvider = ({ children }: EntriesProviderProps) => {
   const [entries, setEntriesState] = useState<PatchTypeWithKey[]>([]);
+  const conversationCache = useRef<ConversationCache>(new Map());
   const [tokenUsageInfo, setTokenUsageInfo] = useState<TokenUsageInfo | null>(
     null
   );
-
-  // delegar cache methods al store global (persiste entre navegaciones)
-  const {
-    getCachedEntries,
-    setCachedEntries,
-    hasCachedEntries,
-    getCachedLoadedInitial,
-    invalidateCache,
-    isConversationComplete,
-  } = useChatCacheStore();
 
   const setEntries = useCallback((newEntries: PatchTypeWithKey[]) => {
     setEntriesState(newEntries);
@@ -68,6 +75,63 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
     setTokenUsageInfo(null);
   }, []);
 
+  // get cached entries for an attempt
+  const getCachedEntries = useCallback(
+    (attemptId: string): PatchTypeWithKey[] | null => {
+      const cached = conversationCache.current.get(attemptId);
+      if (!cached) return null;
+
+      // invalidate stale cache
+      if (isCacheStale(cached.timestamp)) {
+        conversationCache.current.delete(attemptId);
+        return null;
+      }
+
+      return cached.entries;
+    },
+    []
+  );
+
+  // store entries in cache
+  const setCachedEntries = useCallback(
+    (
+      attemptId: string,
+      entries: PatchTypeWithKey[],
+      loadedInitial: boolean
+    ) => {
+      conversationCache.current.set(attemptId, {
+        entries: [...entries],
+        loadedInitial,
+        timestamp: Date.now(),
+      });
+    },
+    []
+  );
+
+  // check if cache exists (without side effects)
+  const hasCachedEntries = useCallback((attemptId: string): boolean => {
+    const cached = conversationCache.current.get(attemptId);
+    if (!cached) return false;
+
+    // check if stale without deleting
+    return !isCacheStale(cached.timestamp);
+  }, []);
+
+  // get initial load state from cache
+  const getCachedLoadedInitial = useCallback((attemptId: string): boolean => {
+    const cached = conversationCache.current.get(attemptId);
+    return cached?.loadedInitial ?? false;
+  }, []);
+
+  // invalidate cache (specific attempt or all)
+  const invalidateCache = useCallback((attemptId?: string) => {
+    if (attemptId) {
+      conversationCache.current.delete(attemptId);
+    } else {
+      conversationCache.current.clear();
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       entries,
@@ -79,7 +143,6 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
       hasCachedEntries,
       getCachedLoadedInitial,
       invalidateCache,
-      isConversationComplete,
       tokenUsageInfo,
     }),
     [
@@ -92,7 +155,6 @@ export const EntriesProvider = ({ children }: EntriesProviderProps) => {
       hasCachedEntries,
       getCachedLoadedInitial,
       invalidateCache,
-      isConversationComplete,
       tokenUsageInfo,
     ]
   );
