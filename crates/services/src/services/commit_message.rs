@@ -7,6 +7,9 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// modelo por defecto para generación de commit messages (Haiku es suficiente para esta tarea)
+const DEFAULT_MODEL: &str = "claude-3-5-haiku-latest";
+
 /// error types para el servicio de generación de commit messages
 #[derive(Debug, Error)]
 pub enum CommitMessageError {
@@ -78,18 +81,24 @@ Examples:
 pub struct CommitMessageService {
     client: Client,
     api_key: Option<String>,
+    model: String,
 }
 
 impl CommitMessageService {
     /// crea una nueva instancia del servicio
     pub fn new() -> Self {
         let api_key = std::env::var("ANTHROPIC_API_KEY").ok();
+        // permite override del modelo via environment variable
+        let model = std::env::var("ANTHROPIC_COMMIT_MODEL")
+            .unwrap_or_else(|_| DEFAULT_MODEL.to_string());
+
         Self {
             client: Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
                 .build()
                 .expect("failed to create HTTP client"),
             api_key,
+            model,
         }
     }
 
@@ -137,7 +146,7 @@ impl CommitMessageService {
         user_content.push_str(&truncated_diff);
 
         let request = AnthropicRequest {
-            model: "claude-sonnet-4-20250514".to_string(),
+            model: self.model.clone(),
             max_tokens: 100, // solo necesitamos un título corto
             system: system_prompt.to_string(),
             messages: vec![Message {
@@ -267,12 +276,14 @@ mod tests {
         let service = CommitMessageService {
             client: Client::new(),
             api_key: None,
+            model: DEFAULT_MODEL.to_string(),
         };
         assert!(!service.is_available());
 
         let service_with_key = CommitMessageService {
             client: Client::new(),
             api_key: Some("test-key".to_string()),
+            model: DEFAULT_MODEL.to_string(),
         };
         assert!(service_with_key.is_available());
     }

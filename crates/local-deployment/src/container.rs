@@ -344,13 +344,19 @@ impl LocalContainerService {
             .await
         {
             Ok(title) => {
-                tracing::info!("Generated AI commit title: {}", title);
+                tracing::info!(
+                    workspace_id = %ctx.workspace.id,
+                    task_id = %ctx.task.id,
+                    "Generated AI commit title: {}", title
+                );
                 Ok(title)
             }
             Err(e) => {
                 tracing::warn!(
-                    "AI commit message generation failed: {}, falling back to AgentSummary mode",
-                    e
+                    workspace_id = %ctx.workspace.id,
+                    task_id = %ctx.task.id,
+                    error = %e,
+                    "AI commit message generation failed, falling back to AgentSummary mode"
                 );
                 Ok(self.get_commit_message_agent_summary(ctx).await)
             }
@@ -1503,18 +1509,45 @@ impl ContainerService for LocalContainerService {
                 Ok(false)
             }
             GitCommitTitleMode::AiGenerated => {
-                // get full diff for AI generation (combine from all repos)
+                // get diff for AI generation - use smart sizing strategy
+                // para repos grandes, usar diff --stat en lugar del diff completo
+                const MAX_DIFF_PER_REPO: usize = 4000;
+                const MAX_TOTAL_DIFF: usize = 8000;
+
                 let mut combined_diff = String::new();
+                let repo_count = repos_with_changes.len();
+
                 for (repo, worktree_path) in &repos_with_changes {
                     let diff = self.get_full_diff(worktree_path);
-                    if !diff.is_empty() {
-                        if !combined_diff.is_empty() {
-                            combined_diff.push_str("\n\n=== Changes in ");
-                            combined_diff.push_str(&repo.name);
-                            combined_diff.push_str(" ===\n");
-                        }
-                        combined_diff.push_str(&diff);
+                    if diff.is_empty() {
+                        continue;
                     }
+
+                    // calcular budget por repo basado en cuantos repos hay
+                    let per_repo_budget = MAX_TOTAL_DIFF / repo_count.max(1);
+                    let budget = per_repo_budget.min(MAX_DIFF_PER_REPO);
+
+                    // si el diff es muy grande, usar diff --stat en su lugar
+                    let diff_to_add = if diff.len() > budget {
+                        tracing::debug!(
+                            repo = %repo.name,
+                            diff_size = diff.len(),
+                            budget = budget,
+                            "Diff too large, using diff --stat instead"
+                        );
+                        // usar diff --stat para repos grandes
+                        let diff_stat = self.get_diff_summary(worktree_path);
+                        format!("[Large changeset - summary only]\n{}", diff_stat)
+                    } else {
+                        diff
+                    };
+
+                    if !combined_diff.is_empty() {
+                        combined_diff.push_str("\n\n=== Changes in ");
+                        combined_diff.push_str(&repo.name);
+                        combined_diff.push_str(" ===\n");
+                    }
+                    combined_diff.push_str(&diff_to_add);
                 }
 
                 let message = self
