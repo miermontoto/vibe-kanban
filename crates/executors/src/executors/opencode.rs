@@ -18,6 +18,7 @@ use crate::{
         AppendPrompt, AvailabilityInfo, ExecutorError, ExecutorExitResult, SpawnedChild,
         StandardCodingAgentExecutor, opencode::types::OpencodeExecutorEvent,
     },
+    process_limits,
     stdout_dup::create_stdout_pipe_writer,
 };
 
@@ -94,6 +95,9 @@ impl Opencode {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
         let server_stdout = child.inner().stdout.take().ok_or_else(|| {

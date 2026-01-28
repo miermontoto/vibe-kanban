@@ -14,6 +14,7 @@ use crate::{
     env::ExecutionEnv,
     executors::{AppendPrompt, ExecutorError, SpawnedChild, StandardCodingAgentExecutor},
     logs::utils::EntryIndexProvider,
+    process_limits,
 };
 
 pub mod normalize_logs;
@@ -127,6 +128,9 @@ async fn spawn_droid(
     env.clone()
         .with_profile(cmd_overrides)
         .apply_to_command(&mut command);
+
+    // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+    process_limits::apply_all_limits(&mut command);
 
     let mut child = command.group_spawn()?;
 

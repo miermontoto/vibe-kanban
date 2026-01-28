@@ -53,6 +53,7 @@ use crate::{
         StandardCodingAgentExecutor,
         codex::{jsonrpc::ExitSignalSender, normalize_logs::Error},
     },
+    process_limits,
     stdout_dup::create_stdout_pipe_writer,
 };
 
@@ -363,6 +364,9 @@ impl Codex {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut process);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut process);
 
         let mut child = process.group_spawn()?;
 

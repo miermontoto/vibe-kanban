@@ -27,6 +27,7 @@ use crate::{
         plain_text_processor::PlainTextLogProcessor,
         utils::{ConversationPatch, EntryIndexProvider},
     },
+    process_limits,
 };
 
 mod mcp;
@@ -99,6 +100,9 @@ impl StandardCodingAgentExecutor for CursorAgent {
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
 
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
+
         let mut child = command.group_spawn()?;
 
         if let Some(mut stdin) = child.inner().stdin.take() {
@@ -138,6 +142,9 @@ impl StandardCodingAgentExecutor for CursorAgent {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
 

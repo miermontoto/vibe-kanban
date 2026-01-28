@@ -16,6 +16,7 @@ use crate::{
         claude::{ClaudeLogProcessor, HistoryStrategy},
     },
     logs::{stderr_processor::normalize_stderr_logs, utils::EntryIndexProvider},
+    process_limits,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS, JsonSchema)]
@@ -69,6 +70,9 @@ impl StandardCodingAgentExecutor for Amp {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
 
@@ -144,6 +148,9 @@ impl StandardCodingAgentExecutor for Amp {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
 

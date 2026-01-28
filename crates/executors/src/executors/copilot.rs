@@ -31,6 +31,7 @@ use crate::{
         NormalizedEntry, NormalizedEntryType, plain_text_processor::PlainTextLogProcessor,
         stderr_processor::normalize_stderr_logs, utils::EntryIndexProvider,
     },
+    process_limits,
     stdout_dup::{self, StdoutAppender},
 };
 
@@ -127,6 +128,9 @@ impl StandardCodingAgentExecutor for Copilot {
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
 
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
+
         let mut child = command.group_spawn()?;
 
         // Write prompt to stdin
@@ -171,6 +175,9 @@ impl StandardCodingAgentExecutor for Copilot {
         env.clone()
             .with_profile(&self.cmd)
             .apply_to_command(&mut command);
+
+        // aplicar límites de CPU para evitar que compilaciones saturen el sistema
+        process_limits::apply_all_limits(&mut command);
 
         let mut child = command.group_spawn()?;
 
