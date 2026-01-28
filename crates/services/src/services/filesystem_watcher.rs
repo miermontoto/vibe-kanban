@@ -6,7 +6,7 @@ use std::{
 };
 
 use futures::{
-    SinkExt, StreamExt,
+    SinkExt,
     channel::mpsc::{Receiver, channel},
 };
 use ignore::{
@@ -499,7 +499,7 @@ pub fn async_watcher(root: PathBuf) -> Result<WatcherComponents, FilesystemWatch
     }
 
     std::thread::spawn(move || {
-        // usa timeout para verificar periódicamente si el debouncer fue dropped
+        // usa polling para verificar periódicamente si el debouncer fue dropped
         // esto previene que el thread quede bloqueado indefinidamente cuando no hay eventos
         loop {
             // verifica primero si el debouncer sigue vivo
@@ -507,15 +507,18 @@ pub fn async_watcher(root: PathBuf) -> Result<WatcherComponents, FilesystemWatch
                 break;
             }
 
-            // espera por eventos con timeout para poder verificar shutdown periódicamente
-            let recv_result = futures::executor::block_on(async {
-                tokio::time::timeout(Duration::from_millis(500), raw_rx.next()).await
-            });
+            // usa try_next() para non-blocking receive, luego sleep si no hay eventos
+            // nota: no usamos tokio::time::timeout porque no estamos en el runtime de tokio
+            let recv_result = futures::executor::block_on(async { raw_rx.try_next() });
 
             let result = match recv_result {
                 Ok(Some(r)) => r,
-                Ok(None) => break,  // channel cerrado
-                Err(_) => continue, // timeout, verificar shutdown y continuar
+                Ok(None) => break, // channel cerrado
+                Err(_) => {
+                    // no hay eventos disponibles, esperar un poco y verificar shutdown
+                    std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                }
             };
 
             // verifica nuevamente si el debouncer sigue vivo
