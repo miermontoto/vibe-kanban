@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      idb-keyval:
-        specifier: ^6.2.2
-        version: 6.2.2
     devDependencies:
       concurrently:
         specifier: ^8.2.2
