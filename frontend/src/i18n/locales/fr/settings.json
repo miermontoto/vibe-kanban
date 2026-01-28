@@ -129,6 +129,10 @@
       "git": {
         "title": "Git",
         "description": "Configurez les préférences de nommage des branches git",
+        "sections": {
+          "branchNaming": "Nommage des branches",
+          "commits": "Commits"
+        },
         "branchPrefix": {
           "label": "Préfixe de branche",
           "placeholder": "vk",
@@ -148,18 +152,101 @@
         "workspaceDir": {
           "label": "Répertoire des espaces de travail",
           "placeholder": "~/",
-          "helper": "Les espaces de travail seront créés dans un sous-répertoire .vibe-kanban-workspaces à l'intérieur de ce chemin. Laissez vide pour utiliser la valeur par défaut du système. Les modifications nécessitent un redémarrage de l'application.",
+          "helper": "Les espaces de travail seront créés dans un sous-répertoire .vibe-kanban-workspaces à l'intérieur de ce chemin. Laissez vide pour utiliser la valeur par défaut du système.",
           "browse": "Parcourir",
           "dialogTitle": "Sélectionner le répertoire des espaces de travail",
           "dialogDescription": "Choisissez un répertoire. Les espaces de travail seront créés dans un sous-répertoire .vibe-kanban-workspaces à l'intérieur."
+        },
+        "autoCommit": {
+          "label": "Auto-commit des modifications",
+          "helper": "Contrôle si l'agent commit automatiquement les modifications après l'exécution de la tâche.",
+          "options": {
+            "enabled": "Activé",
+            "enabledDescription": "L'agent commit automatiquement les modifications après une exécution réussie.",
+            "disabled": "Désactivé",
+            "disabledDescription": "Les modifications restent non commitées pour révision manuelle."
+          }
+        },
+        "commitTitleMode": {
+          "label": "Mode du titre de commit",
+          "helper": "Choisissez comment les titres de commit sont générés pour les auto-commits.",
+          "options": {
+            "agentSummary": "Résumé de l'agent",
+            "agentSummaryDescription": "Utiliser le résumé de tâche de l'agent comme titre de commit (par défaut).",
+            "aiGenerated": "Généré par IA",
+            "aiGeneratedDescription": "Générer les titres de commit en utilisant un prompt IA personnalisé.",
+            "manual": "Manuel",
+            "manualDescription": "Mettre en file d'attente les commits pour saisie manuelle du titre."
+          },
+          "customPrompt": {
+            "useCustom": "Utiliser un prompt personnalisé pour les titres de commit",
+            "helper": "Personnalisez le prompt utilisé pour générer les titres de commit. L'IA utilisera ce prompt pour créer des messages de commit conventionnels."
+          },
+          "notImplemented": "Pas encore implémenté"
+        },
+        "autoPush": {
+          "label": "Mode auto-push",
+          "helper": "Pousser automatiquement les commits vers le dépôt distant après le commit.",
+          "options": {
+            "never": "Jamais auto-push",
+            "always": "Toujours auto-push après commit",
+            "ifPrExists": "Auto-push seulement si une PR existe pour la branche"
+          }
+        }
+      },
+      "tasks": {
+        "title": "Tâches",
+        "description": "Configurez le comportement de création et de navigation des tâches.",
+        "sections": {
+          "behavior": "Comportement des tâches"
+        },
+        "redirectToAttempt": {
+          "label": "Naviguer vers la tentative à la création",
+          "helper": "Contrôle le comportement de navigation après la création et le démarrage d'une tâche.",
+          "options": {
+            "enabled": "Activé",
+            "enabledDescription": "Naviguer automatiquement vers la vue de détail de la tentative de tâche.",
+            "disabled": "Désactivé",
+            "disabledDescription": "Rester sur la page actuelle après la création de la tâche."
+          }
         }
       },
       "pullRequests": {
         "title": "Pull Requests",
         "description": "Configurez le comportement de création des PR",
+        "sections": {
+          "creation": "Création de PR",
+          "description": "Description de PR"
+        },
+        "autoPr": {
+          "label": "Auto-créer une PR lors de la révision",
+          "helper": "Contrôle la création automatique de PR lors du passage au statut En révision.",
+          "options": {
+            "enabled": "Activé",
+            "enabledDescription": "Créer automatiquement une pull request lorsqu'une tâche passe En révision.",
+            "disabled": "Désactivé",
+            "disabledDescription": "Ne pas créer automatiquement de PR."
+          }
+        },
+        "autoPrDraft": {
+          "label": "Créer comme PR brouillon",
+          "helper": "Contrôle si les PR auto-créées sont des brouillons ou prêtes pour révision.",
+          "options": {
+            "enabled": "Brouillon",
+            "enabledDescription": "Créer les PR comme brouillons, nécessitant une publication manuelle.",
+            "disabled": "Prête pour révision",
+            "disabledDescription": "Créer les PR prêtes pour révision immédiate."
+          }
+        },
         "autoDescription": {
-          "label": "Générer automatiquement la description de la PR par défaut",
-          "helper": "Lorsque activé, l'agent IA mettra automatiquement à jour le titre et la description de la PR après sa création."
+          "label": "Générer automatiquement la description de PR",
+          "helper": "Contrôle la génération automatique du titre et de la description de PR.",
+          "options": {
+            "enabled": "Activé",
+            "enabledDescription": "L'agent IA mettra automatiquement à jour le titre et la description de la PR après sa création.",
+            "disabled": "Désactivé",
+            "disabledDescription": "Laisser le titre et la description de PR par défaut."
+          }
         },
         "customPrompt": {
           "useCustom": "Utiliser un prompt personnalisé",

@@ -146,6 +146,10 @@
       "git": {
         "title": "Git",
         "description": "Configure git branch naming preferences",
+        "sections": {
+          "branchNaming": "Branch Naming",
+          "commits": "Commits"
+        },
         "workspaceDir": {
           "label": "Workspace Directory",
           "placeholder": "/path/to/workspaces",
@@ -172,15 +176,24 @@
         },
         "autoCommit": {
           "label": "Auto-commit changes",
-          "helper": "When enabled, the agent will automatically commit changes after successful task execution."
+          "helper": "Control whether the agent automatically commits changes after task execution.",
+          "options": {
+            "enabled": "Enabled",
+            "enabledDescription": "Agent will automatically commit changes after successful task execution.",
+            "disabled": "Disabled",
+            "disabledDescription": "Changes will be left uncommitted for manual review."
+          }
         },
         "commitTitleMode": {
           "label": "Commit Title Mode",
           "helper": "Choose how commit titles are generated for auto-commits.",
           "options": {
-            "agentSummary": "Use agent's summary (default)",
-            "aiGenerated": "AI-generated (uses custom prompt)",
-            "manual": "Manual (queue commits for review)"
+            "agentSummary": "Agent Summary",
+            "agentSummaryDescription": "Use the agent's task summary as the commit title (default).",
+            "aiGenerated": "AI Generated",
+            "aiGeneratedDescription": "Generate commit titles using a custom AI prompt.",
+            "manual": "Manual",
+            "manualDescription": "Queue commits for manual title entry before committing."
           },
           "customPrompt": {
             "useCustom": "Use custom prompt for commit titles",
@@ -201,25 +214,56 @@
       "tasks": {
         "title": "Tasks",
         "description": "Configure task creation and navigation behavior.",
+        "sections": {
+          "behavior": "Task Behavior"
+        },
         "redirectToAttempt": {
-          "label": "Redirect to attempt on task creation",
-          "helper": "When enabled, automatically navigate to the task attempt detail view after creating and starting a task."
+          "label": "Navigate to attempt on creation",
+          "helper": "Control navigation behavior after creating and starting a task.",
+          "options": {
+            "enabled": "Enabled",
+            "enabledDescription": "Automatically navigate to the task attempt detail view.",
+            "disabled": "Disabled",
+            "disabledDescription": "Stay on the current page after task creation."
+          }
         }
       },
       "pullRequests": {
         "title": "Pull Requests",
         "description": "Configure PR creation behavior",
+        "sections": {
+          "creation": "PR Creation",
+          "description": "PR Description"
+        },
         "autoPr": {
-          "label": "Create PR when moving to In Review",
-          "helper": "Automatically create a pull request when a task is moved to the In Review status."
+          "label": "Auto-create PR on review",
+          "helper": "Control automatic PR creation when moving tasks to In Review status.",
+          "options": {
+            "enabled": "Enabled",
+            "enabledDescription": "Automatically create a pull request when a task is moved to In Review.",
+            "disabled": "Disabled",
+            "disabledDescription": "Do not create PRs automatically."
+          }
         },
         "autoPrDraft": {
           "label": "Create as draft PR",
-          "helper": "When auto-creating PRs, create them as drafts instead of ready for review."
+          "helper": "Control whether auto-created PRs are drafts or ready for review.",
+          "options": {
+            "enabled": "Draft",
+            "enabledDescription": "Create PRs as drafts, requiring manual publishing.",
+            "disabled": "Ready for review",
+            "disabledDescription": "Create PRs ready for immediate review."
+          }
         },
         "autoDescription": {
-          "label": "Auto-generate PR description by default",
-          "helper": "When enabled, the AI agent will automatically update the PR title and description after creation."
+          "label": "Auto-generate PR description",
+          "helper": "Control automatic PR title and description generation.",
+          "options": {
+            "enabled": "Enabled",
+            "enabledDescription": "AI agent will automatically update PR title and description after creation.",
+            "disabled": "Disabled",
+            "disabledDescription": "Leave PR title and description as default."
+          }
         },
         "customPrompt": {
           "useCustom": "Use custom prompt",
