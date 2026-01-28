@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// modelo por defecto para generación de commit messages (Haiku es suficiente para esta tarea)
-const DEFAULT_MODEL: &str = "claude-3-5-haiku-latest";
+const DEFAULT_MODEL: &str = "claude-haiku-4-5-20251001";
 
 /// error types para el servicio de generación de commit messages
 #[derive(Debug, Error)]
